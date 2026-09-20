@@ -634,11 +634,11 @@ export const NewStudentsTestsTable: React.FC = () => {
                       </td>
 
                       {/* Notes */}
-                      <td className="py-3 px-4 max-w-[180px]">
+                      <td className="py-3 px-4 min-w-[180px] max-w-[280px] align-top">
                         {test.notes ? (
-                          <span className="text-[11px] text-gray-600 dark:text-gray-300 truncate block" title={test.notes}>
+                          <div className="text-[11px] text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed bg-gray-50/70 dark:bg-gray-900/40 p-2 rounded-xl border border-gray-100 dark:border-gray-750">
                             {test.notes}
-                          </span>
+                          </div>
                         ) : (
                           <span className="text-gray-300 dark:text-gray-600">-</span>
                         )}
