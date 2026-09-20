@@ -1,0 +1,18 @@
+                        {activeTab === 'students' && stages.length > 0 && (
+                            <div className="mb-4">
+                                <FilterItem 
+                                    id="stages" 
+                                    title="تصفية وتمييز بالألوان حسب المرحلة الدراسية"
+                                    options={stages.map(s => ({ id: s, name: s }))}
+                                    selectedValues={selectedStage}
+                                    onSelect={setSelectedStage}
+                                    search={search}
+                                    setSearch={setSearch}
+                                    openDropdown={openDropdown}
+                                    setOpenDropdown={setOpenDropdown}
+                                    showColorPicker={true}
+                                    colorMap={stageColors}
+                                    onColorChange={handleStageColorChange}
+                                />
+                            </div>
+                        )}

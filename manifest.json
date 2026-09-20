@@ -1,0 +1,33 @@
+
+{
+  "name": "إعداد حافظ (لقاء الخميس)",
+  "short_name": "إعداد حافظ",
+  "description": "تطبيق إدارة وتقييم حفظ طلبة القرآن الكريم",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#006A4E",
+  "theme_color": "#006A4E",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

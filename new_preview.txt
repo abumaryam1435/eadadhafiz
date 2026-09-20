@@ -1,0 +1,46 @@
+    useEffect(() => {
+        if (config.templateImage) return;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = 1000;
+        canvas.height = (config.height / config.width) * 1000;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        const currentTarget = options[previewIndex];
+        const stage = currentTarget?.stage;
+        const baseColor = (stage && stageColors[stage]) || '#064e3b';
+        
+        let r = parseInt(baseColor.slice(1,3), 16) || 6;
+        let g = parseInt(baseColor.slice(3,5), 16) || 78;
+        let b = parseInt(baseColor.slice(5,7), 16) || 59;
+        const darkerColor = `#${Math.floor(r * 0.5).toString(16).padStart(2,'0')}${Math.floor(g * 0.5).toString(16).padStart(2,'0')}${Math.floor(b * 0.5).toString(16).padStart(2,'0')}`;
+        
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        grad.addColorStop(0, baseColor);
+        grad.addColorStop(1, darkerColor);
+        
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const borderWidth = canvas.width * 0.03;
+        ctx.strokeStyle = '#D4AF37';
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(borderWidth, borderWidth, canvas.width - borderWidth * 2, canvas.height - borderWidth * 2);
+        
+        ctx.lineWidth = borderWidth * 0.2;
+        ctx.strokeRect(borderWidth * 1.5, borderWidth * 1.5, canvas.width - borderWidth * 3, canvas.height - borderWidth * 3);
+        
+        if (appLogo) {
+            const logoW = canvas.width * 0.4;
+            const logoH = (appLogo.height / appLogo.width) * logoW;
+            ctx.drawImage(appLogo, (canvas.width - logoW) / 2, canvas.height * 0.1, logoW, logoH);
+            
+            ctx.font = `bold ${canvas.height * 0.06}px Amiri, Cairo, sans-serif`;
+            ctx.fillStyle = '#D4AF37';
+            ctx.textAlign = 'center';
+            ctx.fillText('مشروع إعداد حافظ', canvas.width / 2, canvas.height * 0.1 + logoH + canvas.height * 0.08);
+        }
+        
+        setDynamicPreviewUrl(canvas.toDataURL('image/jpeg', 0.9));
+    }, [config.templateImage, config.width, config.height, options, previewIndex, stageColors, appLogo]);

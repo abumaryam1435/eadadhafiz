@@ -1,0 +1,2 @@
+                            <div className="relative w-full bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden cursor-crosshair" style={{ aspectRatio: `${config.width}/${config.height}`, containerType: 'inline-size' }} onClick={handleImageClick}>
+                                <img ref={imageRef} src={config.templateImage || dynamicPreviewUrl} alt="Template" className="w-full h-full object-fill pointer-events-none" />

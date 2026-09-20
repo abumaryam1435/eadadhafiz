@@ -1,0 +1,10 @@
+{
+  "name": " إعداد حافظ (اقتراح مقاطع للتسميع)",
+  "description": "تطبيق لإدارة وتقييم حفظ طلبة القرآن الكريم. يعمل بإنترنت ويحفظ البيانات في المتصفح.",
+  "requestFramePermissions": [
+    "web-share"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

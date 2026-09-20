@@ -1,0 +1,1 @@
+sed -i 's/export const SupervisorSuggestionsView: React.FC = () => {/interface Props { isTeacher?: boolean; }\nexport const SupervisorSuggestionsView: React.FC<Props> = ({ isTeacher = false }) => {/g' components/SupervisorSuggestionsView.tsx
