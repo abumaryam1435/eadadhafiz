@@ -21,6 +21,79 @@ const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
     };
 };
 
+/**
+ * Derives a deep, rich, dark tone of the exact same color family (hue) as the base card background.
+ * Always guarantees high contrast (dark text) even if the background color is bright, pastel, or light.
+ */
+const getDarkToneFromBaseColor = (color: string): string => {
+    if (!color) return '#003b29';
+    let r = 5, g = 150, b = 105;
+    if (color.startsWith('#')) {
+        const rgb = hexToRgb(color);
+        if (rgb) {
+            r = rgb.r;
+            g = rgb.g;
+            b = rgb.b;
+        }
+    } else if (color.startsWith('rgb')) {
+        const match = color.match(/\d+/g);
+        if (match && match.length >= 3) {
+            r = parseInt(match[0], 10);
+            g = parseInt(match[1], 10);
+            b = parseInt(match[2], 10);
+        }
+    }
+
+    const rNorm = r / 255;
+    const gNorm = g / 255;
+    const bNorm = b / 255;
+
+    const max = Math.max(rNorm, gNorm, bNorm);
+    const min = Math.min(rNorm, gNorm, bNorm);
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case rNorm: h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0); break;
+            case gNorm: h = (bNorm - rNorm) / d + 2; break;
+            case bNorm: h = (rNorm - gNorm) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    // Force lightness into a strictly dark range (0.11 - 0.18) so it is always bold & readable against white/cream badges
+    const targetL = Math.min(0.18, Math.max(0.11, l * 0.32));
+    // Maintain or boost saturation so the hue remains vibrant and clearly reflects the card background color
+    const targetS = s < 0.15 ? s : Math.max(s, 0.72);
+
+    const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    };
+
+    let dr: number, dg: number, db: number;
+    if (targetS === 0) {
+        dr = dg = db = targetL;
+    } else {
+        const q = targetL < 0.5 ? targetL * (1 + targetS) : targetL + targetS - targetL * targetS;
+        const p = 2 * targetL - q;
+        dr = hue2rgb(p, q, h + 1 / 3);
+        dg = hue2rgb(p, q, h);
+        db = hue2rgb(p, q, h - 1 / 3);
+    }
+
+    const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, '0');
+    return `#${toHex(dr)}${toHex(dg)}${toHex(db)}`;
+};
+
 export interface UnifiedHalaqaCardItem {
     id: string;
     originalId: number;
@@ -673,10 +746,11 @@ export const CardsManager: React.FC = () => {
         ctx.restore();
 
         // 6. Center Section - Halaqa Type Name and Number
-        const typeY = Math.round(height * 0.30);
+        // Positioned comfortably below "✦ مشروع إعداد حافظ ✦" to eliminate any overlap
+        const typeY = Math.round(height * 0.29);
 
         ctx.save();
-        ctx.font = 'bold 54px Tajawal, Cairo, sans-serif';
+        ctx.font = 'bold 50px Tajawal, Cairo, sans-serif';
         ctx.fillStyle = '#FFFFFF';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -685,8 +759,8 @@ export const CardsManager: React.FC = () => {
         ctx.fillText(target.typeName, width / 2, typeY);
         ctx.restore();
 
-        // Divider Line
-        const lineY = typeY + 55;
+        // Divider Line (neatly spaced under type name)
+        const lineY = typeY + 44;
         ctx.save();
         ctx.strokeStyle = '#D4AF37';
         ctx.lineWidth = 4;
@@ -701,10 +775,15 @@ export const CardsManager: React.FC = () => {
         ctx.fill();
         ctx.restore();
 
-        // Number Badge - Extra Large Central Circle (Positioned safely below divider line)
+        // Bottom Ornamentation Y coordinate
+        const bottomOrnamentY = height - margin - 20;
+
+        // Number Badge - Extra Large Central Circle (Centered vertically and horizontally with maximum diameter)
         ctx.save();
-        const circleRadius = 300; // 600px Diameter Circle
-        const numY = lineY + 35 + circleRadius; // Center of circle, top edge is lineY + 35 (no overlap)
+        const availableVertical = bottomOrnamentY - lineY;
+        const numY = Math.round(lineY + availableVertical / 2);
+        // Circle radius 405px (810px diameter) maximizes the space between divider line and bottom ornament
+        const circleRadius = 405;
 
         // Shadow for depth
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
@@ -714,35 +793,76 @@ export const CardsManager: React.FC = () => {
         // Circle Background
         ctx.beginPath();
         ctx.arc(width / 2, numY, circleRadius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.97)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
         ctx.fill();
 
         // Remove shadow for clean crisp borders & text
         ctx.shadowColor = 'transparent';
 
         // Outer Golden Border
-        ctx.lineWidth = 16;
+        ctx.lineWidth = 14;
         ctx.strokeStyle = '#D4AF37';
         ctx.stroke();
 
         // Inner Subtle Golden Ring
         ctx.beginPath();
-        ctx.arc(width / 2, numY, circleRadius - 20, 0, Math.PI * 2);
+        ctx.arc(width / 2, numY, circleRadius - 15, 0, Math.PI * 2);
         ctx.lineWidth = 4;
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
         ctx.stroke();
 
-        // Number Text Inside Circle - Extra Bold and Extra Large
+        // Number Text Inside Circle - Maximized to the largest possible size taking up the full circle interior
         const numStr = target.numberStr.trim();
-        let fontSize = 270;
-        if (numStr.length > 3) fontSize = 165;
-        else if (numStr.length > 2) fontSize = 210;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+
+        let fontSize = 720;
+        if (numStr.length === 1) {
+            fontSize = 780;
+        } else if (numStr.length === 2) {
+            fontSize = 640;
+        } else if (numStr.length === 3) {
+            fontSize = 440;
+        } else {
+            fontSize = 320;
+        }
+
+        // Inner safe radius from the gold ring
+        const safeInnerRadius = circleRadius - 15 - 10; // ~380px radius
+        while (fontSize > 100) {
+            ctx.font = `900 ${fontSize}px Tajawal, Cairo, Arial, sans-serif`;
+            const metrics = ctx.measureText(numStr);
+            const textWidth = metrics.width;
+            
+            // In center alignment, text extends halfWidth to the left and right
+            const halfW = textWidth / 2;
+            let halfH = fontSize * 0.36;
+            if (metrics.actualBoundingBoxAscent !== undefined && metrics.actualBoundingBoxDescent !== undefined) {
+                halfH = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) / 2;
+            }
+
+            // Since digits inside circles have curved/slanted silhouettes, check horizontal, vertical, and corner bounds
+            const cornerDist = Math.sqrt((halfW * 0.70) ** 2 + (halfH * 0.70) ** 2);
+            if (halfW <= safeInnerRadius * 0.95 && halfH <= safeInnerRadius * 0.95 && cornerDist <= safeInnerRadius) {
+                break;
+            }
+            fontSize -= 4;
+        }
 
         ctx.font = `900 ${fontSize}px Tajawal, Cairo, Arial, sans-serif`;
-        ctx.fillStyle = '#00583F'; // Deep bold emerald green
+        ctx.fillStyle = getDarkToneFromBaseColor(baseColor);
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(numStr, width / 2, numY + circleRadius * 0.03);
+
+        // Optical centering: place the number in the EXACT center of the circle vertically and horizontally
+        const finalMetrics = ctx.measureText(numStr);
+        if (finalMetrics.actualBoundingBoxAscent !== undefined && finalMetrics.actualBoundingBoxDescent !== undefined) {
+            ctx.textBaseline = 'alphabetic';
+            const opticalY = numY + (finalMetrics.actualBoundingBoxAscent - finalMetrics.actualBoundingBoxDescent) / 2;
+            ctx.fillText(numStr, width / 2, opticalY);
+        } else {
+            ctx.textBaseline = 'middle';
+            ctx.fillText(numStr, width / 2, numY);
+        }
         ctx.restore();
 
         // 8. Bottom Ornamentation
@@ -750,7 +870,7 @@ export const CardsManager: React.FC = () => {
         ctx.fillStyle = 'rgba(212, 175, 55, 0.85)';
         ctx.font = '18px Cairo, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('❖  ❖  ❖', width / 2, height - margin - 25);
+        ctx.fillText('❖  ❖  ❖', width / 2, bottomOrnamentY);
         ctx.restore();
     };
 
@@ -1250,7 +1370,8 @@ export const CardsManager: React.FC = () => {
             ctx.stroke();
 
             ctx.font = `bold ${radius * 0.9}px Arial, sans-serif`;
-            ctx.fillStyle = '#006A4E';
+            const idCardBaseColor = (stage && effectiveStageColors[stage]) || config.nameColor || '#059669';
+            ctx.fillStyle = getDarkToneFromBaseColor(idCardBaseColor);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(currentTarget.stageIndex.toString(), x, y + radius * 0.08);
@@ -1628,7 +1749,8 @@ export const CardsManager: React.FC = () => {
                         ctx.stroke();
 
                         ctx.font = `bold ${radius * 0.9}px Arial, sans-serif`;
-                        ctx.fillStyle = '#006A4E';
+                        const idCardBaseColor = (target.stage && effectiveStageColors[target.stage]) || config.nameColor || '#059669';
+                        ctx.fillStyle = getDarkToneFromBaseColor(idCardBaseColor);
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(target.stageIndex.toString(), x, y + radius * 0.08);

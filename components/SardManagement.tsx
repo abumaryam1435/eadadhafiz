@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { AppContext } from '../App';
 import { Student, UserRole, SardHalaqa, User } from '../types';
 import Modal from './Modal';
-import { isSmartMatch } from '../utils/searchUtils';
+import { isSmartMatch, findSimilarHalaqa, normalizeHalaqaName } from '../utils/searchUtils';
 import { exportSardHalaqasTemplate } from '../utils/halaqaExcelUtils';
 import { HalaqaExcelImportModal } from './HalaqaExcelImportModal';
 import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, LEVEL_WORDS_ORDER, normalizeStudentLevel } from '../utils/pageUtils';
@@ -154,11 +154,72 @@ export const SardManagement: React.FC = () => {
 
     const handleAddHalaqa = (e: React.FormEvent) => {
         e.preventDefault();
-        if (newHalaqaName.trim()) {
-            const names = newHalaqaName.split('\n').filter(name => name.trim() !== '');
-            names.forEach(name => addSardHalaqa({ name: name.trim(), teacherId: 0 }));
+        const rawLines = newHalaqaName.split('\n').map(name => name.trim()).filter(name => name !== '');
+        if (rawLines.length === 0) return;
+
+        const validToAdd: string[] = [];
+        const rejectedDuplicates: { name: string; conflictWith: string }[] = [];
+        const seenInBatch = new Set<string>();
+
+        for (const name of rawLines) {
+            const norm = normalizeHalaqaName(name);
+            if (seenInBatch.has(norm)) {
+                rejectedDuplicates.push({ name, conflictWith: 'مكرر في نفس القائمة المدخلة' });
+                continue;
+            }
+            const conflict = findSimilarHalaqa(name, sardHalaqas);
+            if (conflict) {
+                rejectedDuplicates.push({ name, conflictWith: conflict.name });
+                continue;
+            }
+            seenInBatch.add(norm);
+            validToAdd.push(name);
+        }
+
+        if (validToAdd.length === 0) {
+            // جميع الأسماء المدخلة مكررة أو مشابهة لحلقات سرد سابقة
+            if (rejectedDuplicates.length === 1) {
+                showToast(`⚠️ لا يمكن قبول اسم حلقة السرد "${rejectedDuplicates[0].name}": مشابه أو مطابق لحلقة سرد سابقة ("${rejectedDuplicates[0].conflictWith}"). يجب أن يكون اسم حلقة السرد وحيداً!`);
+            } else {
+                const listStr = rejectedDuplicates.map(r => `"${r.name}"`).join('، ');
+                showToast(`⚠️ تعذر الإضافة: حلقات السرد التالية مكررة أو مشابهة لحلقات سابقة: (${listStr}). يجب أن يكون اسم كل حلقة وحيداً!`);
+            }
+            return;
+        }
+
+        // إضافة حلقات السرد الفريدة فقط
+        validToAdd.forEach(name => addSardHalaqa({ name, teacherId: 0 }));
+
+        if (rejectedDuplicates.length > 0) {
+            // إبقاء الأسماء المرفوضة في المربع للمراجعة والتعديل
+            setNewHalaqaName(rejectedDuplicates.map(r => r.name).join('\n'));
+            const rejectedList = rejectedDuplicates.map(r => `"${r.name}"`).join('، ');
+            showToast(`✅ تم إضافة ${validToAdd.length} حلقة سرد بنجاح. ⚠️ تم استبعاد المكرر: (${rejectedList}) لأن الاسم مسجل مسبقاً.`);
+        } else {
             setNewHalaqaName('');
-            showToast(`✅ تم إضافة ${names.length} حلقة سرد بنجاح.`);
+            showToast(`✅ تم إضافة ${validToAdd.length} حلقة سرد بنجاح.`);
+        }
+    };
+
+    const handleSaveEditHalaqa = () => {
+        const trimmed = editingHalaqaName.trim();
+        if (!trimmed) {
+            showToast('⚠️ يرجى إدخال اسم حلقة السرد');
+            return;
+        }
+        if (editingHalaqaId === null) return;
+
+        const conflict = findSimilarHalaqa(trimmed, sardHalaqas, editingHalaqaId);
+        if (conflict) {
+            showToast(`⚠️ لا يمكن حفظ التعديل: اسم حلقة السرد "${trimmed}" مطابق أو مشابه لحلقة سرد سابقة ("${conflict.name}"). يجب أن يكون اسم حلقة السرد وحيداً!`);
+            return;
+        }
+
+        const currentHalaqa = sardHalaqas.find(h => h.id === editingHalaqaId);
+        if (currentHalaqa) {
+            updateSardHalaqa({ ...currentHalaqa, name: trimmed });
+            setEditingHalaqaId(null);
+            showToast('✅ تم تحديث اسم حلقة السرد بنجاح');
         }
     };
 
@@ -329,6 +390,22 @@ export const SardManagement: React.FC = () => {
 
         showToast(`✅ تم استيراد حلقات السرد بنجاح: ${importedStudentsCount} طالب، ${importedSardHalaqasCount} حلقة سرد.`);
     };
+
+    const newHalaqaConflicts = useMemo(() => {
+        if (!newHalaqaName.trim()) return [];
+        const lines = newHalaqaName.split('\n').map(l => l.trim()).filter(Boolean);
+        const conflicts: { line: string; existingName: string }[] = [];
+        for (const l of lines) {
+            const c = findSimilarHalaqa(l, sardHalaqas);
+            if (c) conflicts.push({ line: l, existingName: c.name });
+        }
+        return conflicts;
+    }, [newHalaqaName, sardHalaqas]);
+
+    const editHalaqaConflict = useMemo(() => {
+        if (!editingHalaqaId || !editingHalaqaName.trim()) return undefined;
+        return findSimilarHalaqa(editingHalaqaName.trim(), sardHalaqas, editingHalaqaId);
+    }, [editingHalaqaId, editingHalaqaName, sardHalaqas]);
 
     return (
         <>
@@ -531,10 +608,32 @@ export const SardManagement: React.FC = () => {
                 <Modal title="تعديل اسم حلقة السرد" onClose={() => setEditingHalaqaId(null)} hideDefaultCloseButton>
                     <div className="space-y-4">
                         <p className="block font-black text-gray-700 dark:text-white">الاسم الجديد لحلقة السرد:</p>
-                        <input type="text" value={editingHalaqaName} onChange={(e) => setEditingHalaqaName(e.target.value)} className="input-style text-lg font-bold" />
+                        <input 
+                            type="text" 
+                            value={editingHalaqaName} 
+                            onChange={(e) => setEditingHalaqaName(e.target.value)} 
+                            className={`input-style text-lg font-bold ${editHalaqaConflict ? 'border-red-500 focus:ring-red-500 bg-red-50/20' : ''}`}
+                            placeholder="اكتب اسم حلقة السرد الجديد..."
+                        />
+                        {editHalaqaConflict && (
+                            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-700 rounded-xl flex items-center gap-2 text-red-800 dark:text-red-200 text-sm font-bold">
+                                <span className="text-lg">⚠️</span>
+                                <span>هذا الاسم مطابق أو مشابه لحلقة سرد موجودة مسبقاً ("{editHalaqaConflict.name}"). يجب أن يكون اسم حلقة السرد وحيداً!</span>
+                            </div>
+                        )}
                         <div className="flex gap-3 pt-2">
-                            <button onClick={() => setEditingHalaqaId(null)} className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-xl font-bold">إلغاء</button>
-                            <button onClick={() => { updateSardHalaqa({ ...sardHalaqas.find(h => h.id === editingHalaqaId)!, name: editingHalaqaName }); setEditingHalaqaId(null); showToast('✅ تم تحديث اسم حلقة السرد'); }} className="flex-1 py-3 bg-emerald-700 text-white rounded-xl font-bold shadow-lg">حفظ التغييرات</button>
+                            <button onClick={() => setEditingHalaqaId(null)} className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300 transition-all">إلغاء</button>
+                            <button 
+                                onClick={handleSaveEditHalaqa} 
+                                disabled={!editingHalaqaName.trim() || !!editHalaqaConflict}
+                                className={`flex-1 py-3 rounded-xl font-bold shadow-lg transition-all ${
+                                    !editingHalaqaName.trim() || !!editHalaqaConflict
+                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                        : 'bg-emerald-700 hover:bg-emerald-800 text-white active:scale-95'
+                                }`}
+                            >
+                                حفظ التغييرات
+                            </button>
                         </div>
                     </div>
                 </Modal>
@@ -593,15 +692,36 @@ export const SardManagement: React.FC = () => {
                             <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                             إضافة حلقات سرد جديدة
                         </h4>
-                        <form onSubmit={handleAddHalaqa} className="flex gap-3">
-                            <textarea 
-                                value={newHalaqaName} 
-                                onChange={(e) => setNewHalaqaName(e.target.value)} 
-                                placeholder="اكتب أسماء حلقات السرد (اسم في كل سطر)... مثال: حلقة سرد 1" 
-                                className="input-style flex-grow py-3" 
-                                rows={1}
-                            />
-                            <button type="submit" className="px-6 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md active:scale-95 whitespace-nowrap">إضافة حلقة سرد</button>
+                        <form onSubmit={handleAddHalaqa} className="flex flex-col gap-3">
+                            <div className="flex gap-3">
+                                <textarea 
+                                    value={newHalaqaName} 
+                                    onChange={(e) => setNewHalaqaName(e.target.value)} 
+                                    placeholder="اكتب أسماء حلقات السرد (اسم في كل سطر)... مثال: حلقة سرد 1" 
+                                    className={`input-style flex-grow py-3 ${newHalaqaConflicts.length > 0 ? 'border-amber-400 focus:ring-amber-400 bg-amber-50/20' : ''}`} 
+                                    rows={1}
+                                />
+                                <button 
+                                    type="submit" 
+                                    disabled={!newHalaqaName.trim()}
+                                    className="px-6 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md active:scale-95 whitespace-nowrap disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                >
+                                    إضافة حلقة سرد
+                                </button>
+                            </div>
+                            {newHalaqaConflicts.length > 0 && (
+                                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex flex-col gap-1 font-bold">
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                        <span className="text-base">⚠️</span>
+                                        <span>تنبيه: تم اكتشاف أسماء مكررة أو مشابهة لحلقات سرد سابقة (يجب أن يكون اسم كل حلقة وحيداً):</span>
+                                    </div>
+                                    <ul className="list-disc list-inside pr-4 space-y-0.5">
+                                        {newHalaqaConflicts.map((c, idx) => (
+                                            <li key={idx}>الاسم "{c.line}" مطابق أو مشابه لحلقة السرد الحالية ("{c.existingName}")</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </form>
                     </div>
                 </div>

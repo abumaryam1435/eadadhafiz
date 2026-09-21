@@ -6,8 +6,51 @@ export const normalizeArabic = (text: string): string => {
     .replace(/[أإآ]/g, "ا")
     .replace(/ة/g, "ه")
     .replace(/ى/g, "ي")
-    .replace(/[\u064B-\u065F]/g, "") // إزالة التشكيل
+    .replace(/[\u064B-\u065F\u0670]/g, "") // إزالة التشكيل والألف الخنجرية
+    .replace(/ـ+/g, "") // إزالة التطويل والكشيدة
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ") // دمج المسافات المتعددة
     .trim();
+};
+
+/**
+ * دالة لتطبيع وتوحيد أسماء الحلقات لاكتشاف أي تشابه أو تكرار بدقة عالية:
+ * - توحيد الأرقام المشرقية (٠-٩) إلى (0-9)
+ * - توحيد الأصفار في بادئة الأرقام (مثل 01 إلى 1)
+ * - توحيد الهمزات والتاء المربوطة والألف المقصورة
+ * - إزالة التشكيل وحركات الإعراب والتطويل
+ * - دمج وتوحيد المسافات
+ */
+export const normalizeHalaqaName = (text: string): string => {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString())
+    .replace(/\b0+(\d+)\b/g, "$1") // إزالة الأصفار البادئة في الأرقام (مثال: حلقة 01 تتطابق مع حلقة 1)
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[\u064B-\u065F\u0670]/g, "") // إزالة التشكيل
+    .replace(/ـ+/g, "") // إزالة الكشيدة / التطويل
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+/**
+ * البحث عن حلقة سابقة مطابقة أو مشابهة بالاسم، مع إمكانية استثناء معرف حلقة حالية عند التعديل
+ */
+export const findSimilarHalaqa = <T extends { id?: number; name: string }>(
+  nameToCheck: string,
+  existingHalaqas: T[],
+  excludeId?: number
+): T | undefined => {
+  const normTarget = normalizeHalaqaName(nameToCheck);
+  if (!normTarget) return undefined;
+  return existingHalaqas.find(h => {
+    if (excludeId !== undefined && h.id !== undefined && h.id === excludeId) return false;
+    return normalizeHalaqaName(h.name) === normTarget;
+  });
 };
 
 export const isSmartMatch = (text: string, query: string): boolean => {

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import Modal from './Modal';
 import { Halaqa, SardHalaqa, Student, User, UserRole } from '../types';
+import { findSimilarHalaqa } from '../utils/searchUtils';
 
 export interface HalaqaImportPreviewItem {
   id: string;
@@ -128,8 +129,8 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
           } else {
             // التحقق من الحلقة في النظام
             const existingHalaqa = isSard
-              ? sardHalaqas.find(h => h.name.trim().toLowerCase() === rawHalaqa.toLowerCase())
-              : halaqas.find(h => h.name.trim().toLowerCase() === rawHalaqa.toLowerCase());
+              ? findSimilarHalaqa(rawHalaqa, sardHalaqas)
+              : findSimilarHalaqa(rawHalaqa, halaqas);
 
             if (existingHalaqa) {
               const currentTeacher = users.find(u => u.id === existingHalaqa.teacherId);

@@ -14,6 +14,7 @@ import Logo from "./Logo";
 import { MutoonManager } from "./MutoonManager";
 import { gregorianToHijriFormatted, HIJRI_MONTHS } from "../utils/exportPdf";
 import { HalaqaExcelImportModal } from "./HalaqaExcelImportModal";
+import { findSimilarHalaqa } from "../utils/searchUtils";
 
 declare const XLSX: any;
 
@@ -312,7 +313,7 @@ export const Settings: React.FC = () => {
                 teacherId = addTeacher(teacherName) as number;
                 localUsers.push({ id: teacherId, name: teacherName, role: UserRole.TEACHER } as any);
               }
-              let halaqa = localHalaqas.find((h) => h.name === halaqaName);
+              let halaqa = findSimilarHalaqa(halaqaName, localHalaqas);
               let targetHalaqaId: number;
               if (!halaqa) {
                 targetHalaqaId = addHalaqa({ name: halaqaName, teacherId }) as number;

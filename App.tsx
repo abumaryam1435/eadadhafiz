@@ -16,6 +16,7 @@ import { FirebaseSetupWizard } from './components/FirebaseSetupWizard';
 import { preloadPagesOnIdle } from './utils/mushafPreload';
 import { initSwipeNavigation } from './utils/navigationHistory';
 import { PwaUpdater } from './PwaUpdater';
+import { findSimilarHalaqa } from './utils/searchUtils';
 
 interface Toast {
   message: string;
@@ -703,11 +704,23 @@ const App: React.FC = () => {
   };
 
   const addHalaqa = (h: any) => {
+    const existing = findSimilarHalaqa(h.name, data.halaqas || []);
+    if (existing) {
+      console.warn(`Halaqa with similar name already exists: "${existing.name}"`);
+      return existing.id;
+    }
     const id = generateId();
     writeData(`data/halaqas/${id}`, { ...h, id, updatedAt: id });
     return id;
   };
-  const updateHalaqa = (h: any) => writeData(`data/halaqas/${h.id}`, { ...h, updatedAt: Date.now() });
+  const updateHalaqa = (h: any) => {
+    const conflict = findSimilarHalaqa(h.name, data.halaqas || [], h.id);
+    if (conflict) {
+      console.warn(`Cannot update halaqa: name "${h.name}" conflicts with existing halaqa "${conflict.name}"`);
+      return;
+    }
+    writeData(`data/halaqas/${h.id}`, { ...h, updatedAt: Date.now() });
+  };
   const deleteHalaqa = (id: number) => {
     const studentsInHalaqa = (data.students || []).filter(s => s.halaqaId === id);
     studentsInHalaqa.forEach(s => writeData(`data/students/${s.id}`, null));
@@ -720,11 +733,23 @@ const App: React.FC = () => {
   };
 
   const addSardHalaqa = (h: any) => {
+    const existing = findSimilarHalaqa(h.name, data.sardHalaqas || []);
+    if (existing) {
+      console.warn(`Sard halaqa with similar name already exists: "${existing.name}"`);
+      return existing.id;
+    }
     const id = generateId();
     writeData(`data/sardHalaqas/${id}`, { ...h, id, updatedAt: id });
     return id;
   };
-  const updateSardHalaqa = (h: any) => writeData(`data/sardHalaqas/${h.id}`, { ...h, updatedAt: Date.now() });
+  const updateSardHalaqa = (h: any) => {
+    const conflict = findSimilarHalaqa(h.name, data.sardHalaqas || [], h.id);
+    if (conflict) {
+      console.warn(`Cannot update sard halaqa: name "${h.name}" conflicts with existing sard halaqa "${conflict.name}"`);
+      return;
+    }
+    writeData(`data/sardHalaqas/${h.id}`, { ...h, updatedAt: Date.now() });
+  };
   const deleteSardHalaqa = (id: number) => {
     const studentsInSardHalaqa = (data.students || []).filter(s => s.sardHalaqaId === id);
     studentsInSardHalaqa.forEach(s => writeData(`data/students/${s.id}`, { ...s, sardHalaqaId: null, updatedAt: Date.now() }));
