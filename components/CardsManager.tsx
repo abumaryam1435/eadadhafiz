@@ -5,7 +5,7 @@ import { UserRole } from '../types';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from 'react-colorful';
-import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download } from 'lucide-react';
+import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers } from 'lucide-react';
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
     let cleanHex = hex.replace('#', '');
@@ -96,12 +96,19 @@ const getDarkToneFromBaseColor = (color: string): string => {
 
 export interface UnifiedHalaqaCardItem {
     id: string;
-    originalId: number;
+    originalId: number | string;
     name: string;
-    type: 'memorization' | 'sard';
+    type: 'memorization' | 'sard' | string;
     typeName: string;
     numberStr: string;
     teacherName?: string;
+    color: string;
+}
+
+export interface CustomHalaqaType {
+    id: string;
+    name: string;
+    count: number;
     color: string;
 }
 
@@ -299,7 +306,7 @@ export const CardsManager: React.FC = () => {
     const [mainTab, setMainTab] = useState<'id_cards' | 'halaqa_cards'>('id_cards');
 
     // State for Halaqa Cards
-    const [halaqaFilter, setHalaqaFilter] = useState<'all' | 'memorization' | 'sard'>('all');
+    const [halaqaFilter, setHalaqaFilter] = useState<string>('all');
     const [selectedHalaqaIds, setSelectedHalaqaIds] = useState<string[]>([]);
     const [halaqaSearch, setHalaqaSearch] = useState('');
 
@@ -311,6 +318,54 @@ export const CardsManager: React.FC = () => {
     });
     const [showMemColorPicker, setShowMemColorPicker] = useState(false);
     const [showSardColorPicker, setShowSardColorPicker] = useState(false);
+    const [activeCustomColorPickerId, setActiveCustomColorPickerId] = useState<string | null>(null);
+
+    const [customHalaqaTypes, setCustomHalaqaTypes] = useState<CustomHalaqaType[]>(() => {
+        const saved = localStorage.getItem('custom_halaqa_card_types');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // إذا كانت القيمة القديمة هي النموذج الافتراضي "حلقات تعليم"، نجعلها فارغة وفق طلب المستخدم
+                    const isOldDefault = parsed.length === 1 && parsed[0].name === 'حلقات تعليم';
+                    if (!isOldDefault) return parsed;
+                }
+            } catch (e) {}
+        }
+        return [
+            { id: 'custom_1', name: '', count: 1, color: '#8B4513' }
+        ];
+    });
+
+    const saveCustomHalaqaTypes = (types: CustomHalaqaType[]) => {
+        setCustomHalaqaTypes(types);
+        try {
+            localStorage.setItem('custom_halaqa_card_types', JSON.stringify(types));
+        } catch (e) {}
+    };
+
+    const handleAddCustomType = () => {
+        const newId = `custom_${Date.now()}`;
+        const updated = [
+            ...customHalaqaTypes,
+            { id: newId, name: '', count: 1, color: '#8B4513' }
+        ];
+        saveCustomHalaqaTypes(updated);
+    };
+
+    const handleUpdateCustomType = (id: string, updates: Partial<CustomHalaqaType>) => {
+        const updated = customHalaqaTypes.map(t => t.id === id ? { ...t, ...updates } : t);
+        saveCustomHalaqaTypes(updated);
+    };
+
+    const handleRemoveCustomType = (id: string) => {
+        const remaining = customHalaqaTypes.filter(t => t.id !== id);
+        if (remaining.length === 0) {
+            saveCustomHalaqaTypes([{ id: `custom_${Date.now()}`, name: '', count: 1, color: '#8B4513' }]);
+        } else {
+            saveCustomHalaqaTypes(remaining);
+        }
+    };
 
     const [halaqaConfig, setHalaqaConfig] = useState<{
         width: number;
@@ -383,8 +438,28 @@ export const CardsManager: React.FC = () => {
             });
         });
 
+        // Add custom additional halaqa types (generated from 1 to count)
+        customHalaqaTypes.forEach(ct => {
+            const title = ct.name.trim();
+            if (!title) return;
+            const count = Math.max(1, Number(ct.count) || 1);
+            const color = ct.color || '#8B4513';
+            for (let n = 1; n <= count; n++) {
+                items.push({
+                    id: `custom_${ct.id}_${n}`,
+                    originalId: n,
+                    name: `${title} - رقم ${n}`,
+                    type: `custom_${ct.id}`,
+                    typeName: title,
+                    numberStr: String(n),
+                    teacherName: '',
+                    color: color
+                });
+            }
+        });
+
         return items;
-    }, [halaqas, sardHalaqas, users, memorizationColor, sardColor]);
+    }, [halaqas, sardHalaqas, users, memorizationColor, sardColor, customHalaqaTypes]);
 
     const filteredHalaqaItems = useMemo(() => {
         let result = allHalaqaItems;
@@ -392,6 +467,8 @@ export const CardsManager: React.FC = () => {
             result = result.filter(item => item.type === 'memorization');
         } else if (halaqaFilter === 'sard') {
             result = result.filter(item => item.type === 'sard');
+        } else if (halaqaFilter !== 'all') {
+            result = result.filter(item => item.type === halaqaFilter);
         }
         return result;
     }, [allHalaqaItems, halaqaFilter]);
@@ -633,7 +710,7 @@ export const CardsManager: React.FC = () => {
         canvas.width = width;
         canvas.height = height;
 
-        const baseColor = target.color || (target.type === 'memorization' ? memorizationColor : sardColor);
+        const baseColor = target.color || (target.type === 'memorization' ? memorizationColor : (target.type === 'sard' ? sardColor : '#8B4513'));
 
         // 1. Background Gradient
         const rgb = hexToRgb(baseColor) || { r: 5, g: 150, b: 105 };
@@ -750,7 +827,14 @@ export const CardsManager: React.FC = () => {
         const typeY = Math.round(height * 0.29);
 
         ctx.save();
-        ctx.font = 'bold 50px Tajawal, Cairo, sans-serif';
+        let typeFontSize = 50;
+        ctx.font = `bold ${typeFontSize}px Tajawal, Cairo, sans-serif`;
+        let textMetrics = ctx.measureText(target.typeName);
+        while (textMetrics.width > width * 0.82 && typeFontSize > 22) {
+            typeFontSize -= 2;
+            ctx.font = `bold ${typeFontSize}px Tajawal, Cairo, sans-serif`;
+            textMetrics = ctx.measureText(target.typeName);
+        }
         ctx.fillStyle = '#FFFFFF';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -891,7 +975,7 @@ export const CardsManager: React.FC = () => {
             .catch(err => {
                 console.error('Error drawing halaqa card preview:', err);
             });
-    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor]);
+    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor, customHalaqaTypes]);
 
     const generateHalaqaPDF = async () => {
         if (activeHalaqaTargets.length === 0) {
@@ -2627,32 +2711,48 @@ export const CardsManager: React.FC = () => {
                                     <Palette className="w-4 h-4 text-emerald-600" />
                                     تصفية وتحديد الحلقات:
                                 </h4>
-                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                <div className="flex flex-wrap gap-1.5 mb-4">
                                     <button
                                         type="button"
                                         onClick={() => { setHalaqaFilter('all'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
-                                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                        className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
                                     >
                                         الكل ({allHalaqaItems.length})
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => { setHalaqaFilter('memorization'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
-                                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'memorization' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                        className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'memorization' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
                                     >
                                         الحفظ ({allHalaqaItems.filter(i => i.type === 'memorization').length})
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => { setHalaqaFilter('sard'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
-                                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'sard' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                        className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'sard' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
                                     >
                                         السرد ({allHalaqaItems.filter(i => i.type === 'sard').length})
                                     </button>
+                                    {customHalaqaTypes.filter(ct => ct.name.trim()).map(ct => {
+                                        const count = allHalaqaItems.filter(i => i.type === `custom_${ct.id}`).length;
+                                        const isSelected = halaqaFilter === `custom_${ct.id}`;
+                                        return (
+                                            <button
+                                                key={ct.id}
+                                                type="button"
+                                                onClick={() => { setHalaqaFilter(`custom_${ct.id}`); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
+                                                className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center flex items-center gap-1.5 ${isSelected ? 'bg-amber-700 text-white border-amber-700 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                            >
+                                                <span className="w-2.5 h-2.5 rounded-full inline-block border border-white/40 shadow-xs" style={{ backgroundColor: ct.color || '#8B4513' }} />
+                                                <span>{ct.name}</span>
+                                                <span>({count})</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
 
                                 {/* Color Settings per Type */}
-                                <div className="p-3 bg-emerald-50/60 dark:bg-gray-700/50 rounded-xl border border-emerald-100 dark:border-gray-600 space-y-2.5 mb-4">
+                                <div className="p-3 bg-emerald-50/60 dark:bg-gray-700/50 rounded-xl border border-emerald-100 dark:border-gray-600 space-y-2.5 mb-3">
                                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300 block">الألوان الافتراضية للبطاقات:</span>
                                     <div className="flex items-center justify-between">
                                         <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">لون حلقات الحفظ:</span>
@@ -2680,6 +2780,93 @@ export const CardsManager: React.FC = () => {
                                             <span className="text-[11px] font-mono text-gray-500 uppercase">{sardColor}</span>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Custom Additional Halaqa Types */}
+                                <div className="p-3 bg-amber-50/60 dark:bg-gray-700/50 rounded-xl border border-amber-200/80 dark:border-gray-600 space-y-3 mb-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <Layers className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                                            <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                أنواع حلقات إضافية (مخصصة):
+                                            </span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                                            تتولد بطاقاتها متسلسلة من 1 إلى العدد
+                                        </span>
+                                    </div>
+
+                                    {/* List of custom halaqa types */}
+                                    <div className="space-y-2">
+                                        {customHalaqaTypes.map((customType) => (
+                                            <div key={customType.id} className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-amber-100 dark:border-gray-600 shadow-xs space-y-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex-1 min-w-[110px]">
+                                                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block mb-0.5">نوع الحلقة:</label>
+                                                        <input
+                                                            type="text"
+                                                            value={customType.name}
+                                                            onChange={(e) => handleUpdateCustomType(customType.id, { name: e.target.value })}
+                                                            placeholder="مثال: حلقات تعليم"
+                                                            className="w-full px-2 py-1.5 text-xs font-bold border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-amber-500"
+                                                        />
+                                                    </div>
+                                                    <div className="w-20">
+                                                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block mb-0.5">عدد الحلقات:</label>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            max={300}
+                                                            value={customType.count === 0 ? '' : customType.count}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                                                                handleUpdateCustomType(customType.id, { count: isNaN(val) ? 1 : val });
+                                                            }}
+                                                            onBlur={() => {
+                                                                if (!customType.count || customType.count < 1) {
+                                                                    handleUpdateCustomType(customType.id, { count: 1 });
+                                                                }
+                                                            }}
+                                                            placeholder="1"
+                                                            className="w-full px-2 py-1.5 text-xs font-bold text-center border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-amber-500"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col items-center">
+                                                        <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block mb-0.5">اللون:</label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveCustomColorPickerId(customType.id)}
+                                                            className="w-7 h-7 rounded-lg border border-gray-300 shadow-xs cursor-pointer focus:outline-none transition-transform hover:scale-105"
+                                                            style={{ backgroundColor: customType.color || '#8B4513' }}
+                                                            title="تغيير لون البطاقة (افتراضي بني)"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col justify-end pt-3.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveCustomType(customType.id)}
+                                                            className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded-md hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                            title="حذف هذا النوع"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Button to add another custom type - only appears when each current type has a name written */}
+                                    {customHalaqaTypes.length > 0 && customHalaqaTypes.every(ct => ct.name.trim() !== '') && (
+                                        <button
+                                            type="button"
+                                            onClick={handleAddCustomType}
+                                            className="w-full py-2 px-3 border-2 border-dashed border-amber-300 dark:border-gray-500 rounded-lg text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-50/50 dark:bg-gray-700/40 hover:bg-amber-100/60 transition-all flex items-center justify-center gap-1.5 active:scale-[0.99] animate-fade-in"
+                                        >
+                                            <Plus className="w-3.5 h-3.5" />
+                                            إضافة نوع حلقة أخرى
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* FilterItem / Select Specific Halaqa */}
@@ -2853,7 +3040,7 @@ export const CardsManager: React.FC = () => {
                                     <div className="mt-4 flex justify-end">
                                         <a
                                             href={halaqaPreviewUrl}
-                                            download={`بطاقة_حلقة_${activeHalaqaTargets[safeHalaqaPreviewIndex]?.numberStr || 'preview'}.png`}
+                                            download={`بطاقة_${activeHalaqaTargets[safeHalaqaPreviewIndex]?.typeName || 'حلقة'}_${activeHalaqaTargets[safeHalaqaPreviewIndex]?.numberStr || 'preview'}.png`}
                                             className="px-4 py-2 bg-emerald-50 dark:bg-gray-700 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-gray-600 rounded-lg text-xs font-bold border border-emerald-200 dark:border-gray-600 flex items-center gap-2 transition-colors"
                                         >
                                             <Download className="w-4 h-4" />
@@ -2944,6 +3131,62 @@ export const CardsManager: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {activeCustomColorPickerId && (() => {
+                const currentCustomType = customHalaqaTypes.find(t => t.id === activeCustomColorPickerId);
+                if (!currentCustomType) return null;
+                const currentColor = currentCustomType.color || '#8B4513';
+                const brownPresets = ['#8B4513', '#78350F', '#92400E', '#5D4037', '#6D4C41', '#A0522D', '#D97706', '#059669', '#2563EB', '#7C3AED'];
+
+                return (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setActiveCustomColorPickerId(null)}>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-fade-in max-w-xs w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                            <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">
+                                اختر لون بطاقة {currentCustomType.name ? `"${currentCustomType.name}"` : 'الحلقات المخصصة'}
+                            </h3>
+                            <HexColorPicker 
+                                color={currentColor} 
+                                onChange={(color) => {
+                                    handleUpdateCustomType(activeCustomColorPickerId, { color });
+                                }} 
+                            />
+                            
+                            {/* Preset color swatches */}
+                            <div className="w-full">
+                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 block mb-1.5 text-right">ألوان مقترحة:</span>
+                                <div className="flex flex-wrap gap-1.5 justify-center">
+                                    {brownPresets.map(preset => (
+                                        <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => handleUpdateCustomType(activeCustomColorPickerId, { color: preset })}
+                                            className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${currentColor.toLowerCase() === preset.toLowerCase() ? 'ring-2 ring-amber-600 ring-offset-1 border-white' : 'border-gray-300'}`}
+                                            style={{ backgroundColor: preset }}
+                                            title={preset}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="w-full flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600">
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400">HEX:</span>
+                                <input 
+                                    type="text" 
+                                    value={currentColor} 
+                                    onChange={(e) => {
+                                        handleUpdateCustomType(activeCustomColorPickerId, { color: e.target.value });
+                                    }}
+                                    onFocus={e => e.target.select()}
+                                    className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase"
+                                />
+                            </div>
+                            <div className="flex gap-2 w-full">
+                                <button onClick={() => setActiveCustomColorPickerId(null)} className="flex-1 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold text-xs shadow-lg transition-colors">تم</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
