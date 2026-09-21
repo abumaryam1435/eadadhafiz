@@ -6,6 +6,24 @@ import Modal from './Modal';
 import { isSmartMatch } from '../utils/searchUtils';
 import { exportSardHalaqasTemplate } from '../utils/halaqaExcelUtils';
 import { HalaqaExcelImportModal } from './HalaqaExcelImportModal';
+import { getMemorizedPagesData, calculateStudentLevel } from '../utils/pageUtils';
+
+const LEVEL_WORDS_ORDER = [
+    "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر",
+    "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر", "السادس عشر", "السابع عشر", "الثامن عشر", "التاسع عشر", "العشرون",
+    "الحادي والعشرون", "الثاني والعشرون", "الثالث والعشرون", "الرابع والعشرون", "الخامس والعشرون", "السادس والعشرون", "السابع والعشرون", "الثامن والعشرون", "التاسع والعشرون", "الثلاثون",
+    "الحادي وثلاثون", "الثاني وثلاثون", "الثالث وثلاثون"
+];
+
+const getLevelNumericRank = (levelStr: string): number => {
+    if (!levelStr) return 999;
+    const clean = levelStr.replace(/^(المستوى|مستوى)\s*/, "").trim();
+    const num = parseInt(clean, 10);
+    if (!isNaN(num)) return num;
+    const idx = LEVEL_WORDS_ORDER.findIndex(w => clean.includes(w));
+    if (idx !== -1) return idx + 1;
+    return 999;
+};
 
 export const SardManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -14,6 +32,20 @@ export const SardManagement: React.FC = () => {
     const sardHalaqas = context?.sardHalaqas || [];
     const halaqas = context?.halaqas || [];
     const users = context?.users || [];
+    const evaluations = context?.evaluations || [];
+
+    const getStudentLevel = (s: Student) => {
+        let level = s.manualStudentLevel || s.manualLevel;
+        if (!level) {
+            const pagesData = getMemorizedPagesData(s, evaluations);
+            level = calculateStudentLevel(pagesData.totalCount);
+        }
+        if (!level) level = "المستوى الأول";
+        if (!level.startsWith("المستوى")) {
+            level = `المستوى ${level}`;
+        }
+        return level;
+    };
     const addStudent = context?.addStudent || (async () => {});
     const updateStudent = context?.updateStudent || (async () => {});
     const deleteStudent = context?.deleteStudent || (async () => {});
@@ -42,6 +74,7 @@ export const SardManagement: React.FC = () => {
     // Add existing student modal
     const [assignExistingModalOpen, setAssignExistingModalOpen] = useState<number | null>(null);
     const [existingStudentSearch, setExistingStudentSearch] = useState('');
+    const [selectedLevelFilter, setSelectedLevelFilter] = useState<string>('all');
     const [selectedStudentIdsToAssign, setSelectedStudentIdsToAssign] = useState<number[]>([]);
 
     // New student text input
@@ -56,6 +89,55 @@ export const SardManagement: React.FC = () => {
 
     const teachers = useMemo(() => users.filter(u => u.role === UserRole.TEACHER).sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [users]);
     const sortedSardHalaqas = useMemo(() => [...(sardHalaqas || [])].sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [sardHalaqas]);
+
+    // Available teachers for a given Sard Halaqa (hides teachers already assigned to OTHER Sard halaqas)
+    const getAvailableTeachersForSardHalaqa = (currentHalaqaId: number) => {
+        return teachers.filter(t => {
+            const isAssignedToOther = sardHalaqas.some(h => h.id !== currentHalaqaId && h.teacherId === t.id);
+            return !isAssignedToOther;
+        });
+    };
+
+    // Students not assigned to ANY Sard Halaqa yet
+    const unassignedStudents = useMemo(() => {
+        return students.filter(s => !s.sardHalaqaId);
+    }, [students]);
+
+    // Unique levels among unassigned students
+    const availableLevels = useMemo(() => {
+        const levelsSet = new Set<string>();
+        unassignedStudents.forEach(s => {
+            const lvl = getStudentLevel(s);
+            if (lvl) levelsSet.add(lvl);
+        });
+        return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b));
+    }, [unassignedStudents, evaluations]);
+
+    // Filtered and sorted students for assignment modal (Sorted by level smallest to largest, then by name)
+    const filteredAndSortedStudentsToAssign = useMemo(() => {
+        return unassignedStudents
+            .filter(s => {
+                const matchesSearch = !existingStudentSearch.trim() || isSmartMatch(s.name, existingStudentSearch);
+                const matchesLevel = selectedLevelFilter === 'all' || getStudentLevel(s) === selectedLevelFilter;
+                return matchesSearch && matchesLevel;
+            })
+            .sort((a, b) => {
+                const rankA = getLevelNumericRank(getStudentLevel(a));
+                const rankB = getLevelNumericRank(getStudentLevel(b));
+                if (rankA !== rankB) return rankA - rankB;
+                return a.name.localeCompare(b.name, 'ar', { numeric: true });
+            });
+    }, [unassignedStudents, existingStudentSearch, selectedLevelFilter, evaluations]);
+
+    const handleSelectAllFiltered = () => {
+        const visibleIds = filteredAndSortedStudentsToAssign.map(s => s.id);
+        setSelectedStudentIdsToAssign(prev => Array.from(new Set([...prev, ...visibleIds])));
+    };
+
+    const handleDeselectAllFiltered = () => {
+        const visibleIdsSet = new Set(filteredAndSortedStudentsToAssign.map(s => s.id));
+        setSelectedStudentIdsToAssign(prev => prev.filter(id => !visibleIdsSet.has(id)));
+    };
 
     const filteredHalaqasForList = useMemo(() => {
         if (!halaqaSearchTerm.trim()) return sortedSardHalaqas;
@@ -314,80 +396,124 @@ export const SardManagement: React.FC = () => {
                 >
                     <div className="space-y-4">
                         <p className="text-sm font-bold text-gray-600 dark:text-gray-300">
-                            حدد الطلاب المراد إلحاقهم بهذه الحلقة من قائمة طلاب المدرسة:
+                            حدد الطلاب المراد إلحاقهم بهذه الحلقة (المرتبين حسب المستوى من الأصغر للأكبر):
                         </p>
-                        <div className="relative">
-                            <input 
-                                type="text" 
-                                placeholder="ابحث باسم الطالب..." 
-                                value={existingStudentSearch}
-                                onChange={(e) => setExistingStudentSearch(e.target.value)}
-                                className="input-style w-full pl-10"
-                            />
-                            <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+
+                        {/* Search + Level Filter Row */}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="relative flex-grow">
+                                <input 
+                                    type="text" 
+                                    placeholder="ابحث باسم الطالب..." 
+                                    value={existingStudentSearch}
+                                    onChange={(e) => setExistingStudentSearch(e.target.value)}
+                                    className="input-style w-full pl-10"
+                                />
+                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            </div>
+
+                            <div className="sm:w-52">
+                                <select
+                                    value={selectedLevelFilter}
+                                    onChange={(e) => setSelectedLevelFilter(e.target.value)}
+                                    className="input-style w-full bg-white dark:bg-slate-700 font-bold text-xs border-2 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 focus:outline-none cursor-pointer py-3"
+                                    title="تصفية حسب المستوى"
+                                >
+                                    <option value="all">جميع المستويات ({unassignedStudents.length})</option>
+                                    {availableLevels.map(lvl => {
+                                        const count = unassignedStudents.filter(s => getStudentLevel(s) === lvl).length;
+                                        return (
+                                            <option key={lvl} value={lvl}>
+                                                {lvl} ({count})
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Filter Action Bar (Select All / Deselect All) */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-50/80 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800 text-xs">
+                            <span className="font-bold text-gray-700 dark:text-gray-300">
+                                غير المدرجين حالياً: <span className="text-emerald-700 dark:text-emerald-300 font-black">{filteredAndSortedStudentsToAssign.length} طالب</span>
+                                {selectedLevelFilter !== 'all' && <span className="mr-1 text-emerald-600 dark:text-emerald-400">({selectedLevelFilter})</span>}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleSelectAllFiltered}
+                                    disabled={filteredAndSortedStudentsToAssign.length === 0}
+                                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-lg text-xs shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
+                                >
+                                    اختيار الكل {selectedLevelFilter !== 'all' ? `في ${selectedLevelFilter}` : ''}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleDeselectAllFiltered}
+                                    disabled={selectedStudentIdsToAssign.length === 0}
+                                    className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-lg text-xs transition-colors disabled:opacity-40 cursor-pointer"
+                                >
+                                    إلغاء تحديد الكل
+                                </button>
+                            </div>
                         </div>
                         
+                        {/* Student Checklist */}
                         <div className="max-h-64 overflow-y-auto border-2 rounded-2xl p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700 divide-y dark:divide-slate-700">
-                            {students
-                                .filter(s => isSmartMatch(s.name, existingStudentSearch))
-                                .map(student => {
-                                    const isAlreadyInThisHalaqa = student.sardHalaqaId === assignExistingModalOpen;
-                                    const currentSardHalaqa = sardHalaqas.find(h => h.id === student.sardHalaqaId);
-                                    const isSelected = selectedStudentIdsToAssign.includes(student.id);
+                            {filteredAndSortedStudentsToAssign.map(student => {
+                                const isSelected = selectedStudentIdsToAssign.includes(student.id);
+                                const level = getStudentLevel(student);
 
-                                    return (
-                                        <label 
-                                            key={student.id} 
-                                            className={`p-3 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
-                                                isAlreadyInThisHalaqa ? 'bg-emerald-50/50 dark:bg-emerald-950/20 opacity-70' :
-                                                isSelected ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'hover:bg-gray-100 dark:hover:bg-slate-700'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <input 
-                                                    type="checkbox"
-                                                    disabled={isAlreadyInThisHalaqa}
-                                                    checked={isAlreadyInThisHalaqa || isSelected}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) {
-                                                            setSelectedStudentIdsToAssign(prev => [...prev, student.id]);
-                                                        } else {
-                                                            setSelectedStudentIdsToAssign(prev => prev.filter(id => id !== student.id));
-                                                        }
-                                                    }}
-                                                    className="w-5 h-5 text-emerald-600 rounded"
-                                                />
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-gray-800 dark:text-gray-100">{student.name}</span>
+                                return (
+                                    <label 
+                                        key={student.id} 
+                                        className={`p-3 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                                            isSelected ? 'bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700' : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input 
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedStudentIdsToAssign(prev => [...prev, student.id]);
+                                                    } else {
+                                                        setSelectedStudentIdsToAssign(prev => prev.filter(id => id !== student.id));
+                                                    }
+                                                }}
+                                                className="w-5 h-5 text-emerald-600 rounded cursor-pointer"
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-900 dark:text-gray-100 text-base">{student.name}</span>
+                                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-black bg-emerald-100 text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
+                                                        {level}
+                                                    </span>
                                                     {student.isAlAmeen && (
-                                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-tight">
-                                                            (من طلاب الأمين)
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                                                            طالب أمين
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                {isAlreadyInThisHalaqa ? (
-                                                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">موجود بالفعل في هذه الحلقة</span>
-                                                ) : currentSardHalaqa ? (
-                                                    <span>في حلقة: {currentSardHalaqa.name}</span>
-                                                ) : (
-                                                    <span className="text-gray-400">بدون حلقة سرد</span>
-                                                )}
-                                            </div>
-                                        </label>
-                                    );
-                                })
-                            }
-                            {students.filter(s => isSmartMatch(s.name, existingStudentSearch)).length === 0 && (
-                                <p className="p-8 text-center text-gray-400">لا يوجد طلاب مطابقين للبحث</p>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                            {filteredAndSortedStudentsToAssign.length === 0 && (
+                                <p className="p-8 text-center text-gray-400 font-bold">
+                                    {unassignedStudents.length === 0 
+                                        ? 'جميع الطلاب مدرجون بالفعل في حلقات السرد' 
+                                        : 'لا يوجد طلاب غير مدرجين مطابقين للبحث أو التصفية'}
+                                </p>
                             )}
                         </div>
 
                         <div className="flex gap-3 pt-3 border-t dark:border-gray-700">
                             <button 
                                 onClick={() => { setAssignExistingModalOpen(null); setSelectedStudentIdsToAssign([]); }}
-                                className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-xl font-bold"
+                                className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300 transition-colors"
                             >
                                 إلغاء
                             </button>
@@ -542,7 +668,7 @@ export const SardManagement: React.FC = () => {
                                                         className="bg-transparent font-bold text-sm text-emerald-800 dark:text-emerald-300 focus:outline-none cursor-pointer"
                                                     >
                                                         <option value={0}>-- غير محدد --</option>
-                                                        {teachers.map(t => (
+                                                        {getAvailableTeachersForSardHalaqa(halaqa.id).map(t => (
                                                             <option key={t.id} value={t.id}>{t.name}</option>
                                                         ))}
                                                     </select>
@@ -633,11 +759,16 @@ export const SardManagement: React.FC = () => {
                                                                 <div key={student.id} className="p-3 bg-gray-50 dark:bg-slate-700/60 rounded-xl border border-gray-200 dark:border-slate-600 flex justify-between items-center group">
                                                                     <div>
                                                                         <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">{student.name}</p>
-                                                                        {student.isAlAmeen && (
-                                                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-tight">
-                                                                                (من طلاب الأمين)
-                                                                            </p>
-                                                                        )}
+                                                                        <div className="flex items-center gap-1 flex-wrap text-[10px] leading-tight mt-0.5">
+                                                                            {student.isAlAmeen && (
+                                                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                                                                    (من طلاب الأمين)
+                                                                                </span>
+                                                                            )}
+                                                                            <span className={student.isAlAmeen ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-gray-500 dark:text-gray-400 font-medium"}>
+                                                                                {student.isAlAmeen ? ` - (${getStudentLevel(student)})` : `- (${getStudentLevel(student)})`}
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
                                                                     <div className="flex items-center gap-1">
                                                                         <button 

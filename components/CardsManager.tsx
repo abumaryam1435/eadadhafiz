@@ -5,7 +5,32 @@ import { UserRole } from '../types';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from 'react-colorful';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download } from 'lucide-react';
+
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+    let cleanHex = hex.replace('#', '');
+    if (cleanHex.length === 3) {
+        cleanHex = cleanHex.split('').map(c => c + c).join('');
+    }
+    if (cleanHex.length !== 6) return null;
+    const num = parseInt(cleanHex, 16);
+    return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+    };
+};
+
+export interface UnifiedHalaqaCardItem {
+    id: string;
+    originalId: number;
+    name: string;
+    type: 'memorization' | 'sard';
+    typeName: string;
+    numberStr: string;
+    teacherName?: string;
+    color: string;
+}
 
 interface CardConfig {
     templateImage: string | null;
@@ -190,10 +215,41 @@ export const CardsManager: React.FC = () => {
 
     const students = context?.students || [];
     const users = context?.users || [];
+    const halaqas = context?.halaqas || [];
+    const sardHalaqas = context?.sardHalaqas || [];
     const showToast = context?.showToast || (() => {});
     const cardConfig = context?.cardConfig;
     const setCardConfig = context?.setCardConfig;
     const syncSettingsToCloud = context?.syncSettingsToCloud;
+
+    // Main top-level tab: 'id_cards' (البطاقات التعريفية) or 'halaqa_cards' (بطاقات الحلقات)
+    const [mainTab, setMainTab] = useState<'id_cards' | 'halaqa_cards'>('id_cards');
+
+    // State for Halaqa Cards
+    const [halaqaFilter, setHalaqaFilter] = useState<'all' | 'memorization' | 'sard'>('all');
+    const [selectedHalaqaIds, setSelectedHalaqaIds] = useState<string[]>([]);
+    const [halaqaSearch, setHalaqaSearch] = useState('');
+
+    const [memorizationColor, setMemorizationColor] = useState<string>(() => {
+        return localStorage.getItem('halaqa_card_mem_color') || '#059669';
+    });
+    const [sardColor, setSardColor] = useState<string>(() => {
+        return localStorage.getItem('halaqa_card_sard_color') || '#2563eb';
+    });
+    const [showMemColorPicker, setShowMemColorPicker] = useState(false);
+    const [showSardColorPicker, setShowSardColorPicker] = useState(false);
+
+    const [halaqaConfig, setHalaqaConfig] = useState<{
+        width: number;
+        height: number;
+        unit: 'mm' | 'cm' | 'in';
+    }>({
+        width: 148,
+        height: 210,
+        unit: 'mm'
+    });
+    const [halaqaPreviewIndex, setHalaqaPreviewIndex] = useState(0);
+    const [halaqaPreviewUrl, setHalaqaPreviewUrl] = useState<string>('');
 
     const [activeTab, setActiveTab] = useState<'students' | 'teachers' | 'excel'>('students');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -209,6 +265,76 @@ export const CardsManager: React.FC = () => {
     const [appLogo, setAppLogo] = useState<HTMLImageElement | null>(null);
     const [awqafLogo, setAwqafLogo] = useState<HTMLImageElement | null>(null);
     const [dynamicPreviewUrl, setDynamicPreviewUrl] = useState<string>('');
+
+    // List of Halaqa items for Halaqa Cards
+    const allHalaqaItems = useMemo<UnifiedHalaqaCardItem[]>(() => {
+        const items: UnifiedHalaqaCardItem[] = [];
+
+        const getTeacherName = (tId?: number) => {
+            if (!tId) return '';
+            const u = users.find(user => Number(user.id) === Number(tId));
+            return u ? u.name : '';
+        };
+
+        const extractNumber = (name: string, fallbackId: number) => {
+            const match = name.match(/\d+/);
+            if (match) return match[0];
+            return String(fallbackId);
+        };
+
+        halaqas.forEach(h => {
+            const numStr = extractNumber(h.name, h.id);
+            items.push({
+                id: `mem_${h.id}`,
+                originalId: h.id,
+                name: h.name,
+                type: 'memorization',
+                typeName: 'حلقة حفظ',
+                numberStr: numStr,
+                teacherName: getTeacherName(h.teacherId),
+                color: memorizationColor
+            });
+        });
+
+        sardHalaqas.forEach(sh => {
+            const numStr = extractNumber(sh.name, sh.id);
+            items.push({
+                id: `sard_${sh.id}`,
+                originalId: sh.id,
+                name: sh.name,
+                type: 'sard',
+                typeName: 'حلقة سرد',
+                numberStr: numStr,
+                teacherName: getTeacherName(sh.teacherId),
+                color: sardColor
+            });
+        });
+
+        return items;
+    }, [halaqas, sardHalaqas, users, memorizationColor, sardColor]);
+
+    const filteredHalaqaItems = useMemo(() => {
+        let result = allHalaqaItems;
+        if (halaqaFilter === 'memorization') {
+            result = result.filter(item => item.type === 'memorization');
+        } else if (halaqaFilter === 'sard') {
+            result = result.filter(item => item.type === 'sard');
+        }
+        return result;
+    }, [allHalaqaItems, halaqaFilter]);
+
+    const activeHalaqaTargets = useMemo(() => {
+        const hasSpecificSelection = selectedHalaqaIds && selectedHalaqaIds.length > 0 && !selectedHalaqaIds.includes('ALL') && !selectedHalaqaIds.includes('all');
+        if (hasSpecificSelection) {
+            return filteredHalaqaItems.filter(item => selectedHalaqaIds.includes(item.id));
+        }
+        return filteredHalaqaItems;
+    }, [filteredHalaqaItems, selectedHalaqaIds]);
+
+    const safeHalaqaPreviewIndex = useMemo(() => {
+        if (activeHalaqaTargets.length === 0) return 0;
+        return Math.min(halaqaPreviewIndex, activeHalaqaTargets.length - 1);
+    }, [halaqaPreviewIndex, activeHalaqaTargets.length]);
 
     const [hasSavedCardConfig, setHasSavedCardConfig] = useState(() => !!localStorage.getItem('simpleCardConfig'));
     const [showNameColorPicker, setShowNameColorPicker] = useState(false);
@@ -418,6 +544,325 @@ export const CardsManager: React.FC = () => {
         awqaf.src = '/awqaf_logo.png';
         awqaf.onload = () => setAwqafLogo(awqaf);
     }, []);
+
+    const drawHalaqaCardOnCanvas = async (
+        target: UnifiedHalaqaCardItem,
+        canvas: HTMLCanvasElement,
+        logoImg: HTMLImageElement | null,
+        cardWMM: number = 148,
+        cardHMM: number = 210
+    ) => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const width = 1000;
+        const height = Math.round((cardHMM / cardWMM) * width);
+        canvas.width = width;
+        canvas.height = height;
+
+        const baseColor = target.color || (target.type === 'memorization' ? memorizationColor : sardColor);
+
+        // 1. Background Gradient
+        const rgb = hexToRgb(baseColor) || { r: 5, g: 150, b: 105 };
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        
+        const darkR = Math.max(0, Math.round(rgb.r * 0.4));
+        const darkG = Math.max(0, Math.round(rgb.g * 0.4));
+        const darkB = Math.max(0, Math.round(rgb.b * 0.4));
+
+        gradient.addColorStop(0, `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`);
+        gradient.addColorStop(0.55, `rgb(${Math.round(rgb.r * 0.75)}, ${Math.round(rgb.g * 0.75)}, ${Math.round(rgb.b * 0.75)})`);
+        gradient.addColorStop(1, `rgb(${darkR}, ${darkG}, ${darkB})`);
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. Pattern Overlay
+        ctx.save();
+        ctx.globalAlpha = 0.07;
+        ctx.fillStyle = '#FFFFFF';
+        const patternSize = 50;
+        for (let x = 0; x < width; x += patternSize) {
+            for (let y = 0; y < height; y += patternSize) {
+                ctx.beginPath();
+                ctx.arc(x + patternSize / 2, y + patternSize / 2, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
+
+        // 3. Radial Top Light
+        ctx.save();
+        const radialGlow = ctx.createRadialGradient(width / 2, height * 0.15, 10, width / 2, height * 0.15, width * 0.55);
+        radialGlow.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+        radialGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = radialGlow;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+
+        // 4. Golden Frame Border
+        ctx.save();
+        const margin = Math.round(width * 0.04);
+        const frameW = width - margin * 2;
+        const frameH = height - margin * 2;
+
+        ctx.strokeStyle = '#D4AF37';
+        ctx.lineWidth = Math.round(width * 0.012);
+        ctx.strokeRect(margin, margin, frameW, frameH);
+
+        const innerMargin = margin + Math.round(width * 0.015);
+        ctx.strokeStyle = '#F3E5AB';
+        ctx.lineWidth = Math.round(width * 0.003);
+        ctx.strokeRect(innerMargin, innerMargin, width - innerMargin * 2, height - innerMargin * 2);
+
+        ctx.fillStyle = '#D4AF37';
+        const corners = [
+            [margin, margin],
+            [margin + frameW, margin],
+            [margin, margin + frameH],
+            [margin + frameW, margin + frameH]
+        ];
+        corners.forEach(([cx, cy]) => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, Math.round(width * 0.01), 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+
+        // 5. Program Logo ("مشروع إعداد حافظ") in Top Center Frame
+        const logoRadius = Math.round(width * 0.13);
+        const logoCenterX = width / 2;
+        const logoCenterY = margin + Math.round(height * 0.12);
+
+        if (logoImg) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(logoCenterX, logoCenterY, logoRadius + 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#D4AF37';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(logoCenterX, logoCenterY, logoRadius + 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(logoCenterX, logoCenterY, logoRadius, 0, Math.PI * 2);
+            ctx.clip();
+
+            const imgAspect = logoImg.width / logoImg.height;
+            let drawW = logoRadius * 2;
+            let drawH = drawW / imgAspect;
+            if (drawH < logoRadius * 2) {
+                drawH = logoRadius * 2;
+                drawW = drawH * imgAspect;
+            }
+            ctx.drawImage(logoImg, logoCenterX - drawW / 2, logoCenterY - drawH / 2, drawW, drawH);
+            ctx.restore();
+        }
+
+        // Program Title Under Logo
+        ctx.save();
+        ctx.font = 'bold 22px Cairo, Tajawal, sans-serif';
+        ctx.fillStyle = '#FDF7E3';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = 6;
+        ctx.fillText('✦ مشروع إعداد حافظ ✦', logoCenterX, logoCenterY + logoRadius + 14);
+        ctx.restore();
+
+        // 6. Center Section - Halaqa Type Name and Number
+        const typeY = Math.round(height * 0.30);
+
+        ctx.save();
+        ctx.font = 'bold 54px Tajawal, Cairo, sans-serif';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.fillText(target.typeName, width / 2, typeY);
+        ctx.restore();
+
+        // Divider Line
+        const lineY = typeY + 55;
+        ctx.save();
+        ctx.strokeStyle = '#D4AF37';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(width / 2 - 160, lineY);
+        ctx.lineTo(width / 2 + 160, lineY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#D4AF37';
+        ctx.beginPath();
+        ctx.arc(width / 2, lineY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Number Badge - Extra Large Central Circle (Positioned safely below divider line)
+        ctx.save();
+        const circleRadius = 300; // 600px Diameter Circle
+        const numY = lineY + 35 + circleRadius; // Center of circle, top edge is lineY + 35 (no overlap)
+
+        // Shadow for depth
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 28;
+        ctx.shadowOffsetY = 10;
+
+        // Circle Background
+        ctx.beginPath();
+        ctx.arc(width / 2, numY, circleRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.97)';
+        ctx.fill();
+
+        // Remove shadow for clean crisp borders & text
+        ctx.shadowColor = 'transparent';
+
+        // Outer Golden Border
+        ctx.lineWidth = 16;
+        ctx.strokeStyle = '#D4AF37';
+        ctx.stroke();
+
+        // Inner Subtle Golden Ring
+        ctx.beginPath();
+        ctx.arc(width / 2, numY, circleRadius - 20, 0, Math.PI * 2);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.75)';
+        ctx.stroke();
+
+        // Number Text Inside Circle - Extra Bold and Extra Large
+        const numStr = target.numberStr.trim();
+        let fontSize = 270;
+        if (numStr.length > 3) fontSize = 165;
+        else if (numStr.length > 2) fontSize = 210;
+
+        ctx.font = `900 ${fontSize}px Tajawal, Cairo, Arial, sans-serif`;
+        ctx.fillStyle = '#00583F'; // Deep bold emerald green
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(numStr, width / 2, numY + circleRadius * 0.03);
+        ctx.restore();
+
+        // 8. Bottom Ornamentation
+        ctx.save();
+        ctx.fillStyle = 'rgba(212, 175, 55, 0.85)';
+        ctx.font = '18px Cairo, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('❖  ❖  ❖', width / 2, height - margin - 25);
+        ctx.restore();
+    };
+
+    useEffect(() => {
+        if (mainTab !== 'halaqa_cards') return;
+        if (activeHalaqaTargets.length === 0) {
+            setHalaqaPreviewUrl('');
+            return;
+        }
+        const currentItem = activeHalaqaTargets[safeHalaqaPreviewIndex];
+        if (!currentItem) return;
+
+        const canvas = document.createElement('canvas');
+        drawHalaqaCardOnCanvas(currentItem, canvas, appLogo, halaqaConfig.width, halaqaConfig.height)
+            .then(() => {
+                setHalaqaPreviewUrl(canvas.toDataURL('image/png'));
+            })
+            .catch(err => {
+                console.error('Error drawing halaqa card preview:', err);
+            });
+    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor]);
+
+    const generateHalaqaPDF = async () => {
+        if (activeHalaqaTargets.length === 0) {
+            showToast('⚠️ لا توجد حلقات محددة لإصدار البطاقات');
+            return;
+        }
+
+        setIsGenerating(true);
+        try {
+            const { jsPDF } = await import('jspdf');
+
+            let docW = 210;
+            let docH = 297;
+            let pdfOrientation: 'portrait' | 'landscape' = 'portrait';
+
+            if (exportMode === 'a4') {
+                docW = 210; docH = 297; pdfOrientation = 'portrait';
+            } else if (exportMode === 'a3') {
+                docW = 297; docH = 420; pdfOrientation = 'portrait';
+            } else if (exportMode === 'single') {
+                docW = halaqaConfig.width;
+                docH = halaqaConfig.height;
+                if (halaqaConfig.unit === 'cm') { docW *= 10; docH *= 10; }
+                else if (halaqaConfig.unit === 'in') { docW *= 25.4; docH *= 25.4; }
+                pdfOrientation = docW > docH ? 'landscape' : 'portrait';
+            } else if (exportMode === 'other') {
+                const dims = getOtherPaperDimensionsMM();
+                docW = dims.width;
+                docH = dims.height;
+                pdfOrientation = customPaperOrientation;
+            }
+
+            const pdf = new jsPDF({
+                orientation: pdfOrientation,
+                unit: 'mm',
+                format: exportMode === 'single' ? [docW, docH] : (exportMode === 'other' ? [docW, docH] : exportMode as any)
+            });
+
+            let cardWMM = halaqaConfig.width;
+            let cardHMM = halaqaConfig.height;
+            if (halaqaConfig.unit === 'cm') { cardWMM *= 10; cardHMM *= 10; }
+            else if (halaqaConfig.unit === 'in') { cardWMM *= 25.4; cardHMM *= 25.4; }
+
+            if (exportMode === 'single') {
+                const canvas = document.createElement('canvas');
+                for (let i = 0; i < activeHalaqaTargets.length; i++) {
+                    if (i > 0) pdf.addPage([cardWMM, cardHMM], cardWMM > cardHMM ? 'landscape' : 'portrait');
+                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height);
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    pdf.addImage(imgData, 'JPEG', 0, 0, cardWMM, cardHMM);
+                }
+            } else {
+                const gap = pdfGaps ? 5 : 0;
+                const marginX = 10;
+                const marginY = 10;
+                const cols = Math.max(1, Math.floor((docW - marginX * 2 + gap) / (cardWMM + gap)));
+                const rows = Math.max(1, Math.floor((docH - marginY * 2 + gap) / (cardHMM + gap)));
+                const cardsPerPage = cols * rows;
+
+                const startX = (docW - (cols * cardWMM + (cols - 1) * gap)) / 2;
+                const startY = (docH - (rows * cardHMM + (rows - 1) * gap)) / 2;
+
+                const canvas = document.createElement('canvas');
+
+                for (let i = 0; i < activeHalaqaTargets.length; i++) {
+                    if (i > 0 && i % cardsPerPage === 0) {
+                        pdf.addPage(exportMode === 'other' ? [docW, docH] : exportMode as any, pdfOrientation);
+                    }
+
+                    const pageIndex = i % cardsPerPage;
+                    const col = pageIndex % cols;
+                    const row = Math.floor(pageIndex / cols);
+
+                    const x = startX + col * (cardWMM + gap);
+                    const y = startY + row * (cardHMM + gap);
+
+                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height);
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    pdf.addImage(imgData, 'JPEG', x, y, cardWMM, cardHMM);
+                }
+            }
+
+            pdf.save('بطاقات_الحلقات.pdf');
+            showToast('✅ تم إنشاء وتنزيل ملف PDF لبطاقات الحلقات بنجاح');
+        } catch (err) {
+            console.error('Error generating Halaqa PDF:', err);
+            showToast('❌ حدث خطأ أثناء إصدار ملف PDF');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const handleStageColorChange = (stage: string, color: string | null) => {
         setStageColors(prev => {
@@ -1306,29 +1751,61 @@ export const CardsManager: React.FC = () => {
     return (
 
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-2xl font-bold text-green-900 dark:text-green-300">إصدار البطاقات</h3>
-                <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+            {/* Header & Main Sub-tabs (البطاقات التعريفية | بطاقات الحلقات) */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-emerald-50/50 dark:bg-gray-800/80 p-4 rounded-2xl border border-emerald-100 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-md">
+                        <CreditCard className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">إصدار البطاقات</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">إصدار وتصميم البطاقات التعريفية للطلاب والمعلمين وبطاقات الحلقات</p>
+                    </div>
+                </div>
+
+                <div className="flex bg-white dark:bg-gray-700 p-1 rounded-xl shadow-xs border border-gray-200 dark:border-gray-600 w-full md:w-auto">
                     <button 
-                        onClick={() => setActiveTab('students')}
-                        className={`px-6 py-2 rounded-md font-bold transition-colors ${activeTab === 'students' ? 'bg-white dark:bg-gray-600 text-green-700 dark:text-green-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        onClick={() => setMainTab('id_cards')}
+                        className={`flex-1 md:flex-none px-5 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${mainTab === 'id_cards' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                     >
-                        الطلاب
+                        <CreditCard className="w-4 h-4" />
+                        <span>البطاقات التعريفية</span>
                     </button>
                     <button 
-                        onClick={() => setActiveTab('teachers')}
-                        className={`px-6 py-2 rounded-md font-bold transition-colors ${activeTab === 'teachers' ? 'bg-white dark:bg-gray-600 text-green-700 dark:text-green-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        onClick={() => setMainTab('halaqa_cards')}
+                        className={`flex-1 md:flex-none px-5 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${mainTab === 'halaqa_cards' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                     >
-                        المعلمين
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('excel')}
-                        className={`px-6 py-2 rounded-md font-bold transition-colors ${activeTab === 'excel' ? 'bg-white dark:bg-gray-600 text-green-700 dark:text-green-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                    >
-                        من ملف إكسل
+                        <Users className="w-4 h-4" />
+                        <span>بطاقات الحلقات</span>
                     </button>
                 </div>
             </div>
+
+            {/* TAB 1: ID CARDS (البطاقات التعريفية) */}
+            {mainTab === 'id_cards' && (
+                <div className="space-y-6">
+                    <div className="flex justify-end">
+                        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                            <button 
+                                onClick={() => setActiveTab('students')}
+                                className={`px-6 py-2 rounded-md font-bold text-xs transition-colors ${activeTab === 'students' ? 'bg-white dark:bg-gray-600 text-green-700 dark:text-green-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                            >
+                                الطلاب
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('teachers')}
+                                className={`px-6 py-2 rounded-md font-bold text-xs transition-colors ${activeTab === 'teachers' ? 'bg-white dark:bg-gray-600 text-green-700 dark:text-green-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                            >
+                                المعلمين
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('excel')}
+                                className={`px-6 py-2 rounded-md font-bold text-xs transition-colors ${activeTab === 'excel' ? 'bg-white dark:bg-gray-600 text-green-700 dark:text-green-300 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                            >
+                                من ملف إكسل
+                            </button>
+                        </div>
+                    </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -2013,6 +2490,260 @@ export const CardsManager: React.FC = () => {
                     </div>
                 </div>
             </div>
+        </div>
+        )}
+
+            {/* TAB 2: HALAQA CARDS (بطاقات الحلقات) */}
+            {mainTab === 'halaqa_cards' && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left Column: Filters & Export Controls */}
+                        <div className="lg:col-span-1 space-y-6 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            {/* 1. Filter by Halaqa Type */}
+                            <div>
+                                <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                                    <Palette className="w-4 h-4 text-emerald-600" />
+                                    تصفية وتحديد الحلقات:
+                                </h4>
+                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setHalaqaFilter('all'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
+                                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                    >
+                                        الكل ({allHalaqaItems.length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setHalaqaFilter('memorization'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
+                                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'memorization' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                    >
+                                        الحفظ ({allHalaqaItems.filter(i => i.type === 'memorization').length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setHalaqaFilter('sard'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
+                                        className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'sard' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                    >
+                                        السرد ({allHalaqaItems.filter(i => i.type === 'sard').length})
+                                    </button>
+                                </div>
+
+                                {/* Color Settings per Type */}
+                                <div className="p-3 bg-emerald-50/60 dark:bg-gray-700/50 rounded-xl border border-emerald-100 dark:border-gray-600 space-y-2.5 mb-4">
+                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300 block">الألوان الافتراضية للبطاقات:</span>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">لون حلقات الحفظ:</span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowMemColorPicker(true)}
+                                                className="w-7 h-7 rounded-lg border border-gray-300 shadow-xs cursor-pointer focus:outline-none transition-transform hover:scale-105"
+                                                style={{ backgroundColor: memorizationColor }}
+                                                title="تغيير لون حلقات الحفظ"
+                                            />
+                                            <span className="text-[11px] font-mono text-gray-500 uppercase">{memorizationColor}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">لون حلقات السرد:</span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSardColorPicker(true)}
+                                                className="w-7 h-7 rounded-lg border border-gray-300 shadow-xs cursor-pointer focus:outline-none transition-transform hover:scale-105"
+                                                style={{ backgroundColor: sardColor }}
+                                                title="تغيير لون حلقات السرد"
+                                            />
+                                            <span className="text-[11px] font-mono text-gray-500 uppercase">{sardColor}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* FilterItem / Select Specific Halaqa */}
+                                <div className="mb-4">
+                                    <FilterItem
+                                        id="halaqas_list"
+                                        title="تحديد حلقات معينة (اختياري)"
+                                        options={filteredHalaqaItems.map(item => ({
+                                            id: item.id,
+                                            name: `${item.typeName} - رقم ${item.numberStr} ${item.teacherName ? `(${item.teacherName})` : ''}`
+                                        }))}
+                                        selectedValues={selectedHalaqaIds}
+                                        onSelect={setSelectedHalaqaIds}
+                                        search={halaqaSearch}
+                                        setSearch={setHalaqaSearch}
+                                        openDropdown={openDropdown}
+                                        setOpenDropdown={setOpenDropdown}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Print & Layout Options */}
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                                <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                                    <Printer className="w-4 h-4 text-emerald-600" />
+                                    إعدادات الطباعة والتصدير:
+                                </h4>
+
+                                <div>
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 block mb-1">تخطيط الورق:</label>
+                                    <select
+                                        value={exportMode}
+                                        onChange={(e) => setExportMode(e.target.value as any)}
+                                        className="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
+                                    >
+                                        <option value="a4">صفحة A4 (بطاقات متعددة)</option>
+                                        <option value="a3">صفحة A3 (بطاقات متعددة)</option>
+                                        <option value="single">بطاقة واحدة لكل صفحة (قياس بطاقة الحجم المخصص)</option>
+                                        <option value="other">ورق قياس مخصص...</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-lg">
+                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300">ترك مسافة بين البطاقات (5 مم):</label>
+                                    <input
+                                        type="checkbox"
+                                        checked={pdfGaps}
+                                        onChange={(e) => setPdfGaps(e.target.checked)}
+                                        className="w-4 h-4 text-emerald-600 rounded accent-emerald-600 cursor-pointer"
+                                    />
+                                </div>
+
+                                {/* PDF Generation Button */}
+                                <button
+                                    type="button"
+                                    onClick={generateHalaqaPDF}
+                                    disabled={isGenerating || activeHalaqaTargets.length === 0}
+                                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    <Printer className="w-5 h-5" />
+                                    <span>{isGenerating ? 'جاري الإصدار...' : `إصدار PDF (${activeHalaqaTargets.length} بطاقة)`}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Right Column: Card Preview Panel */}
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+                                    <div>
+                                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                            <Sparkles className="w-5 h-5 text-amber-500" />
+                                            معاينة بطاقات الحلقات
+                                        </h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            التصميم الافتراضي المعتمد لبطاقة الحلقة (148 × 210 مم) ببرنامج إعداد حافظ
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400">القياس الافتراضي:</span>
+                                        <span className="px-2.5 py-1 bg-amber-50 dark:bg-gray-700 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-gray-600 text-xs font-bold rounded-md">
+                                            148 × 210 مم (A5)
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Size Customizer */}
+                                <div className="mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 flex flex-wrap gap-4 items-center justify-between">
+                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">أبعاد بطاقة الحلقة:</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5">
+                                            <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">العرض:</label>
+                                            <input
+                                                type="number"
+                                                value={halaqaConfig.width}
+                                                onChange={e => setHalaqaConfig(p => ({ ...p, width: Number(e.target.value) }))}
+                                                onFocus={e => e.target.select()}
+                                                className="w-16 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الارتفاع:</label>
+                                            <input
+                                                type="number"
+                                                value={halaqaConfig.height}
+                                                onChange={e => setHalaqaConfig(p => ({ ...p, height: Number(e.target.value) }))}
+                                                onFocus={e => e.target.select()}
+                                                className="w-16 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الوحدة:</label>
+                                            <select
+                                                value={halaqaConfig.unit}
+                                                onChange={e => setHalaqaConfig(p => ({ ...p, unit: e.target.value as any }))}
+                                                className="p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
+                                            >
+                                                <option value="mm">مم</option>
+                                                <option value="cm">سم</option>
+                                                <option value="in">بوصة</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Rendered Preview Canvas Area */}
+                                <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-6 min-h-[420px] flex flex-col items-center justify-center relative shadow-inner overflow-hidden border border-gray-200 dark:border-gray-700">
+                                    {halaqaPreviewUrl ? (
+                                        <div className="relative group max-w-sm w-full flex items-center justify-center">
+                                            <img
+                                                src={halaqaPreviewUrl}
+                                                alt="معاينة بطاقة الحلقة"
+                                                className="max-h-[500px] w-auto object-contain rounded-lg shadow-2xl transition-transform duration-300"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+                                            <CreditCard className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                                            <p className="text-sm font-bold">لا توجد حلقة محددة للمعاينة</p>
+                                        </div>
+                                    )}
+
+                                    {/* Navigation controls for Preview */}
+                                    {activeHalaqaTargets.length > 0 && (
+                                        <div className="mt-6 flex items-center gap-4 bg-white dark:bg-gray-800 px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+                                            <button
+                                                type="button"
+                                                onClick={() => setHalaqaPreviewIndex(p => Math.max(0, p - 1))}
+                                                disabled={safeHalaqaPreviewIndex <= 0}
+                                                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg disabled:opacity-40 transition-colors"
+                                            >
+                                                السابق
+                                            </button>
+                                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300 dir-rtl">
+                                                معاينة: {safeHalaqaPreviewIndex + 1} / {activeHalaqaTargets.length}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setHalaqaPreviewIndex(p => Math.min(activeHalaqaTargets.length - 1, p + 1))}
+                                                disabled={safeHalaqaPreviewIndex >= activeHalaqaTargets.length - 1}
+                                                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg disabled:opacity-40 transition-colors"
+                                            >
+                                                التالي
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Download Image Action */}
+                                {halaqaPreviewUrl && (
+                                    <div className="mt-4 flex justify-end">
+                                        <a
+                                            href={halaqaPreviewUrl}
+                                            download={`بطاقة_حلقة_${activeHalaqaTargets[safeHalaqaPreviewIndex]?.numberStr || 'preview'}.png`}
+                                            className="px-4 py-2 bg-emerald-50 dark:bg-gray-700 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-gray-600 rounded-lg text-xs font-bold border border-emerald-200 dark:border-gray-600 flex items-center gap-2 transition-colors"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            تنزيل صورة المعاينة (PNG)
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showNameColorPicker && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowNameColorPicker(false)}>
@@ -2031,6 +2762,62 @@ export const CardsManager: React.FC = () => {
                         </div>
                         <div className="flex gap-2 w-full">
                             <button onClick={() => setShowNameColorPicker(false)} className="flex-1 py-2 bg-green-600 text-white rounded-xl font-bold text-xs shadow-lg">تم</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showMemColorPicker && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowMemColorPicker(false)}>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">اختر لون بطاقة حلقات الحفظ</h3>
+                        <HexColorPicker color={memorizationColor} onChange={(color) => {
+                            setMemorizationColor(color);
+                            localStorage.setItem('halaqa_card_mem_color', color);
+                        }} />
+                        <div className="w-full flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">HEX:</span>
+                            <input 
+                                type="text" 
+                                value={memorizationColor} 
+                                onChange={(e) => {
+                                    setMemorizationColor(e.target.value);
+                                    localStorage.setItem('halaqa_card_mem_color', e.target.value);
+                                }}
+                                onFocus={e => e.target.select()}
+                                className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase"
+                            />
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <button onClick={() => setShowMemColorPicker(false)} className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg">تم</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showSardColorPicker && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowSardColorPicker(false)}>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">اختر لون بطاقة حلقات السرد</h3>
+                        <HexColorPicker color={sardColor} onChange={(color) => {
+                            setSardColor(color);
+                            localStorage.setItem('halaqa_card_sard_color', color);
+                        }} />
+                        <div className="w-full flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">HEX:</span>
+                            <input 
+                                type="text" 
+                                value={sardColor} 
+                                onChange={(e) => {
+                                    setSardColor(e.target.value);
+                                    localStorage.setItem('halaqa_card_sard_color', e.target.value);
+                                }}
+                                onFocus={e => e.target.select()}
+                                className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase"
+                            />
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <button onClick={() => setShowSardColorPicker(false)} className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg">تم</button>
                         </div>
                     </div>
                 </div>

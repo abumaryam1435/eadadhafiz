@@ -109,7 +109,7 @@ const NAV_ITEMS: NavItemConfig[] = [
   },
   { 
     id: 'cards', 
-    label: 'البطاقات التعريفية', 
+    label: 'البطاقات', 
     shortLabel: 'البطاقات', 
     icon: CreditCard,
     iconColor: 'text-teal-700 dark:text-teal-400',

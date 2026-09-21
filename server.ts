@@ -20,12 +20,18 @@ async function getBrowser() {
 
   let puppeteer: any;
   try {
-    const puppeteerModule = await import("puppeteer");
+    const pkg = "puppeteer";
+    const puppeteerModule = await import(pkg);
     puppeteer = puppeteerModule.default || puppeteerModule;
   } catch (err) {
-    console.warn("Puppeteer import failed, trying puppeteer-core:", err);
-    const puppeteerCoreModule = await import("puppeteer-core");
-    puppeteer = puppeteerCoreModule.default || puppeteerCoreModule;
+    try {
+      const pkgCore = "puppeteer-core";
+      const puppeteerCoreModule = await import(pkgCore);
+      puppeteer = puppeteerCoreModule.default || puppeteerCoreModule;
+    } catch (e) {
+      console.warn("Puppeteer is not installed in this environment");
+      throw new Error("Puppeteer is not available");
+    }
   }
 
   browserInstance = await puppeteer.launch({
