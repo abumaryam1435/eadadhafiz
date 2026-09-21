@@ -7,7 +7,7 @@ import { exportToPdf, getDualDate, sharePdfDirectly } from '../utils/exportPdf';
 import { shareHtmlViaWhatsApp } from '../utils/exportHtml';
 import { isSmartMatch } from '../utils/searchUtils';
 import { HexColorPicker } from "react-colorful";
-import { getMemorizedPagesData, calculateStudentLevel } from "../utils/pageUtils";
+import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank } from "../utils/pageUtils";
 import { formatJuzsFromNumbers } from "../utils/juzUtils";
 import EvaluationEditForm from './EvaluationEditForm';
 import Modal from './Modal';
@@ -55,8 +55,7 @@ const hexToRgba = (hex: string, alpha: number) => {
 
 const getLevelNum = (val: any) => {
     if (typeof val === 'string') {
-        const match = val.match(/\d+/);
-        return match ? parseInt(match[0]) : 999;
+        return getLevelNumericRank(val);
     }
     return 999;
 };
@@ -286,21 +285,13 @@ interface SummaryRow {
     const levelOptions = useMemo(() => {
         const levelsSet = new Set<string>();
         data.forEach(r => { if (r.level && r.level !== '—' && r.level !== 'لم يحدد') levelsSet.add(r.level); });
-        return Array.from(levelsSet).sort((a, b) => {
-            const numA = parseInt(a.match(/\d+/)?.[0] || '0');
-            const numB = parseInt(b.match(/\d+/)?.[0] || '0');
-            return numA - numB;
-        }).map(l => ({ id: l, name: l }));
+        return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b)).map(l => ({ id: l, name: l }));
     }, [data]);
 
     const studentLevelOptions = useMemo(() => {
         const levelsSet = new Set<string>();
         data.forEach(r => { if (r.studentLevel && r.studentLevel !== '—' && r.studentLevel !== 'لم يحدد') levelsSet.add(r.studentLevel); });
-        return Array.from(levelsSet).sort((a, b) => {
-            const numA = parseInt(a.match(/\d+/)?.[0] || '0');
-            const numB = parseInt(b.match(/\d+/)?.[0] || '0');
-            return numA - numB;
-        }).map(l => ({ id: l, name: l }));
+        return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b)).map(l => ({ id: l, name: l }));
     }, [data]);
 
     const testOptions = useMemo(() => {
@@ -502,7 +493,6 @@ interface SummaryRow {
                 <FilterItem id="sumHalaqa" title="حلقة الطالب" selectedValues={summaryHalaqaIds} options={halaqaOptionsSummary} onSelect={setSummaryHalaqaIds} search={summarySearch.halaqa} setSearch={(v) => setSummarySearch(p => ({...p, halaqa: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
                 <FilterItem id="sumTeacher" title="المعلم" selectedValues={summaryTeacherIds} options={users.filter(u => u.role === UserRole.TEACHER).map(t => ({id: t.id, name: t.name}))} onSelect={setSummaryTeacherIds} search={summarySearch.teacher} setSearch={(v) => setSummarySearch(p => ({...p, teacher: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
                 <FilterItem id="sumLevel" title="المستوى" selectedValues={summaryLevels} options={levelOptions} onSelect={setSummaryLevels} search={summarySearch.level} setSearch={(v) => setSummarySearch(p => ({...p, level: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={onColorChange} saveColors={saveColors} onToggleSaveColors={onToggleSaveColors} />
-                <FilterItem id="sumStudentLevel" title="مستوى الطالب" selectedValues={summaryStudentLevels} options={studentLevelOptions} onSelect={setSummaryStudentLevels} search={summarySearch.studentLevel} setSearch={(v) => setSummarySearch(p => ({...p, studentLevel: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={onColorChange} saveColors={saveColors} onToggleSaveColors={onToggleSaveColors} />
                 <FilterItem id="sumAlAmeen" title="من الأمين؟" selectedValues={summaryAlAmeen} options={alAmeenOptionsSummary} onSelect={setSummaryAlAmeen} search={summarySearch.alAmeen} setSearch={(v) => setSummarySearch(p => ({...p, alAmeen: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={onColorChange} saveColors={saveColors} onToggleSaveColors={onToggleSaveColors} />
                 <FilterItem id="sumFromIbri" title="من جامع عبري؟" selectedValues={summaryFromIbri} options={ibriOptionsSummary} onSelect={setSummaryFromIbri} search={summarySearch.fromIbri} setSearch={(v) => setSummarySearch(p => ({...p, fromIbri: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={onColorChange} saveColors={saveColors} onToggleSaveColors={onToggleSaveColors} />
                 <FilterItem id="sumTest" title="اسم الاختبار" selectedValues={summaryTestKeys} options={testOptions} onSelect={setSummaryTestKeys} search={summarySearch.test} setSearch={(v) => setSummarySearch(p => ({...p, test: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
@@ -1011,11 +1001,12 @@ export const TestsReportTable: React.FC = () => {
         });
 
         const pagesData = getMemorizedPagesData(s, evaluations);
+        const calculatedLvl = s.manualStudentLevel || s.manualLevel || calculateStudentLevel(pagesData.totalCount);
         map.set(s.id, {
             surahs: Array.from(uniqueSurahs).join('، '),
             juzs: formatJuzsFromNumbers(Array.from(uniqueJuzs)),
-            level: s.manualLevel || (uniqueJuzs.size > 0 ? `المستوى ${uniqueJuzs.size}` : 'لم يحدد'),
-            studentLevel: s.manualStudentLevel || calculateStudentLevel(pagesData.totalCount)
+            level: calculatedLvl,
+            studentLevel: calculatedLvl
         });
     });
     return map;
@@ -1067,8 +1058,7 @@ export const TestsReportTable: React.FC = () => {
 
     const getLevelValue = (levelStr: string) => {
         if (!levelStr || levelStr === 'لم يحدد') return 999;
-        const match = levelStr.match(/\d+/);
-        return match ? parseInt(match[0]) : 999;
+        return getLevelNumericRank(levelStr);
     };
 
     return results; // Sorting happens in the matrix component now
@@ -1078,7 +1068,6 @@ export const TestsReportTable: React.FC = () => {
     { key: 'sequence', label: '#' },
     { key: 'studentName', label: 'اسم الطالب' },
     { key: 'level', label: 'المستوى' },
-    { key: 'studentLevel', label: 'مستوى الطالب' },
     ...uniqueTestNames.map(name => ({ key: name, label: name })),
     { key: 'totalScore', label: 'المجموع' }
   ], [uniqueTestNames]);
@@ -1113,7 +1102,6 @@ export const TestsReportTable: React.FC = () => {
     { key: 'testTajweedErrors', label: 'أخطاء التجويد' },
     { key: 'testPassageChanges', label: 'تغيير المقطع' },
     { key: 'testTotalScore', label: 'درجة الاختبار' },
-    { key: 'studentLevel', label: 'مستوى الطالب' },
     { key: 'isAlAmeenStr', label: 'من الأمين؟' },
     { key: 'isFromIbriStr', label: 'من جامع عبري؟' },
     { key: 'notes', label: 'ملاحظات' },
@@ -1281,11 +1269,7 @@ export const TestsReportTable: React.FC = () => {
             levelsSet.add(progress.level);
         }
     });
-    return Array.from(levelsSet).sort((a, b) => {
-        const numA = parseInt(a.match(/\d+/)?.[0] || '0');
-        const numB = parseInt(b.match(/\d+/)?.[0] || '0');
-        return numA - numB;
-    }).map(l => ({ id: l, name: l }));
+    return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b)).map(l => ({ id: l, name: l }));
   }, [studentProgressMap]);
 
   const sortedAndFilteredData = useMemo(() => {
@@ -1657,7 +1641,6 @@ export const TestsReportTable: React.FC = () => {
               <FilterItem id="halaqa" title="حلقة الطالب" selectedValues={selectedHalaqaIds} options={[{ id: '0', name: 'غير محدد' }, ...[...halaqas].sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })).map(h => ({id: h.id, name: h.name}))]} onSelect={setSelectedHalaqaIds} search={halaqaSearch} setSearch={setHalaqaSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
               <FilterItem id="teacher" title="المقيم" selectedValues={selectedTeacherIds} options={users.filter(u => u.role === UserRole.TEACHER).map(t => ({id: t.id, name: t.name}))} onSelect={setSelectedTeacherIds} search={teacherSearch} setSearch={setTeacherSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
               <FilterItem id="level" title="المستوى" selectedValues={selectedLevels} options={levelOptionsDetailed} onSelect={setSelectedLevels} search={levelSearch} setSearch={setLevelSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
-              <FilterItem id="studentLevel" title="مستوى الطالب" selectedValues={selectedStudentLevels} options={studentLevelOptionsDetailed} onSelect={setSelectedStudentLevels} search={studentLevelSearch} setSearch={setStudentLevelSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
               <FilterItem id="alAmeen" title="من الأمين؟" selectedValues={selectedAlAmeen} options={alAmeenOptions} onSelect={setSelectedAlAmeen} search={alAmeenSearch} setSearch={setAlAmeenSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={handleColorChange} saveColors={saveColors} onToggleSaveColors={handleToggleSaveColors} />
               <FilterItem id="fromIbri" title="من جامع عبري؟" selectedValues={selectedFromIbri} options={ibriOptions} onSelect={setSelectedFromIbri} search={fromIbriSearch} setSearch={setFromIbriSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={handleColorChange} saveColors={saveColors} onToggleSaveColors={handleToggleSaveColors} />
               <FilterItem id="week" title="اسم الاختبار" selectedValues={selectedWeeks} options={weekOptions} onSelect={setSelectedWeeks} search={weekSearch} setSearch={setWeekSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />

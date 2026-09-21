@@ -10,7 +10,7 @@ import { isSmartMatch, formatWhatsAppNumber } from "../utils/searchUtils";
 import Modal from "./Modal";
 import { FilterItem } from "./FilterItem";
 import { formatAndCountJuzs, parseJuzsToNumbers } from "../utils/juzUtils";
-import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, getLastMemorizedPage } from "../utils/pageUtils";
+import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, getLastMemorizedPage, getLevelNumericRank } from "../utils/pageUtils";
 import { WordExportModal } from "./WordExportModal";
 import { ExcelExportModal } from "./ExcelExportModal";
 
@@ -276,7 +276,7 @@ export const OverviewTable: React.FC = () => {
       { key: "autoCompletedJuzsStr", label: "أرقام الأجزاء" },
       { key: "autoCompletedJuzsCount", label: "عدد الأجزاء" },
       { key: "lastMemorizedPageStr", label: "آخر صفحة تم حفظها" },
-      { key: "studentLevel", label: "مستوى الطالب" },
+      { key: "studentLevel", label: "المستوى" },
       { key: "isAlAmeenStr", label: "من الأمين؟" },
       { key: "isFromIbriStr", label: "من جامع عبري؟" },
     ],
@@ -541,7 +541,9 @@ export const OverviewTable: React.FC = () => {
     combinedData.forEach((d) => {
       if (d.studentLevel) levels.add(d.studentLevel);
     });
-    return Array.from(levels).map((l) => ({ id: l, name: l }));
+    return Array.from(levels)
+      .sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b))
+      .map((l) => ({ id: l, name: l }));
   }, [combinedData]);
 
   const alAmeenOptions = [

@@ -5,7 +5,7 @@ import { isSmartMatch } from '../utils/searchUtils';
 import { StudentProgressInfo } from './StudentProgressInfo';
 import MushafReaderModal from './MushafReaderModal';
 import { surahNames, surahPagesMap } from '../utils/quranData';
-import { getMemorizedPagesData, getStudentTestPassagesInfo } from '../utils/pageUtils';
+import { getMemorizedPagesData, getStudentTestPassagesInfo, calculateStudentLevel } from '../utils/pageUtils';
 import { toArabicDigits } from '../utils/juzUtils';
 import { preloadMushafPages } from '../utils/mushafPreload';
 import { generateSuggestedTestPassages, generateSingleReplacementPassage, SuggestedTestPassage, formatPassageDescription } from '../utils/testPassageGenerator';
@@ -442,11 +442,18 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
 
   const getStudentProgress = (studentId: number) => {
     const student = students.find(s => s.id === studentId);
-    if (student?.useManualData) {
+    if (!student) {
+      return { surahs: '—', juzs: '—', level: 'لم يحدد مستوى بعد' };
+    }
+
+    const pagesData = getMemorizedPagesData(student, evaluations);
+    const calculatedLevel = student.manualStudentLevel || student.manualLevel || calculateStudentLevel(pagesData.totalCount);
+
+    if (student.useManualData) {
       return {
         surahs: student.manualSurahs?.join('، ') || '—',
         juzs: student.manualParts?.join('، ') || '—',
-        level: student.manualLevel || (student.manualParts?.length ? `المستوى ${student.manualParts.length}` : 'لم يحدد مستوى بعد')
+        level: calculatedLevel
       };
     }
 
@@ -465,7 +472,7 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
     return {
       surahs: Array.from(uniqueSurahs).join('، '),
       juzs: Array.from(uniqueJuzs).sort((a, b) => a - b).join('، '),
-      level: uniqueJuzs.size > 0 ? `المستوى ${uniqueJuzs.size}` : 'لم يحدد مستوى بعد'
+      level: calculatedLevel
     };
   };
 

@@ -6,24 +6,7 @@ import Modal from './Modal';
 import { isSmartMatch } from '../utils/searchUtils';
 import { exportSardHalaqasTemplate } from '../utils/halaqaExcelUtils';
 import { HalaqaExcelImportModal } from './HalaqaExcelImportModal';
-import { getMemorizedPagesData, calculateStudentLevel } from '../utils/pageUtils';
-
-const LEVEL_WORDS_ORDER = [
-    "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر",
-    "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر", "السادس عشر", "السابع عشر", "الثامن عشر", "التاسع عشر", "العشرون",
-    "الحادي والعشرون", "الثاني والعشرون", "الثالث والعشرون", "الرابع والعشرون", "الخامس والعشرون", "السادس والعشرون", "السابع والعشرون", "الثامن والعشرون", "التاسع والعشرون", "الثلاثون",
-    "الحادي وثلاثون", "الثاني وثلاثون", "الثالث وثلاثون"
-];
-
-const getLevelNumericRank = (levelStr: string): number => {
-    if (!levelStr) return 999;
-    const clean = levelStr.replace(/^(المستوى|مستوى)\s*/, "").trim();
-    const num = parseInt(clean, 10);
-    if (!isNaN(num)) return num;
-    const idx = LEVEL_WORDS_ORDER.findIndex(w => clean.includes(w));
-    if (idx !== -1) return idx + 1;
-    return 999;
-};
+import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, LEVEL_WORDS_ORDER } from '../utils/pageUtils';
 
 export const SardManagement: React.FC = () => {
     const context = useContext(AppContext);

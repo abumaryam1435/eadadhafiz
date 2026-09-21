@@ -193,7 +193,7 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
     { key: 'evalTashkeelErrors', label: 'أخطاء التشكيل' },
     { key: 'evalTajweedErrors', label: 'أخطاء التجويد' },
     { key: 'evalTotalErrors', label: 'مجموع الأخطاء' },
-    { key: 'studentLevel', label: 'مستوى الطالب' },
+    { key: 'studentLevel', label: 'المستوى' },
     { key: 'isAlAmeenStr', label: 'من الأمين؟' },
     { key: 'isFromIbriStr', label: 'من جامع عبري؟' },
     { key: 'notes', label: 'ملاحظات' },

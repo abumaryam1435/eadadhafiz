@@ -232,14 +232,30 @@ export function getMemorizedPagesData(student: Student, evaluations: Evaluation[
   };
 }
 
+export const LEVEL_WORDS_ORDER = [
+  "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر",
+  "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر", "السادس عشر", "السابع عشر", "الثامن عشر", "التاسع عشر", "العشرون",
+  "الحادي والعشرون", "الثاني والعشرون", "الثالث والعشرون", "الرابع والعشرون", "الخامس والعشرون", "السادس والعشرون", "السابع والعشرون", "الثامن والعشرون", "التاسع والعشرون", "الثلاثون",
+  "الحادي والثلاثون", "الثاني والثلاثون", "الثالث والثلاثون"
+];
+
 export function calculateStudentLevel(totalCount: number): string {
   if (totalCount < 40) return "المستوى الأول";
-  const levels = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر", "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر", "السادس عشر", "السابع عشر", "الثامن عشر", "التاسع عشر", "العشرون", "الحادي والعشرون", "الثاني والعشرون", "الثالث والعشرون", "الرابع والعشرون", "الخامس والعشرون", "السادس والعشرون", "السابع والعشرون", "الثامن والعشرون", "التاسع والعشرون", "الثلاثون", "الحادي والثلاثون", "الثاني والثلاثون", "الثالث والثلاثون"];
-  const levelNum = 2 + Math.floor((totalCount - 40) / 20);
-  if (levelNum < levels.length) {
-      return `المستوى ${levels[levelNum]}`;
+  const levelNum = Math.floor(totalCount / 20);
+  if (levelNum >= 1 && levelNum <= LEVEL_WORDS_ORDER.length) {
+    return `المستوى ${LEVEL_WORDS_ORDER[levelNum - 1]}`;
   }
   return `المستوى ${levelNum}`;
+}
+
+export function getLevelNumericRank(levelStr: string): number {
+  if (!levelStr) return 999;
+  const clean = levelStr.replace(/^(المستوى|مستوى)\s*/, "").trim();
+  const num = parseInt(clean, 10);
+  if (!isNaN(num)) return num;
+  const idx = LEVEL_WORDS_ORDER.findIndex(w => clean === w || clean.includes(w));
+  if (idx !== -1) return idx + 1;
+  return 999;
 }
 
 export function getCompletedJuzs(totalSet: Set<number>): number[] {
