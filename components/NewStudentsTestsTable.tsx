@@ -32,6 +32,7 @@ export const NewStudentsTestsTable: React.FC = () => {
   const acceptNewStudent = context?.acceptNewStudent || (() => {});
   const rejectNewStudent = context?.rejectNewStudent || (() => {});
   const deleteNewStudentTest = context?.deleteNewStudentTest || (() => {});
+  const deleteAllNewStudentTests = context?.deleteAllNewStudentTests;
   const updateNewStudentTest = context?.updateNewStudentTest || (() => {});
 
   // Filters & Search
@@ -42,6 +43,7 @@ export const NewStudentsTestsTable: React.FC = () => {
   // Modals
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showTestFormModal, setShowTestFormModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [acceptingStudent, setAcceptingStudent] = useState<NewStudentTest | null>(null);
   const [deletingTest, setDeletingTest] = useState<NewStudentTest | null>(null);
   const [selectedHalaqaId, setSelectedHalaqaId] = useState<number>(0);
@@ -272,6 +274,21 @@ export const NewStudentsTestsTable: React.FC = () => {
             >
               <span>➕</span>
               <span>اختبار طالب جديد</span>
+            </button>
+
+            {/* Clear/Delete All Data Button */}
+            <button
+              onClick={() => setShowDeleteAllModal(true)}
+              disabled={newStudentTests.length === 0}
+              title={newStudentTests.length === 0 ? 'التقرير فارغ حالياً' : 'حذف جميع بيانات التقرير بتأكيد منبثق'}
+              className={`px-4 py-2.5 text-xs font-black rounded-2xl transition-all flex items-center gap-1.5 shadow-xs ${
+                newStudentTests.length === 0
+                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60'
+                  : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white border border-red-200/80 dark:border-red-800/60 cursor-pointer active:scale-95'
+              }`}
+            >
+              <span>🗑️</span>
+              <span>حذف جميع البيانات</span>
             </button>
           </div>
         </div>
@@ -1067,6 +1084,71 @@ export const NewStudentsTestsTable: React.FC = () => {
               isSupervisor={true}
               onComplete={() => setShowTestFormModal(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Clear/Delete All Data Confirmation Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-[140] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 sm:p-7 w-full max-w-md shadow-2xl border border-red-100 dark:border-red-900/50 space-y-5 animate-in zoom-in-95 text-center relative overflow-hidden">
+            {/* Top red warning glow line */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 via-rose-600 to-red-500"></div>
+
+            {/* Icon */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-red-100 dark:bg-red-950/80 border-2 border-red-200 dark:border-red-800 flex items-center justify-center text-3xl sm:text-4xl text-red-600 dark:text-red-400 mx-auto shadow-inner ring-8 ring-red-50 dark:ring-red-950/30">
+              🗑️
+            </div>
+
+            {/* Title & Description */}
+            <div className="space-y-2">
+              <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">
+                تأكيد حذف جميع بيانات التقرير
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+                هل أنت مقتنع بحذف جميع نتائج وسجلات تقييم الطلاب الجدد ({stats.total} سجل)؟
+              </p>
+            </div>
+
+            {/* Detailed Mobile-Friendly Warning Box */}
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/80 rounded-2xl p-4 text-right text-xs space-y-2 text-amber-900 dark:text-amber-200 shadow-inner">
+              <div className="flex items-center gap-2 font-black text-amber-800 dark:text-amber-300 text-xs sm:text-sm">
+                <span className="text-base">⚠️</span>
+                <span>تنبيه هام قبل الحذف:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1.5 text-[11px] sm:text-xs font-semibold leading-relaxed text-amber-800/90 dark:text-amber-300/90 pr-1">
+                <li>سيتم مسح كافّة درجات وسجلات تقرير اختبارات القبول نهائياً.</li>
+                <li>سيكون التقرير فارغاً تماماً وجاهزاً لرصد تقييمات طلاب جدد في الفترة القادمة.</li>
+                <li>الطلاب المقبولون الذين تم إدراجهم سابقاً في قائمة الطلاب الرئيسية <strong>لن يتأثروا</strong> بهذه العملية وسيبقون مقيدين في التطبيق.</li>
+              </ul>
+            </div>
+
+            {/* Action Buttons (Mobile First layout: full-width column reverse on phone, row on desktop) */}
+            <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAllModal(false)}
+                className="w-full sm:flex-1 py-3.5 px-5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs sm:text-sm rounded-2xl transition-all border border-gray-200 dark:border-gray-700 cursor-pointer active:scale-95"
+              >
+                إلغاء الأمر
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteAllNewStudentTests) {
+                    deleteAllNewStudentTests();
+                  } else {
+                    newStudentTests.forEach(t => deleteNewStudentTest(t.id));
+                    showToast('🗑️ تم تفريغ تقرير الطلاب الجدد وحذف جميع البيانات بنجاح.', 'success');
+                  }
+                  setShowDeleteAllModal(false);
+                }}
+                className="w-full sm:flex-1 py-3.5 px-5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer border border-red-500"
+              >
+                <span>🗑️</span>
+                <span>نعم، مسح جميع البيانات</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

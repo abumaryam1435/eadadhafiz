@@ -105,6 +105,7 @@ interface AppContextType {
   addNewStudentTest: (test: Omit<NewStudentTest, 'id' | 'updatedAt'>) => number;
   updateNewStudentTest: (test: NewStudentTest) => void;
   deleteNewStudentTest: (testId: number) => void;
+  deleteAllNewStudentTests?: () => void;
   acceptNewStudent: (testId: number, halaqaId?: number) => void;
   rejectNewStudent: (testId: number) => void;
   initiateLogoutCheck: () => void;
@@ -799,6 +800,11 @@ const App: React.FC = () => {
     writeData(`data/newStudentTests/${testId}`, null);
   }, [writeData]);
 
+  const deleteAllNewStudentTests = useCallback(() => {
+    writeData('data/newStudentTests', null);
+    showToast('🗑️ تم تفريغ تقرير الطلاب الجدد وحذف جميع بيانات الاختبارات بنجاح.', 'success');
+  }, [writeData, showToast]);
+
   const acceptNewStudent = useCallback((testId: number, halaqaId: number = 0) => {
     const currentTest = (data.newStudentTests || []).find(t => t.id === testId);
     if (!currentTest) return;
@@ -1027,7 +1033,7 @@ const App: React.FC = () => {
     newStudentTestScore: newStudentTestScoreState, setNewStudentTestScore,
     newStudentPassingRate: newStudentPassingRateState, setNewStudentPassingRate,
     newStudentTestDeductions: newStudentTestDeductionsState, setNewStudentTestDeductions,
-    addNewStudentTest, updateNewStudentTest, deleteNewStudentTest, acceptNewStudent, rejectNewStudent,
+    addNewStudentTest, updateNewStudentTest, deleteNewStudentTest, deleteAllNewStudentTests, acceptNewStudent, rejectNewStudent,
     initiateLogoutCheck, appName, setAppName,
     darkMode, toggleDarkMode, 
     firebaseConnectionStatus, firebaseConfig: firebaseConfigState, setFirebaseConfig: setFirebaseConfigState,
@@ -1051,7 +1057,7 @@ const App: React.FC = () => {
     handleLogout, isLoading, isLoadingFirebase, lastUsedWeek, setLastUsedWeek,
     isTestActiveState, setIsTestActive, testScoreState, setTestScore, testNameState, setTestName, testDeductionsState, setTestDeductions,
     isNewStudentTestActiveState, setIsNewStudentTestActive, newStudentTestScoreState, setNewStudentTestScore, newStudentPassingRateState, setNewStudentPassingRate, newStudentTestDeductionsState, setNewStudentTestDeductions,
-    addNewStudentTest, updateNewStudentTest, deleteNewStudentTest, acceptNewStudent, rejectNewStudent,
+    addNewStudentTest, updateNewStudentTest, deleteNewStudentTest, deleteAllNewStudentTests, acceptNewStudent, rejectNewStudent,
     initiateLogoutCheck, appName, setAppName, darkMode, toggleDarkMode,
     firebaseConnectionStatus, firebaseConfigState, setFirebaseConfigState,
     isDistributable, isPublishedConnected, currentUser, showToast,
