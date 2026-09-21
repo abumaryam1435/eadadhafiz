@@ -255,8 +255,34 @@ export function getLevelNumericRank(levelStr: string): number {
   const clean = String(levelStr).replace(/(المستوى|مستوى)\s*/g, "").trim();
   const num = parseInt(clean, 10);
   if (!isNaN(num) && num > 0) return num;
-  const idx = LEVEL_WORDS_ORDER.findIndex(w => clean === w || clean.includes(w));
-  if (idx !== -1) return idx + 1;
+
+  // 1. Exact match in LEVEL_WORDS_ORDER
+  const exactIdx = LEVEL_WORDS_ORDER.indexOf(clean);
+  if (exactIdx !== -1) return exactIdx + 1;
+
+  // 2. Exact match after normalizing alef and yaa
+  const normalizedClean = clean
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ين$/g, "ون");
+
+  const normalizedOrder = LEVEL_WORDS_ORDER.map(w =>
+    w.replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ين$/g, "ون")
+  );
+
+  const normIdx = normalizedOrder.indexOf(normalizedClean);
+  if (normIdx !== -1) return normIdx + 1;
+
+  // 3. Match longest phrase first to prevent partial collision (e.g. "الثاني عشر" matching "الثاني")
+  const sortedWords = LEVEL_WORDS_ORDER.map((w, idx) => ({ word: w, rank: idx + 1 }))
+    .sort((a, b) => b.word.length - a.word.length);
+
+  for (const item of sortedWords) {
+    if (clean === item.word || clean.includes(item.word)) {
+      return item.rank;
+    }
+  }
+
   return 999;
 }
 

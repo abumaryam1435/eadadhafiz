@@ -80,14 +80,19 @@ export const SardManagement: React.FC = () => {
         return students.filter(s => !s.sardHalaqaId);
     }, [students]);
 
-    // Unique levels among unassigned students
+    // Unique levels among unassigned students (Sorted strictly ascending from smallest to largest)
     const availableLevels = useMemo(() => {
         const levelsSet = new Set<string>();
         unassignedStudents.forEach(s => {
-            const lvl = getStudentLevel(s);
+            const lvl = normalizeStudentLevel(getStudentLevel(s));
             if (lvl) levelsSet.add(lvl);
         });
-        return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b));
+        return Array.from(levelsSet).sort((a, b) => {
+            const rankA = getLevelNumericRank(a);
+            const rankB = getLevelNumericRank(b);
+            if (rankA !== rankB) return rankA - rankB;
+            return a.localeCompare(b, 'ar');
+        });
     }, [unassignedStudents, evaluations]);
 
     // Filtered and sorted students for assignment modal (Sorted by level smallest to largest, then by name)
@@ -174,14 +179,27 @@ export const SardManagement: React.FC = () => {
         }
     };
 
+    const handleOpenAssignExistingModal = (halaqaId: number) => {
+        setSelectedLevelFilter('all');
+        setExistingStudentSearch('');
+        setSelectedStudentIdsToAssign([]);
+        setAssignExistingModalOpen(halaqaId);
+    };
+
+    const handleCloseAssignExistingModal = () => {
+        setAssignExistingModalOpen(null);
+        setSelectedLevelFilter('all');
+        setExistingStudentSearch('');
+        setSelectedStudentIdsToAssign([]);
+    };
+
     const handleBatchAssignExistingStudents = (sardHalaqaId: number) => {
         if (selectedStudentIdsToAssign.length === 0) return;
         selectedStudentIdsToAssign.forEach(id => {
             assignStudentToSardHalaqa(id, sardHalaqaId);
         });
         showToast(`✅ تم إلحاق ${selectedStudentIdsToAssign.length} طالب بحلقة السرد بنجاح.`);
-        setSelectedStudentIdsToAssign([]);
-        setAssignExistingModalOpen(null);
+        handleCloseAssignExistingModal();
     };
 
     const handleMoveStudent = (student: Student, targetSardHalaqaId: number) => {
@@ -368,7 +386,7 @@ export const SardManagement: React.FC = () => {
             {assignExistingModalOpen !== null && (
                 <Modal 
                     title="إضافة طلاب من القائمة العامة إلى حلقة السرد" 
-                    onClose={() => { setAssignExistingModalOpen(null); setSelectedStudentIdsToAssign([]); }}
+                    onClose={handleCloseAssignExistingModal}
                     hideDefaultCloseButton
                 >
                     <div className="space-y-4">
@@ -489,7 +507,7 @@ export const SardManagement: React.FC = () => {
 
                         <div className="flex gap-3 pt-3 border-t dark:border-gray-700">
                             <button 
-                                onClick={() => { setAssignExistingModalOpen(null); setSelectedStudentIdsToAssign([]); }}
+                                onClick={handleCloseAssignExistingModal}
                                 className="flex-1 py-3 bg-gray-200 text-gray-800 rounded-xl font-bold hover:bg-gray-300 transition-colors"
                             >
                                 إلغاء
@@ -681,7 +699,7 @@ export const SardManagement: React.FC = () => {
                                                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">اختر طلاباً مسجلين بالفعل في حلقات المدرسة لإضافتهم لهذه الحلقة في السرد.</p>
                                                         </div>
                                                         <button 
-                                                            onClick={() => setAssignExistingModalOpen(halaqa.id)}
+                                                            onClick={() => handleOpenAssignExistingModal(halaqa.id)}
                                                             className="w-full py-2.5 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 transition-all text-sm flex items-center justify-center gap-2"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>

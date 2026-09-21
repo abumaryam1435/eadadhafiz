@@ -965,7 +965,7 @@ export const TestsReportTable: React.FC = () => {
 
   const testEvaluations = useMemo(() => evaluations.filter(e => e.isTest), [evaluations]);
   
-  const studentProgressMap = useMemo<Map<number, { surahs: string, juzs: string, level: string, studentLevel: string }>>(() => {
+  const studentProgressMap = useMemo<Map<number, { surahs: string, juzs: string, level: string, studentLevel: string, memorizedJuzsCount: number }>>(() => {
     const SURAH_JUZ_MAPPING: Record<string, number[]> = {
         "الفاتحة": [1], "البقرة": [1, 2, 3], "آل عمران": [3, 4], "النساء": [4, 5, 6],
         "المائدة": [6, 7], "الأنعام": [7, 8], "الأعراف": [8, 9], "الأنفال": [9, 10], "التوبة": [10, 11],
@@ -989,7 +989,7 @@ export const TestsReportTable: React.FC = () => {
         "الكافرون": [30], "النصر": [30], "المسد": [30], "الإخلاص": [30], "الفلق": [30], "الناس": [30]
     };
 
-    const map = new Map<number, { surahs: string, juzs: string, level: string, studentLevel: string }>();
+    const map = new Map<number, { surahs: string, juzs: string, level: string, studentLevel: string, memorizedJuzsCount: number }>();
     students.forEach(s => {
         const studentEvaluations = evaluations.filter(ev => ev.studentId === s.id && ev.surahs && ev.surahs.length > 0 && !ev.isTest);
         const uniqueSurahs = new Set<string>();
@@ -1006,11 +1006,14 @@ export const TestsReportTable: React.FC = () => {
         const pagesData = getMemorizedPagesData(s, evaluations);
         const manualLvl = normalizeStudentLevel(s.manualStudentLevel || s.manualLevel);
         const calculatedLvl = manualLvl || calculateStudentLevel(pagesData.totalCount);
+        const totalPages = pagesData.totalCount;
+        const juzsCount = totalPages >= 20 ? Math.floor(totalPages / 20) : 0;
         map.set(s.id, {
             surahs: Array.from(uniqueSurahs).join('، '),
             juzs: formatJuzsFromNumbers(Array.from(uniqueJuzs)),
             level: calculatedLvl,
-            studentLevel: calculatedLvl
+            studentLevel: calculatedLvl,
+            memorizedJuzsCount: juzsCount
         });
     });
     return map;
@@ -1026,6 +1029,9 @@ export const TestsReportTable: React.FC = () => {
 
   const processedSummaryData = useMemo(() => {
     const results = students.map(s => {
+        const progress = studentProgressMap.get(s.id);
+        const pagesData = getMemorizedPagesData(s, evaluations);
+        const juzsCount = progress?.memorizedJuzsCount ?? (pagesData.totalCount >= 20 ? Math.floor(pagesData.totalCount / 20) : 0);
         const row: any = {
             id: s.id,
             studentName: s.name,
@@ -1034,8 +1040,9 @@ export const TestsReportTable: React.FC = () => {
             isFromIbriStr: (s.isFromIbri !== false) ? 'نعم' : 'لا',
             halaqaId: s.halaqaId,
             halaqaName: halaqas.find(h => h.id === s.halaqaId)?.name || '—',
-            level: studentProgressMap.get(s.id)?.level || 'لم يحدد',
-            studentLevel: studentProgressMap.get(s.id)?.studentLevel || 'لم يحدد',
+            level: progress?.level || 'لم يحدد',
+            studentLevel: progress?.studentLevel || 'لم يحدد',
+            memorizedJuzsCount: juzsCount,
             totalScore: 0,
             hasAnyTest: false
         };
@@ -1072,6 +1079,7 @@ export const TestsReportTable: React.FC = () => {
     { key: 'sequence', label: '#' },
     { key: 'studentName', label: 'اسم الطالب' },
     { key: 'level', label: 'المستوى' },
+    { key: 'memorizedJuzsCount', label: 'عدد الأجزاء' },
     ...uniqueTestNames.map(name => ({ key: name, label: name })),
     { key: 'totalScore', label: 'المجموع' }
   ], [uniqueTestNames]);
@@ -1094,6 +1102,7 @@ export const TestsReportTable: React.FC = () => {
     { key: 'sequence', label: '#' },
     { key: 'studentName', label: 'الطالب' },
     { key: 'level', label: 'المستوى' },
+    { key: 'memorizedJuzsCount', label: 'عدد الأجزاء' },
     { key: 'studentOriginalHalaqaName', label: 'حلقة الطالب' },
     { key: 'halaqaName', label: 'حلقة المقيم' },
     { key: 'evaluatorName', label: 'المقيم' },
@@ -1119,12 +1128,17 @@ export const TestsReportTable: React.FC = () => {
       try { 
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-            setSelectedColumnKeys(parsed);
-            const customMiddle = parsed.filter(k => k !== 'sequence' && k !== 'notes');
+            const hasJuzs = parsed.includes('memorizedJuzsCount');
+            const finalParsed = hasJuzs ? parsed : [...parsed, 'memorizedJuzsCount'];
+            setSelectedColumnKeys(finalParsed);
+            const customMiddle = finalParsed.filter(k => k !== 'sequence' && k !== 'notes');
             const remaining = baseOrder.filter(k => !customMiddle.includes(k) && k !== 'sequence' && k !== 'notes');
             setColumnOrder(['sequence', ...customMiddle, ...remaining, 'notes']);
         } else if (parsed && typeof parsed === 'object') {
-            if (Array.isArray(parsed.selected)) setSelectedColumnKeys(parsed.selected);
+            if (Array.isArray(parsed.selected)) {
+                const hasJuzs = parsed.selected.includes('memorizedJuzsCount');
+                setSelectedColumnKeys(hasJuzs ? parsed.selected : [...parsed.selected, 'memorizedJuzsCount']);
+            }
             if (Array.isArray(parsed.order)) {
                 const middle = parsed.order.filter((k: string) => k !== 'sequence' && k !== 'notes');
                 const missing = baseOrder.filter(k => !middle.includes(k) && k !== 'sequence' && k !== 'notes');
@@ -1223,6 +1237,7 @@ export const TestsReportTable: React.FC = () => {
         testTotalScore: (e.testTotalScore ?? 0) + ' / ' + (e.testMaxScore ?? 0),
         numericScore: e.testTotalScore ?? 0,
         level: studentProgressMap.get(e.studentId)?.level || (student ? (normalizeStudentLevel(student.manualStudentLevel || student.manualLevel) || calculateStudentLevel(pagesData.totalCount)) : 'لم يحدد'),
+        memorizedJuzsCount: studentProgressMap.get(e.studentId)?.memorizedJuzsCount ?? (pagesData.totalCount >= 20 ? Math.floor(pagesData.totalCount / 20) : 0),
         studentProgress: studentProgressMap.get(e.studentId)
       };
     });
@@ -1292,6 +1307,9 @@ export const TestsReportTable: React.FC = () => {
                 if (ev) return ev;
                 const studentHalaqa = halaqas.find(h => Number(h.id) === Number(s.halaqaId));
                 const studentTeacher = users.find(u => Number(u.id) === Number(studentHalaqa?.teacherId));
+                const studentPages = getMemorizedPagesData(s, evaluations);
+                const sJuzsCount = studentPages.totalCount >= 20 ? Math.floor(studentPages.totalCount / 20) : 0;
+                const progress = studentProgressMap.get(s.id);
                 return { 
                   id: `p-${s.id}-${weekNum}`, studentId: s.id, studentName: s.name, 
                   isAlAmeen: s.isAlAmeen, isAlAmeenStr: s.isAlAmeen ? 'نعم' : 'لا', 
@@ -1302,7 +1320,9 @@ export const TestsReportTable: React.FC = () => {
                   halaqaName: studentHalaqa?.name || '-', evaluatorName: studentTeacher?.name || '—',
                   weekNumber: weekNum, evalStatus: NOT_TESTED, isGuestEvaluation: false, evaluationDate: '—',
                   surahs: [], testFathErrors: '-', testTashkeelErrors: '-', testTajweedErrors: '-', testPassageChanges: '-', testTotalScore: '-',
-                  studentProgress: studentProgressMap.get(s.id)
+                  level: progress?.level || (normalizeStudentLevel(s.manualStudentLevel || s.manualLevel) || calculateStudentLevel(studentPages.totalCount)),
+                  memorizedJuzsCount: progress?.memorizedJuzsCount ?? sJuzsCount,
+                  studentProgress: progress
                 };
             });
             items.push(...weekItems);
@@ -1320,7 +1340,7 @@ export const TestsReportTable: React.FC = () => {
 
     if (selectedLevels.length > 0 && !selectedLevels.includes('all')) {
         items = items.filter(i => {
-            const level = i.studentProgress?.level || 'لم يحدد';
+            const level = normalizeStudentLevel(i.level || i.studentProgress?.level) || 'لم يحدد';
             return selectedLevels.includes(level);
         });
     }
@@ -1894,15 +1914,6 @@ export const TestsReportTable: React.FC = () => {
                                 <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">
                                   (من طلاب الأمين)
                                 </span>
-                              )}
-                              {item.studentProgress && (
-                                <div className="flex flex-col gap-0.5 text-[9px] font-bold text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
-                                  <span>السور: {item.studentProgress.surahs || '—'}</span>
-                                  <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded mt-0.5">
-                                    <span>{item.studentProgress.juzs ? `الأجزاء: ${item.studentProgress.juzs}` : '—'}</span>
-                                    <span className="text-indigo-600 dark:text-indigo-400">{item.studentProgress.level}</span>
-                                  </div>
-                                </div>
                               )}
                             </div>
                           );
