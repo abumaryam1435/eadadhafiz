@@ -6,7 +6,7 @@ import Modal from './Modal';
 import { isSmartMatch } from '../utils/searchUtils';
 import { exportSardHalaqasTemplate } from '../utils/halaqaExcelUtils';
 import { HalaqaExcelImportModal } from './HalaqaExcelImportModal';
-import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, LEVEL_WORDS_ORDER } from '../utils/pageUtils';
+import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, LEVEL_WORDS_ORDER, normalizeStudentLevel } from '../utils/pageUtils';
 
 export const SardManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -18,16 +18,10 @@ export const SardManagement: React.FC = () => {
     const evaluations = context?.evaluations || [];
 
     const getStudentLevel = (s: Student) => {
-        let level = s.manualStudentLevel || s.manualLevel;
-        if (!level) {
-            const pagesData = getMemorizedPagesData(s, evaluations);
-            level = calculateStudentLevel(pagesData.totalCount);
-        }
-        if (!level) level = "المستوى الأول";
-        if (!level.startsWith("المستوى")) {
-            level = `المستوى ${level}`;
-        }
-        return level;
+        const manual = normalizeStudentLevel(s.manualStudentLevel || s.manualLevel);
+        if (manual) return manual;
+        const pagesData = getMemorizedPagesData(s, evaluations);
+        return calculateStudentLevel(pagesData.totalCount) || "المستوى الأول";
     };
     const addStudent = context?.addStudent || (async () => {});
     const updateStudent = context?.updateStudent || (async () => {});

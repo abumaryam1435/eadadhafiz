@@ -12,7 +12,7 @@ import EvaluationEditForm from './EvaluationEditForm';
 import Modal from './Modal';
 import { FilterItem } from './FilterItem';
 import { WordExportModal } from './WordExportModal';
-import { getMemorizedPagesData, calculateStudentLevel } from '../utils/pageUtils';
+import { getMemorizedPagesData, calculateStudentLevel, normalizeStudentLevel } from '../utils/pageUtils';
 import { ExcelExportModal } from './ExcelExportModal';
 
 const NOT_RECORDED = 'not_recorded';
@@ -366,6 +366,7 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
         isFromIbriStr: (student?.isFromIbri !== false) ? 'نعم' : 'لا',
         studentOriginalHalaqaName: studentOriginalHalaqa?.name || '-',
         studentOriginalHalaqaId, 
+        studentLevel: student ? (normalizeStudentLevel(student.manualStudentLevel || student.manualLevel) || calculateStudentLevel(pagesData.totalCount)) : '—',
         halaqaName: displayHalaqaName,
         oldMemorizedPagesStr: pagesData.oldStr,
         newMemorizedPagesStr: pagesData.newStr,

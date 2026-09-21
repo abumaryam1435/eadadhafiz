@@ -7,7 +7,7 @@ import { exportToPdf, getDualDate, sharePdfDirectly } from '../utils/exportPdf';
 import { shareHtmlViaWhatsApp } from '../utils/exportHtml';
 import { isSmartMatch } from '../utils/searchUtils';
 import { HexColorPicker } from "react-colorful";
-import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank } from "../utils/pageUtils";
+import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, normalizeStudentLevel } from "../utils/pageUtils";
 import { formatJuzsFromNumbers } from "../utils/juzUtils";
 import EvaluationEditForm from './EvaluationEditForm';
 import Modal from './Modal';
@@ -284,7 +284,10 @@ interface SummaryRow {
 
     const levelOptions = useMemo(() => {
         const levelsSet = new Set<string>();
-        data.forEach(r => { if (r.level && r.level !== '—' && r.level !== 'لم يحدد') levelsSet.add(r.level); });
+        data.forEach(r => {
+            const norm = normalizeStudentLevel(r.level);
+            if (norm) levelsSet.add(norm);
+        });
         return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b)).map(l => ({ id: l, name: l }));
     }, [data]);
 
@@ -1001,7 +1004,8 @@ export const TestsReportTable: React.FC = () => {
         });
 
         const pagesData = getMemorizedPagesData(s, evaluations);
-        const calculatedLvl = s.manualStudentLevel || s.manualLevel || calculateStudentLevel(pagesData.totalCount);
+        const manualLvl = normalizeStudentLevel(s.manualStudentLevel || s.manualLevel);
+        const calculatedLvl = manualLvl || calculateStudentLevel(pagesData.totalCount);
         map.set(s.id, {
             surahs: Array.from(uniqueSurahs).join('، '),
             juzs: formatJuzsFromNumbers(Array.from(uniqueJuzs)),
@@ -1203,7 +1207,7 @@ export const TestsReportTable: React.FC = () => {
         isAlAmeenStr: student?.isAlAmeen ? 'نعم' : 'لا',
         isFromIbri: student?.isFromIbri !== false,
         isFromIbriStr: (student?.isFromIbri !== false) ? 'نعم' : 'لا',
-        studentLevel: student ? (student.manualStudentLevel || calculateStudentLevel(pagesData.totalCount)) : '',
+        studentLevel: student ? (normalizeStudentLevel(student.manualStudentLevel || student.manualLevel) || calculateStudentLevel(pagesData.totalCount)) : '',
         studentOriginalHalaqaName: studentOriginalHalaqa?.name || '-',
         studentOriginalHalaqaId, 
         halaqaName: displayHalaqaName,
@@ -1218,7 +1222,7 @@ export const TestsReportTable: React.FC = () => {
         testPassageChanges: e.testPassageChanges !== undefined && e.testPassageChanges !== null ? e.testPassageChanges : 0,
         testTotalScore: (e.testTotalScore ?? 0) + ' / ' + (e.testMaxScore ?? 0),
         numericScore: e.testTotalScore ?? 0,
-        level: studentProgressMap.get(e.studentId)?.level || 'لم يحدد',
+        level: studentProgressMap.get(e.studentId)?.level || (student ? (normalizeStudentLevel(student.manualStudentLevel || student.manualLevel) || calculateStudentLevel(pagesData.totalCount)) : 'لم يحدد'),
         studentProgress: studentProgressMap.get(e.studentId)
       };
     });
@@ -1265,8 +1269,9 @@ export const TestsReportTable: React.FC = () => {
   const levelOptionsDetailed = useMemo(() => {
     const levelsSet = new Set<string>();
     studentProgressMap.forEach(progress => {
-        if (progress.level && progress.level !== '—' && progress.level !== 'لم يحدد') {
-            levelsSet.add(progress.level);
+        const norm = normalizeStudentLevel(progress.level);
+        if (norm) {
+            levelsSet.add(norm);
         }
     });
     return Array.from(levelsSet).sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b)).map(l => ({ id: l, name: l }));

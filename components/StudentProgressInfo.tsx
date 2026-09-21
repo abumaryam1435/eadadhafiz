@@ -1,7 +1,7 @@
 import React, { useContext, useMemo } from 'react';
 import { AppContext } from '../App';
 import { Student } from '../types';
-import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs } from '../utils/pageUtils';
+import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, normalizeStudentLevel } from '../utils/pageUtils';
 import { formatAndCountJuzs } from '../utils/juzUtils';
 
 interface StudentProgressInfoProps {
@@ -14,7 +14,7 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
   const { evaluations = [], matns = [] } = context || {};
 
   const pagesData = useMemo(() => getMemorizedPagesData(student, evaluations), [student, evaluations]);
-  const studentLevel = student.manualStudentLevel || calculateStudentLevel(pagesData.totalCount);
+  const studentLevel = normalizeStudentLevel(student.manualStudentLevel || student.manualLevel) || calculateStudentLevel(pagesData.totalCount);
   
   const mutoonProgress = useMemo(() => {
      if (subject !== 'mutoon') return null;

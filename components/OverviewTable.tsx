@@ -10,7 +10,7 @@ import { isSmartMatch, formatWhatsAppNumber } from "../utils/searchUtils";
 import Modal from "./Modal";
 import { FilterItem } from "./FilterItem";
 import { formatAndCountJuzs, parseJuzsToNumbers } from "../utils/juzUtils";
-import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, getLastMemorizedPage, getLevelNumericRank } from "../utils/pageUtils";
+import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, getLastMemorizedPage, getLevelNumericRank, ALL_LEVEL_NAMES, normalizeStudentLevel } from "../utils/pageUtils";
 import { WordExportModal } from "./WordExportModal";
 import { ExcelExportModal } from "./ExcelExportModal";
 
@@ -463,8 +463,8 @@ export const OverviewTable: React.FC = () => {
       setEditIsFromIbri(editingStudent.isFromIbri !== false);
 
       setEditOldMemorizedPages(editingStudent.oldMemorizedPages || "");
-      const calculatedStudentLevel = calculateStudentLevel(getMemorizedPagesData(editingStudent, evaluations).totalCount);
-      setEditStudentLevel(editingStudent.manualStudentLevel || calculatedStudentLevel);
+      const currentManual = normalizeStudentLevel(editingStudent.manualStudentLevel || editingStudent.manualLevel);
+      setEditStudentLevel(currentManual);
     } else {
       setEditName("");
       setEditHalaqaId(0);
@@ -492,7 +492,7 @@ export const OverviewTable: React.FC = () => {
       const autoCompletedJuzsCount = autoCompletedJuzsArr.length;
       const lastMemorizedPageStr = getLastMemorizedPage(student, evaluations);
 
-      const studentLevel = student.manualStudentLevel || calculateStudentLevel(pagesData.totalCount);
+      const studentLevel = normalizeStudentLevel(student.manualStudentLevel || student.manualLevel) || calculateStudentLevel(pagesData.totalCount);
 
       return {
         oldMemorizedPagesStr: pagesData.oldStr,
@@ -539,7 +539,8 @@ export const OverviewTable: React.FC = () => {
   const studentLevelOptions = useMemo(() => {
     const levels = new Set<string>();
     combinedData.forEach((d) => {
-      if (d.studentLevel) levels.add(d.studentLevel);
+      const norm = normalizeStudentLevel(d.studentLevel);
+      if (norm) levels.add(norm);
     });
     return Array.from(levels)
       .sort((a, b) => getLevelNumericRank(a) - getLevelNumericRank(b))
@@ -719,8 +720,11 @@ export const OverviewTable: React.FC = () => {
 
   const handleUpdateStudent = () => {
     if (editingStudent && editName.trim()) {
-      const calculatedStudentLevel = calculateStudentLevel(getMemorizedPagesData(editingStudent, evaluations).totalCount);
-      const finalStudentLevel = editStudentLevel.trim() === calculatedStudentLevel ? "" : editStudentLevel.trim();
+      const calculatedStudentLevel = calculateStudentLevel(
+        getMemorizedPagesData({ ...editingStudent, oldMemorizedPages: editOldMemorizedPages }, evaluations).totalCount
+      );
+      const normalizedManual = normalizeStudentLevel(editStudentLevel);
+      const finalStudentLevel = (!normalizedManual || normalizedManual === calculatedStudentLevel) ? "" : normalizedManual;
 
       updateStudent({
         ...editingStudent,
@@ -729,6 +733,7 @@ export const OverviewTable: React.FC = () => {
         schoolStage: editSchoolStage.trim(),
         parentPhone: editParentPhone.trim(),
         manualStudentLevel: finalStudentLevel,
+        manualLevel: finalStudentLevel,
         isAlAmeen: editIsAlAmeen,
         isFromIbri: editIsFromIbri,
         oldMemorizedPages: editOldMemorizedPages.trim(),
@@ -869,33 +874,53 @@ export const OverviewTable: React.FC = () => {
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-200">
                   مستوى الطالب:
                 </label>
-                {editingStudent && (
+                {editingStudent && editStudentLevel && (
                   <button
                     type="button"
                     onClick={() => {
-                      const calcLevel = calculateStudentLevel(
-                        getMemorizedPagesData({ ...editingStudent, oldMemorizedPages: editOldMemorizedPages }, evaluations).totalCount
-                      );
-                      setEditStudentLevel(calcLevel);
-                      showToast("🔄 تم العودة للمستوى التلقائي");
+                      setEditStudentLevel("");
+                      showToast("🔄 تم العودة للمستوى التلقائي (بحسب الحفظ)");
                     }}
-                    className="text-[10px] font-bold px-2 py-1 bg-white border border-indigo-200 text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
+                    className="text-[10px] font-bold px-2 py-1 bg-white dark:bg-gray-700 border border-indigo-200 dark:border-indigo-600 text-indigo-600 dark:text-indigo-300 rounded-md hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors"
                   >
                     العودة للتلقائي
                   </button>
                 )}
               </div>
-              <input
-                type="text"
+              <select
                 value={editStudentLevel}
                 onChange={(e) => setEditStudentLevel(e.target.value)}
-                className="input-style text-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 placeholder:font-normal"
-                placeholder="مثال: المستوى الأول"
-              />
+                className="input-style text-sm font-medium"
+              >
+                <option value="">
+                  {`تلقائي (بحسب الحفظ: ${calculateStudentLevel(
+                    getMemorizedPagesData({ ...editingStudent, oldMemorizedPages: editOldMemorizedPages }, evaluations).totalCount
+                  )})`}
+                </option>
+                {ALL_LEVEL_NAMES.map((lvl) => (
+                  <option key={lvl} value={lvl}>
+                    {lvl}
+                  </option>
+                ))}
+              </select>
               {editingStudent && (
-                 <p className="text-xs text-gray-500 mt-1">
-                    المستوى التلقائي المحسوب: <span className="font-bold">{calculateStudentLevel(getMemorizedPagesData({ ...editingStudent, oldMemorizedPages: editOldMemorizedPages }, evaluations).totalCount)}</span>
-                 </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  المستوى التلقائي المحسوب:{" "}
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    {calculateStudentLevel(
+                      getMemorizedPagesData({ ...editingStudent, oldMemorizedPages: editOldMemorizedPages }, evaluations).totalCount
+                    )}
+                  </span>
+                  {editStudentLevel ? (
+                    <span className="text-amber-600 dark:text-amber-400 mr-2 font-bold">
+                      (تعديل يدوي محدد: {editStudentLevel})
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 dark:text-emerald-400 mr-2 font-bold">
+                      (معتمد تلقائياً)
+                    </span>
+                  )}
+                </p>
               )}
             </div>
 

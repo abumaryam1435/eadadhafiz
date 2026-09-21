@@ -5,7 +5,7 @@ import { isSmartMatch } from '../utils/searchUtils';
 import { StudentProgressInfo } from './StudentProgressInfo';
 import MushafReaderModal from './MushafReaderModal';
 import { surahNames, surahPagesMap } from '../utils/quranData';
-import { getMemorizedPagesData, getStudentTestPassagesInfo, calculateStudentLevel } from '../utils/pageUtils';
+import { getMemorizedPagesData, getStudentTestPassagesInfo, calculateStudentLevel, normalizeStudentLevel } from '../utils/pageUtils';
 import { toArabicDigits } from '../utils/juzUtils';
 import { preloadMushafPages } from '../utils/mushafPreload';
 import { generateSuggestedTestPassages, generateSingleReplacementPassage, SuggestedTestPassage, formatPassageDescription } from '../utils/testPassageGenerator';
@@ -447,7 +447,8 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
     }
 
     const pagesData = getMemorizedPagesData(student, evaluations);
-    const calculatedLevel = student.manualStudentLevel || student.manualLevel || calculateStudentLevel(pagesData.totalCount);
+    const manualLvl = normalizeStudentLevel(student.manualStudentLevel || student.manualLevel);
+    const calculatedLevel = manualLvl || calculateStudentLevel(pagesData.totalCount);
 
     if (student.useManualData) {
       return {

@@ -239,6 +239,8 @@ export const LEVEL_WORDS_ORDER = [
   "الحادي والثلاثون", "الثاني والثلاثون", "الثالث والثلاثون"
 ];
 
+export const ALL_LEVEL_NAMES = LEVEL_WORDS_ORDER.map(w => `المستوى ${w}`);
+
 export function calculateStudentLevel(totalCount: number): string {
   if (totalCount < 40) return "المستوى الأول";
   const levelNum = Math.floor(totalCount / 20);
@@ -250,12 +252,30 @@ export function calculateStudentLevel(totalCount: number): string {
 
 export function getLevelNumericRank(levelStr: string): number {
   if (!levelStr) return 999;
-  const clean = levelStr.replace(/^(المستوى|مستوى)\s*/, "").trim();
+  const clean = String(levelStr).replace(/(المستوى|مستوى)\s*/g, "").trim();
   const num = parseInt(clean, 10);
-  if (!isNaN(num)) return num;
+  if (!isNaN(num) && num > 0) return num;
   const idx = LEVEL_WORDS_ORDER.findIndex(w => clean === w || clean.includes(w));
   if (idx !== -1) return idx + 1;
   return 999;
+}
+
+export function normalizeStudentLevel(levelStr: string | undefined | null): string {
+  if (!levelStr) return "";
+  const trimmed = String(levelStr).trim();
+  if (!trimmed || trimmed === "—" || trimmed === "لم يحدد" || trimmed === "undefined" || trimmed === "null") return "";
+
+  const exact = ALL_LEVEL_NAMES.find(l => l === trimmed);
+  if (exact) return exact;
+
+  const rank = getLevelNumericRank(trimmed);
+  if (rank >= 1 && rank <= LEVEL_WORDS_ORDER.length) {
+    return `المستوى ${LEVEL_WORDS_ORDER[rank - 1]}`;
+  }
+  if (rank !== 999) {
+    return `المستوى ${rank}`;
+  }
+  return trimmed;
 }
 
 export function getCompletedJuzs(totalSet: Set<number>): number[] {
