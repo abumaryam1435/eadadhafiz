@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
             maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB to cache all app bundle assets and data offline
             globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff,woff2,ttf}'],
             cleanupOutdatedCaches: true,
+            skipWaiting: true,
+            clientsClaim: true,
             navigateFallback: '/index.html',
             navigateFallbackDenylist: [/^\/api\//],
           }
