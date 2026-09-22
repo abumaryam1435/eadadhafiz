@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import { AppContext } from '../App';
 import { NewStudentTest, Halaqa } from '../types';
 import { isSmartMatch, formatWhatsAppNumber } from '../utils/searchUtils';
@@ -9,6 +9,32 @@ import { exportToExcel as exportToExcelFile } from '../utils/exportExcel';
 import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
+
+interface ColumnDef {
+  key: string;
+  label: string;
+}
+
+const ALL_NEW_STUDENT_COLUMNS: ColumnDef[] = [
+  { key: 'sequence', label: 'م' },
+  { key: 'studentName', label: 'اسم الطالب' },
+  { key: 'grade', label: 'الصف / المرحلة' },
+  { key: 'parentPhone', label: 'رقم ولي الأمر' },
+  { key: 'teacherName', label: 'المعلم المختبر' },
+  { key: 'testDate', label: 'تاريخ الاختبار' },
+  { key: 'fathErrors', label: 'الفتح' },
+  { key: 'tashkeelErrors', label: 'التشكيل' },
+  { key: 'tajweedErrors', label: 'التجويد' },
+  { key: 'score', label: 'الدرجة' },
+  { key: 'percentage', label: 'النسبة' },
+  { key: 'isPassed', label: 'الاجتياز' },
+  { key: 'notes', label: 'الملاحظات' },
+  { key: 'status', label: 'القرار والقبول' },
+  { key: 'actions', label: 'إجراءات' },
+];
+
+const LOCAL_STORAGE_KEY_COLUMNS = 'hafiz_new_students_tests_columns_keys';
+const LOCAL_STORAGE_KEY_ORDER = 'hafiz_new_students_tests_columns_order';
 
 export const NewStudentsTestsTable: React.FC = () => {
   const context = useContext(AppContext);
@@ -47,6 +73,100 @@ export const NewStudentsTestsTable: React.FC = () => {
   const [acceptingStudent, setAcceptingStudent] = useState<NewStudentTest | null>(null);
   const [deletingTest, setDeletingTest] = useState<NewStudentTest | null>(null);
   const [selectedHalaqaId, setSelectedHalaqaId] = useState<number>(0);
+
+  // Column Picker state & persistence
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const columnPickerRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  const [selectedColumnKeys, setSelectedColumnKeys] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_COLUMNS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return ALL_NEW_STUDENT_COLUMNS.map(c => c.key);
+  });
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ORDER);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return ALL_NEW_STUDENT_COLUMNS.map(c => c.key);
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_COLUMNS, JSON.stringify(selectedColumnKeys));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [selectedColumnKeys]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_ORDER, JSON.stringify(columnOrder));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [columnOrder]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(event.target as Node)) {
+        setShowColumnPicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const moveColumn = (key: string, direction: 'up' | 'down') => {
+    const currentOrder = columnOrder.length > 0 ? [...columnOrder] : ALL_NEW_STUDENT_COLUMNS.map(c => c.key);
+    const middleKeys = currentOrder.filter(k => k !== 'sequence' && k !== 'actions');
+    const index = middleKeys.indexOf(key);
+    if (index === -1) return;
+
+    if (direction === 'up' && index > 0) {
+      const temp = middleKeys[index];
+      middleKeys[index] = middleKeys[index - 1];
+      middleKeys[index - 1] = temp;
+    } else if (direction === 'down' && index < middleKeys.length - 1) {
+      const temp = middleKeys[index];
+      middleKeys[index] = middleKeys[index + 1];
+      middleKeys[index + 1] = temp;
+    }
+
+    const newOrder = ['sequence', ...middleKeys, 'actions'];
+    setColumnOrder(newOrder);
+  };
+
+  const visibleColumns = useMemo(() => {
+    const order = columnOrder.length > 0 ? columnOrder : ALL_NEW_STUDENT_COLUMNS.map(c => c.key);
+    return order
+      .filter(k => selectedColumnKeys.includes(k))
+      .map(k => ALL_NEW_STUDENT_COLUMNS.find(c => c.key === k)!)
+      .filter(Boolean);
+  }, [columnOrder, selectedColumnKeys]);
+
+  const scrollTable = (direction: 'right' | 'left') => {
+    if (tableScrollRef.current) {
+      const delta = direction === 'right' ? 300 : -300;
+      tableScrollRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+    }
+  };
 
   // Export Modals state
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
@@ -124,41 +244,67 @@ export const NewStudentsTestsTable: React.FC = () => {
   };
 
   // Export Headers and Formatted Data
-  const exportHeaders = useMemo(() => [
-    { key: 'sequence', label: '#' },
-    { key: 'studentName', label: 'اسم الطالب' },
-    { key: 'grade', label: 'الصف / المرحلة' },
-    { key: 'parentPhone', label: 'رقم ولي الأمر' },
-    { key: 'teacherName', label: 'المعلم المختبر' },
-    { key: 'testDate', label: 'تاريخ الاختبار' },
-    { key: 'fathErrors', label: 'الفتح' },
-    { key: 'tashkeelErrors', label: 'التشكيل' },
-    { key: 'tajweedErrors', label: 'التجويد' },
-    { key: 'score', label: 'الدرجة' },
-    { key: 'percentage', label: 'النسبة' },
-    { key: 'isPassedText', label: 'الاجتياز' },
-    { key: 'statusText', label: 'حالة القبول' },
-    { key: 'notes', label: 'الملاحظات' },
-  ], []);
+  const exportHeaders = useMemo(() => {
+    return visibleColumns
+      .filter(c => c.key !== 'actions')
+      .map(c => ({
+        key: c.key === 'isPassed' ? 'isPassedText' : c.key === 'status' ? 'statusText' : c.key,
+        label: c.label === 'م' ? '#' : c.label,
+      }));
+  }, [visibleColumns]);
 
   const exportData = useMemo(() => {
-    return filteredTests.map((t, idx) => ({
-      sequence: idx + 1,
-      studentName: t.studentName,
-      grade: t.grade || '—',
-      parentPhone: t.parentPhone || '—',
-      teacherName: t.teacherName || '—',
-      testDate: t.testDate,
-      fathErrors: t.fathErrors ?? 0,
-      tashkeelErrors: t.tashkeelErrors ?? 0,
-      tajweedErrors: t.tajweedErrors ?? 0,
-      score: `${t.score} / ${t.maxScore}`,
-      percentage: `${t.percentage}%`,
-      isPassedText: t.isPassed ? 'محقق' : 'غير محقق',
-      statusText: t.status === 'accepted' ? 'مقبول' : t.status === 'rejected' ? 'غير مقبول' : 'قيد الانتظار',
-      notes: t.notes || '—',
-    }));
-  }, [filteredTests]);
+    return filteredTests.map((t, idx) => {
+      const row: Record<string, any> = {};
+      visibleColumns.forEach(c => {
+        switch (c.key) {
+          case 'sequence':
+            row.sequence = idx + 1;
+            break;
+          case 'studentName':
+            row.studentName = t.studentName;
+            break;
+          case 'grade':
+            row.grade = t.grade || '—';
+            break;
+          case 'parentPhone':
+            row.parentPhone = t.parentPhone || '—';
+            break;
+          case 'teacherName':
+            row.teacherName = t.teacherName || '—';
+            break;
+          case 'testDate':
+            row.testDate = t.testDate;
+            break;
+          case 'fathErrors':
+            row.fathErrors = t.fathErrors ?? 0;
+            break;
+          case 'tashkeelErrors':
+            row.tashkeelErrors = t.tashkeelErrors ?? 0;
+            break;
+          case 'tajweedErrors':
+            row.tajweedErrors = t.tajweedErrors ?? 0;
+            break;
+          case 'score':
+            row.score = `${t.score} / ${t.maxScore}`;
+            break;
+          case 'percentage':
+            row.percentage = `${t.percentage}%`;
+            break;
+          case 'isPassed':
+            row.isPassedText = t.isPassed ? 'محقق' : 'غير محقق';
+            break;
+          case 'notes':
+            row.notes = t.notes || '—';
+            break;
+          case 'status':
+            row.statusText = t.status === 'accepted' ? 'مقبول' : t.status === 'rejected' ? 'غير مقبول' : 'قيد الانتظار';
+            break;
+        }
+      });
+      return row;
+    });
+  }, [filteredTests, visibleColumns]);
 
   const exportHeaderInfo = useMemo(() => {
     const statusLabel = statusFilter === 'accepted' ? 'المقبولين' : statusFilter === 'rejected' ? 'غير المقبولين' : statusFilter === 'pending' ? 'قيد الانتظار' : 'جميع الحالات';
@@ -176,41 +322,30 @@ export const NewStudentsTestsTable: React.FC = () => {
       return;
     }
 
-    const headers = [
-      'م',
-      'اسم الطالب',
-      'الصف / المرحلة',
-      'رقم ولي الأمر',
-      'المعلم المختبر',
-      'تاريخ الاختبار',
-      'الدرجة',
-      'الدرجة الكلية',
-      'النسبة المئوية %',
-      'محقق لنسبة القبول',
-      'حالة القبول',
-      'أخطاء الفتح',
-      'أخطاء التشكيل',
-      'أخطاء التجويد',
-      'الملاحظات',
-    ];
+    const exportCols = visibleColumns.filter(c => c.key !== 'actions');
+    const headers = exportCols.map(c => c.label === 'م' ? '#' : c.label);
 
-    const rows = filteredTests.map((t, idx) => [
-      idx + 1,
-      t.studentName,
-      t.grade || '',
-      t.parentPhone || '',
-      t.teacherName || '',
-      t.testDate,
-      t.score,
-      t.maxScore,
-      `${t.percentage}%`,
-      t.isPassed ? 'نعم' : 'لا',
-      t.status === 'accepted' ? 'مقبول' : t.status === 'rejected' ? 'غير مقبول' : 'قيد الانتظار',
-      t.fathErrors,
-      t.tashkeelErrors,
-      t.tajweedErrors,
-      t.notes || '',
-    ]);
+    const rows = filteredTests.map((t, idx) => {
+      return exportCols.map(c => {
+        switch (c.key) {
+          case 'sequence': return idx + 1;
+          case 'studentName': return t.studentName;
+          case 'grade': return t.grade || '';
+          case 'parentPhone': return t.parentPhone || '';
+          case 'teacherName': return t.teacherName || '';
+          case 'testDate': return t.testDate;
+          case 'fathErrors': return t.fathErrors ?? 0;
+          case 'tashkeelErrors': return t.tashkeelErrors ?? 0;
+          case 'tajweedErrors': return t.tajweedErrors ?? 0;
+          case 'score': return `${t.score} / ${t.maxScore}`;
+          case 'percentage': return `${t.percentage}%`;
+          case 'isPassed': return t.isPassed ? 'نعم' : 'لا';
+          case 'status': return t.status === 'accepted' ? 'مقبول' : t.status === 'rejected' ? 'غير مقبول' : 'قيد الانتظار';
+          case 'notes': return t.notes || '';
+          default: return '';
+        }
+      });
+    });
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -413,20 +548,20 @@ export const NewStudentsTestsTable: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsExcelModalOpen(true)}
-            className="px-3 py-2 text-[10px] font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 transition-colors"
+            className="px-3 py-2 text-[10px] font-bold text-white bg-green-600 rounded-lg shadow-sm hover:bg-green-700 transition-colors cursor-pointer"
           >
             Excel
           </button>
           <button
             onClick={() => setIsWordModalOpen(true)}
-            className="px-3 py-2 text-[10px] font-bold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
+            className="px-3 py-2 text-[10px] font-bold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
           >
             Word
           </button>
           <div className="flex gap-1">
             <button
               onClick={() => exportToPdf(exportHeaders, exportData, exportHeaderInfo.fileName, exportHeaderInfo.title, exportHeaderInfo.subtitle, hijriAdjustments)}
-              className="px-3 py-2 text-[10px] font-bold text-white bg-red-600 rounded-lg shadow-sm hover:bg-red-700 transition-colors flex items-center gap-1"
+              className="px-3 py-2 text-[10px] font-bold text-white bg-red-600 rounded-lg shadow-sm hover:bg-red-700 transition-colors flex items-center gap-1 cursor-pointer"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -435,7 +570,7 @@ export const NewStudentsTestsTable: React.FC = () => {
             </button>
             <button
               onClick={() => sharePdfDirectly(exportHeaders, exportData, exportHeaderInfo.fileName, exportHeaderInfo.title, exportHeaderInfo.subtitle, hijriAdjustments, undefined, undefined, "landscape")}
-              className="px-3 py-2 text-[10px] font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+              className="px-3 py-2 text-[10px] font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm transition-colors flex items-center gap-1 cursor-pointer"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -443,15 +578,177 @@ export const NewStudentsTestsTable: React.FC = () => {
               مشاركة PDF
             </button>
           </div>
+
+          {/* زر الأعمدة */}
+          <div ref={columnPickerRef} className="relative inline-block text-right">
+            <button
+              type="button"
+              onClick={() => setShowColumnPicker(!showColumnPicker)}
+              className="px-3 py-2 text-[10px] font-bold text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-650 transition-colors cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5 text-gray-500 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              <span>الأعمدة</span>
+            </button>
+
+            {showColumnPicker && (
+              <>
+                <div
+                  className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[65] sm:hidden"
+                  onClick={() => setShowColumnPicker(false)}
+                />
+                <div className="fixed sm:absolute z-[70] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:translate-x-0 sm:translate-y-0 sm:top-full sm:left-auto sm:right-0 sm:mt-2 w-[92vw] max-w-sm sm:w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 animate-fade-in ring-1 ring-black/10 text-right">
+                  <div className="flex justify-between items-center mb-3 pb-2 border-b dark:border-gray-700">
+                    <span className="text-xs font-black text-green-800 dark:text-green-400 flex items-center gap-1.5">
+                      <span>📊</span>
+                      <span>تخصيص وترتيب الأعمدة</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowColumnPicker(false)}
+                      className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 mb-2 pb-2 border-b dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedColumnKeys(ALL_NEW_STUDENT_COLUMNS.map(h => h.key))}
+                      className="text-[11px] text-blue-600 dark:text-blue-400 font-bold hover:underline flex-1 text-center bg-blue-50 dark:bg-blue-900/30 py-1.5 rounded-lg cursor-pointer"
+                    >
+                      إظهار الكل
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedColumnKeys(['sequence', 'studentName'])}
+                      className="text-[11px] text-red-600 dark:text-red-400 font-bold hover:underline flex-1 text-center bg-red-50 dark:bg-red-900/30 py-1.5 rounded-lg cursor-pointer"
+                    >
+                      إخفاء الاختياري
+                    </button>
+                  </div>
+
+                  <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto space-y-1 custom-scrollbar pr-1 divide-y divide-gray-100 dark:divide-gray-700/40">
+                    {(columnOrder.length > 0 ? columnOrder : ALL_NEW_STUDENT_COLUMNS.map(h => h.key)).map(key => {
+                      const h = ALL_NEW_STUDENT_COLUMNS.find(item => item.key === key);
+                      if (!h) return null;
+                      const isChecked = selectedColumnKeys.includes(h.key);
+                      const currentOrder = columnOrder.length > 0 ? columnOrder : ALL_NEW_STUDENT_COLUMNS.map(item => item.key);
+                      const middleKeys = currentOrder.filter(k => k !== 'sequence' && k !== 'actions');
+                      const middleIdx = middleKeys.indexOf(h.key);
+                      const isFirstMiddle = middleIdx === 0;
+                      const isLastMiddle = middleIdx === middleKeys.length - 1;
+
+                      return (
+                        <div key={h.key} className="flex items-center justify-between gap-3 py-1.5 px-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl group transition-colors">
+                          <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() =>
+                                setSelectedColumnKeys(prev =>
+                                  isChecked ? prev.filter(k => k !== h.key) : [...prev, h.key]
+                                )
+                              }
+                              className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500 cursor-pointer flex-shrink-0"
+                            />
+                            <span className={`text-xs font-bold truncate ${isChecked ? 'text-green-950 dark:text-green-200' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {h.label}
+                            </span>
+                          </label>
+
+                          {h.key === 'sequence' ? (
+                            <span className="text-[10px] sm:text-[11px] bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 font-bold px-2 py-1 rounded-lg border border-blue-200 dark:border-blue-800 whitespace-nowrap flex-shrink-0">
+                              الأول دائماً
+                            </span>
+                          ) : h.key === 'actions' ? (
+                            <span className="text-[10px] sm:text-[11px] bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 font-bold px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-800 whitespace-nowrap flex-shrink-0">
+                              الأخير دائماً
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                disabled={isFirstMiddle}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  moveColumn(h.key, 'up');
+                                }}
+                                className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-900/50 dark:hover:text-green-300 disabled:opacity-20 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 border border-gray-200/80 dark:border-gray-600 transition-all shadow-xs cursor-pointer"
+                                title="تقديم للأعلى"
+                                aria-label="تقديم للأعلى"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isLastMiddle}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  moveColumn(h.key, 'down');
+                                }}
+                                className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-900/50 dark:hover:text-green-300 disabled:opacity-20 disabled:cursor-not-allowed text-gray-700 dark:text-gray-200 border border-gray-200/80 dark:border-gray-600 transition-all shadow-xs cursor-pointer"
+                                title="تأخير للأسفل"
+                                aria-label="تأخير للأسفل"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-xs">
-          <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
-            إجمالي السجلات:
-          </span>
-          <span className="text-lg font-black text-indigo-900 dark:text-white">
-            {filteredTests.length}
-          </span>
+        {/* Scroll helper and Total Records Counter */}
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 bg-gray-50 dark:bg-gray-750 px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs">
+            <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold">تمرير الجدول:</span>
+            <button
+              type="button"
+              onClick={() => scrollTable('right')}
+              className="p-1 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 border border-gray-200 dark:border-gray-600 cursor-pointer shadow-2xs"
+              title="تمرير لليمين"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTable('left')}
+              className="p-1 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 border border-gray-200 dark:border-gray-600 cursor-pointer shadow-2xs"
+              title="تمرير لليسار"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-xs">
+            <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
+              إجمالي السجلات:
+            </span>
+            <span className="text-lg font-black text-indigo-900 dark:text-white">
+              {filteredTests.length}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -474,32 +771,52 @@ export const NewStudentsTestsTable: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={tableScrollRef} className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="bg-gray-50/80 dark:bg-gray-750/50 border-b border-gray-200 dark:border-gray-700 text-[11px] font-black text-gray-500 dark:text-gray-400">
-                  <th className="py-3 px-3 w-10 text-center">م</th>
-                  <th className="py-3 px-4">اسم الطالب</th>
-                  <th className="py-3 px-3">الصف / المرحلة</th>
-                  <th className="py-3 px-3">رقم ولي الأمر</th>
-                  <th className="py-3 px-3">المعلم المختبر</th>
-                  <th className="py-3 px-3">تاريخ الاختبار</th>
-                  <th className="py-3 px-2 text-center text-red-600 dark:text-red-400 font-black">الفتح</th>
-                  <th className="py-3 px-2 text-center text-amber-600 dark:text-amber-400 font-black">التشكيل</th>
-                  <th className="py-3 px-2 text-center text-teal-600 dark:text-teal-400 font-black">التجويد</th>
-                  <th className="py-3 px-3 text-center">الدرجة</th>
-                  <th className="py-3 px-3 text-center">النسبة</th>
-                  <th className="py-3 px-3 text-center">الاجتياز</th>
-                  <th className="py-3 px-4">ملاحظات</th>
-                  <th className="py-3 px-4 text-center">القرار والقبول</th>
-                  <th className="py-3 px-3 text-center">إجراءات</th>
+                  {visibleColumns.map(col => {
+                    switch (col.key) {
+                      case 'sequence':
+                        return <th key="sequence" className="py-3 px-3 w-10 text-center">م</th>;
+                      case 'studentName':
+                        return <th key="studentName" className="py-3 px-4">اسم الطالب</th>;
+                      case 'grade':
+                        return <th key="grade" className="py-3 px-3">الصف / المرحلة</th>;
+                      case 'parentPhone':
+                        return <th key="parentPhone" className="py-3 px-3">رقم ولي الأمر</th>;
+                      case 'teacherName':
+                        return <th key="teacherName" className="py-3 px-3">المعلم المختبر</th>;
+                      case 'testDate':
+                        return <th key="testDate" className="py-3 px-3">تاريخ الاختبار</th>;
+                      case 'fathErrors':
+                        return <th key="fathErrors" className="py-3 px-2 text-center text-red-600 dark:text-red-400 font-black">الفتح</th>;
+                      case 'tashkeelErrors':
+                        return <th key="tashkeelErrors" className="py-3 px-2 text-center text-amber-600 dark:text-amber-400 font-black">التشكيل</th>;
+                      case 'tajweedErrors':
+                        return <th key="tajweedErrors" className="py-3 px-2 text-center text-teal-600 dark:text-teal-400 font-black">التجويد</th>;
+                      case 'score':
+                        return <th key="score" className="py-3 px-3 text-center">الدرجة</th>;
+                      case 'percentage':
+                        return <th key="percentage" className="py-3 px-3 text-center">النسبة</th>;
+                      case 'isPassed':
+                        return <th key="isPassed" className="py-3 px-3 text-center">الاجتياز</th>;
+                      case 'notes':
+                        return <th key="notes" className="py-3 px-4">الملاحظات</th>;
+                      case 'status':
+                        return <th key="status" className="py-3 px-4 text-center">القرار والقبول</th>;
+                      case 'actions':
+                        return <th key="actions" className="py-3 px-3 text-center">إجراءات</th>;
+                      default:
+                        return <th key={col.key} className="py-3 px-3">{col.label}</th>;
+                    }
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
                 {filteredTests.map((test, index) => {
                   const isAccepted = test.status === 'accepted';
                   const isRejected = test.status === 'rejected';
-                  const isPending = !test.status || test.status === 'pending';
 
                   return (
                     <tr
@@ -508,224 +825,267 @@ export const NewStudentsTestsTable: React.FC = () => {
                         isAccepted ? 'bg-emerald-50/20 dark:bg-emerald-950/5' : ''
                       }`}
                     >
-                      {/* Index */}
-                      <td className="py-3 px-3 text-center font-bold text-gray-400">
-                        {index + 1}
-                      </td>
+                      {visibleColumns.map(col => {
+                        switch (col.key) {
+                          case 'sequence':
+                            return (
+                              <td key="sequence" className="py-3 px-3 text-center font-bold text-gray-400">
+                                {index + 1}
+                              </td>
+                            );
 
-                      {/* Student Name */}
-                      <td className="py-3 px-4">
-                        <div className="font-black text-gray-900 dark:text-white flex items-center gap-1.5">
-                          <span>{test.studentName}</span>
-                          {isAccepted && (
-                            <span className="text-emerald-600 text-xs" title="مقبول ومدرج في التطبيق">✓</span>
-                          )}
-                        </div>
-                        {test.surahs && test.surahs.length > 0 && (
-                          <span className="text-[10px] text-gray-400 block mt-0.5">
-                            سور: {test.surahs.join('، ')}
-                          </span>
-                        )}
-                      </td>
+                          case 'studentName':
+                            return (
+                              <td key="studentName" className="py-3 px-4">
+                                <div className="font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+                                  <span>{test.studentName}</span>
+                                  {isAccepted && (
+                                    <span className="text-emerald-600 text-xs" title="مقبول ومدرج في التطبيق">✓</span>
+                                  )}
+                                </div>
+                                {test.surahs && test.surahs.length > 0 && (
+                                  <span className="text-[10px] text-gray-400 block mt-0.5">
+                                    سور: {test.surahs.join('، ')}
+                                  </span>
+                                )}
+                              </td>
+                            );
 
-                      {/* School Stage */}
-                      <td className="py-3 px-3 font-bold text-gray-600 dark:text-gray-300">
-                        {test.grade ? (
-                          <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md text-[11px]">
-                            {test.grade}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300 dark:text-gray-600">-</span>
-                        )}
-                      </td>
+                          case 'grade':
+                            return (
+                              <td key="grade" className="py-3 px-3 font-bold text-gray-600 dark:text-gray-300">
+                                {test.grade ? (
+                                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md text-[11px]">
+                                    {test.grade}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300 dark:text-gray-600">-</span>
+                                )}
+                              </td>
+                            );
 
-                      {/* Parent Phone */}
-                      <td className="py-3 px-3 font-bold">
-                        {test.parentPhone ? (
-                          <div className="flex items-center gap-1.5" dir="ltr">
-                            <a
-                              href={`tel:${test.parentPhone}`}
-                              className="text-indigo-600 dark:text-indigo-400 hover:underline font-mono text-xs"
-                            >
-                              {test.parentPhone}
-                            </a>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(test.parentPhone);
-                                showToast('📋 تم نسخ رقم الهاتف.', 'info');
-                              }}
-                              className="text-gray-400 hover:text-gray-600 text-[10px]"
-                              title="نسخ الرقم"
-                            >
-                              📋
-                            </button>
-                            <a
-                              href={`https://wa.me/${formatWhatsAppNumber(test.parentPhone)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center justify-center p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md shadow-xs transition-transform hover:scale-105"
-                              title="محادثة واتساب"
-                            >
-                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                              </svg>
-                            </a>
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 dark:text-gray-600">-</span>
-                        )}
-                      </td>
+                          case 'parentPhone':
+                            return (
+                              <td key="parentPhone" className="py-3 px-3 font-bold">
+                                {test.parentPhone ? (
+                                  <div className="flex items-center gap-1.5" dir="ltr">
+                                    <a
+                                      href={`tel:${test.parentPhone}`}
+                                      className="text-indigo-600 dark:text-indigo-400 hover:underline font-mono text-xs"
+                                    >
+                                      {test.parentPhone}
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(test.parentPhone!);
+                                        showToast('📋 تم نسخ رقم الهاتف.', 'info');
+                                      }}
+                                      className="text-gray-400 hover:text-gray-600 text-[10px] cursor-pointer"
+                                      title="نسخ الرقم"
+                                    >
+                                      📋
+                                    </button>
+                                    <a
+                                      href={`https://wa.me/${formatWhatsAppNumber(test.parentPhone)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center justify-center p-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md shadow-xs transition-transform hover:scale-105"
+                                      title="محادثة واتساب"
+                                    >
+                                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                                      </svg>
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-300 dark:text-gray-600">-</span>
+                                )}
+                              </td>
+                            );
 
-                      {/* Teacher Name */}
-                      <td className="py-3 px-3 font-bold text-gray-700 dark:text-gray-300">
-                        {test.teacherName || 'معلم'}
-                      </td>
+                          case 'teacherName':
+                            return (
+                              <td key="teacherName" className="py-3 px-3 font-bold text-gray-700 dark:text-gray-300">
+                                {test.teacherName || 'معلم'}
+                              </td>
+                            );
 
-                      {/* Test Date */}
-                      <td className="py-3 px-3 font-mono text-[11px] text-gray-500 dark:text-gray-400">
-                        {test.testDate}
-                      </td>
+                          case 'testDate':
+                            return (
+                              <td key="testDate" className="py-3 px-3 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                                {test.testDate}
+                              </td>
+                            );
 
-                      {/* Fath Errors */}
-                      <td className="py-3 px-2 text-center">
-                        <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
-                          test.fathErrors > 0 
-                            ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60' 
-                            : 'text-gray-400'
-                        }`}>
-                          {test.fathErrors ?? 0}
-                        </span>
-                      </td>
+                          case 'fathErrors':
+                            return (
+                              <td key="fathErrors" className="py-3 px-2 text-center">
+                                <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
+                                  test.fathErrors > 0 
+                                    ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60' 
+                                    : 'text-gray-400'
+                                }`}>
+                                  {test.fathErrors ?? 0}
+                                </span>
+                              </td>
+                            );
 
-                      {/* Tashkeel Errors */}
-                      <td className="py-3 px-2 text-center">
-                        <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
-                          test.tashkeelErrors > 0 
-                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60' 
-                            : 'text-gray-400'
-                        }`}>
-                          {test.tashkeelErrors ?? 0}
-                        </span>
-                      </td>
+                          case 'tashkeelErrors':
+                            return (
+                              <td key="tashkeelErrors" className="py-3 px-2 text-center">
+                                <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
+                                  test.tashkeelErrors > 0 
+                                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60' 
+                                    : 'text-gray-400'
+                                }`}>
+                                  {test.tashkeelErrors ?? 0}
+                                </span>
+                              </td>
+                            );
 
-                      {/* Tajweed Errors */}
-                      <td className="py-3 px-2 text-center">
-                        <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
-                          test.tajweedErrors > 0 
-                            ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-900/60' 
-                            : 'text-gray-400'
-                        }`}>
-                          {test.tajweedErrors ?? 0}
-                        </span>
-                      </td>
+                          case 'tajweedErrors':
+                            return (
+                              <td key="tajweedErrors" className="py-3 px-2 text-center">
+                                <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
+                                  test.tajweedErrors > 0 
+                                    ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-900/60' 
+                                    : 'text-gray-400'
+                                }`}>
+                                  {test.tajweedErrors ?? 0}
+                                </span>
+                              </td>
+                            );
 
-                      {/* Score */}
-                      <td className="py-3 px-3 text-center font-black text-gray-900 dark:text-white">
-                        {test.score} <span className="text-[10px] text-gray-400">/ {test.maxScore}</span>
-                      </td>
+                          case 'score':
+                            return (
+                              <td key="score" className="py-3 px-3 text-center font-black text-gray-900 dark:text-white">
+                                {test.score} <span className="text-[10px] text-gray-400">/ {test.maxScore}</span>
+                              </td>
+                            );
 
-                      {/* Percentage */}
-                      <td className="py-3 px-3 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-black ${
-                            test.isPassed
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
-                          }`}
-                        >
-                          {test.percentage}%
-                        </span>
-                      </td>
+                          case 'percentage':
+                            return (
+                              <td key="percentage" className="py-3 px-3 text-center">
+                                <span
+                                  className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-black ${
+                                    test.isPassed
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                      : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                                  }`}
+                                >
+                                  {test.percentage}%
+                                </span>
+                              </td>
+                            );
 
-                      {/* Passing Criteria */}
-                      <td className="py-3 px-3 text-center">
-                        {test.isPassed ? (
-                          <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">
-                            ناجح ✅
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-black text-red-500 dark:text-red-400">
-                            دون النسبة ⚠️
-                          </span>
-                        )}
-                      </td>
+                          case 'isPassed':
+                            return (
+                              <td key="isPassed" className="py-3 px-3 text-center">
+                                {test.isPassed ? (
+                                  <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">
+                                    ناجح ✅
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] font-black text-red-500 dark:text-red-400">
+                                    دون النسبة ⚠️
+                                  </span>
+                                )}
+                              </td>
+                            );
 
-                      {/* Notes */}
-                      <td className="py-3 px-4 min-w-[180px] max-w-[280px] align-top">
-                        {test.notes ? (
-                          <div className="text-[11px] text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed bg-gray-50/70 dark:bg-gray-900/40 p-2 rounded-xl border border-gray-100 dark:border-gray-750">
-                            {test.notes}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 dark:text-gray-600">-</span>
-                        )}
-                      </td>
+                          case 'notes':
+                            return (
+                              <td key="notes" className="py-3 px-4 min-w-[180px] max-w-[280px] align-top">
+                                {test.notes ? (
+                                  <div className="text-[11px] text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed bg-gray-50/70 dark:bg-gray-900/40 p-2 rounded-xl border border-gray-100 dark:border-gray-750">
+                                    {test.notes}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-300 dark:text-gray-600">-</span>
+                                )}
+                              </td>
+                            );
 
-                      {/* Acceptance Decision & Action */}
-                      <td className="py-3 px-4 text-center">
-                        {isAccepted ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-xs">
-                              <span>✓</span>
-                              <span>مقبول في التطبيق</span>
-                            </span>
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
-                                (مدرج في قائمة الطلاب)
-                              </span>
-                              <button
-                                onClick={() => rejectNewStudent(test.id)}
-                                className="text-[10px] text-red-500 hover:underline font-bold"
-                                title="إلغاء القبول وحذفه من الطلاب"
-                              >
-                                تراجع
-                              </button>
-                            </div>
-                          </div>
-                        ) : isRejected ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 rounded-xl text-xs font-black">
-                              <span>✕</span>
-                              <span>غير مقبول</span>
-                            </span>
-                            <button
-                              onClick={() => setAcceptingStudent(test)}
-                              className="text-[11px] text-emerald-600 hover:underline font-bold"
-                            >
-                              قبول الآن
-                            </button>
-                          </div>
-                        ) : (
-                          /* Pending - Buttons for Accept / Reject */
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => setAcceptingStudent(test)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1"
-                            >
-                              <span>✅</span>
-                              <span>قبول</span>
-                            </button>
-                            <button
-                              onClick={() => rejectNewStudent(test.id)}
-                              className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-900/40 dark:text-red-300 font-black text-xs rounded-xl transition-all active:scale-95"
-                            >
-                              <span>✕</span>
-                              <span>عدم قبول</span>
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                          case 'status':
+                            return (
+                              <td key="status" className="py-3 px-4 text-center">
+                                {isAccepted ? (
+                                  <div className="space-y-1">
+                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-xs">
+                                      <span>✓</span>
+                                      <span>مقبول في التطبيق</span>
+                                    </span>
+                                    <div className="flex items-center justify-center gap-2">
+                                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                                        (مدرج في قائمة الطلاب)
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => rejectNewStudent(test.id)}
+                                        className="text-[10px] text-red-500 hover:underline font-bold cursor-pointer"
+                                        title="إلغاء القبول وحذفه من الطلاب"
+                                      >
+                                        تراجع
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : isRejected ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 rounded-xl text-xs font-black">
+                                      <span>✕</span>
+                                      <span>غير مقبول</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setAcceptingStudent(test)}
+                                      className="text-[11px] text-emerald-600 hover:underline font-bold cursor-pointer"
+                                    >
+                                      قبول الآن
+                                    </button>
+                                  </div>
+                                ) : (
+                                  /* Pending - Buttons for Accept / Reject */
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setAcceptingStudent(test)}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <span>✅</span>
+                                      <span>قبول</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => rejectNewStudent(test.id)}
+                                      className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-900/40 dark:text-red-300 font-black text-xs rounded-xl transition-all active:scale-95 cursor-pointer"
+                                    >
+                                      <span>✕</span>
+                                      <span>عدم قبول</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            );
 
-                      {/* Row Actions */}
-                      <td className="py-3 px-3 text-center">
-                        <button
-                          onClick={() => setDeletingTest(test)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors text-xs"
-                          title="حذف السجل"
-                        >
-                          🗑️
-                        </button>
-                      </td>
+                          case 'actions':
+                            return (
+                              <td key="actions" className="py-3 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletingTest(test)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors text-xs cursor-pointer"
+                                  title="حذف السجل"
+                                >
+                                  🗑️
+                                </button>
+                              </td>
+                            );
+
+                          default:
+                            return null;
+                        }
+                      })}
                     </tr>
                   );
                 })}

@@ -5,7 +5,7 @@ import { UserRole } from '../types';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from 'react-colorful';
-import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers } from 'lucide-react';
+import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers, Hash, Eye, EyeOff } from 'lucide-react';
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
     let cleanHex = hex.replace('#', '');
@@ -319,6 +319,40 @@ export const CardsManager: React.FC = () => {
     const [selectedHalaqaIds, setSelectedHalaqaIds] = useState<string[]>([]);
     const [halaqaSearch, setHalaqaSearch] = useState('');
 
+    const [hideHalaqaType, setHideHalaqaType] = useState<boolean>(() => {
+        return localStorage.getItem('halaqa_card_hide_type') === 'true';
+    });
+
+    const handleToggleHideHalaqaType = (val: boolean) => {
+        setHideHalaqaType(val);
+        try {
+            localStorage.setItem('halaqa_card_hide_type', String(val));
+        } catch (e) {}
+    };
+
+    const [genericCardsCount, setGenericCardsCount] = useState<number>(() => {
+        const saved = localStorage.getItem('generic_halaqa_cards_count');
+        return saved !== null ? Number(saved) : 0;
+    });
+    const [genericCardsColor, setGenericCardsColor] = useState<string>(() => {
+        return localStorage.getItem('generic_halaqa_cards_color') || '#059669';
+    });
+    const [showGenericColorPicker, setShowGenericColorPicker] = useState(false);
+
+    const handleUpdateGenericCardsCount = (count: number) => {
+        setGenericCardsCount(count);
+        try {
+            localStorage.setItem('generic_halaqa_cards_count', String(count));
+        } catch (e) {}
+    };
+
+    const handleUpdateGenericCardsColor = (color: string) => {
+        setGenericCardsColor(color);
+        try {
+            localStorage.setItem('generic_halaqa_cards_color', color);
+        } catch (e) {}
+    };
+
     const [memorizationColor, setMemorizationColor] = useState<string>(() => {
         return localStorage.getItem('halaqa_card_mem_color') || '#059669';
     });
@@ -447,6 +481,22 @@ export const CardsManager: React.FC = () => {
             });
         });
 
+        // Add generic numbered cards (without type) if count > 0
+        if (genericCardsCount > 0) {
+            for (let n = 1; n <= genericCardsCount; n++) {
+                items.push({
+                    id: `generic_${n}`,
+                    originalId: n,
+                    name: `بطاقة عامة - رقم ${n}`,
+                    type: 'generic',
+                    typeName: '',
+                    numberStr: String(n),
+                    teacherName: '',
+                    color: genericCardsColor
+                });
+            }
+        }
+
         // Add custom additional halaqa types (generated from 1 to count)
         customHalaqaTypes.forEach(ct => {
             const title = ct.name.trim();
@@ -468,7 +518,7 @@ export const CardsManager: React.FC = () => {
         });
 
         return items;
-    }, [halaqas, sardHalaqas, users, memorizationColor, sardColor, customHalaqaTypes]);
+    }, [halaqas, sardHalaqas, users, memorizationColor, sardColor, customHalaqaTypes, genericCardsCount, genericCardsColor]);
 
     const filteredHalaqaItems = useMemo(() => {
         let result = allHalaqaItems;
@@ -476,6 +526,8 @@ export const CardsManager: React.FC = () => {
             result = result.filter(item => item.type === 'memorization');
         } else if (halaqaFilter === 'sard') {
             result = result.filter(item => item.type === 'sard');
+        } else if (halaqaFilter === 'generic') {
+            result = result.filter(item => item.type === 'generic');
         } else if (halaqaFilter !== 'all') {
             result = result.filter(item => item.type === halaqaFilter);
         }
@@ -756,7 +808,8 @@ export const CardsManager: React.FC = () => {
         canvas: HTMLCanvasElement,
         logoImg: HTMLImageElement | null,
         cardWMM: number = 148,
-        cardHMM: number = 210
+        cardHMM: number = 210,
+        isTypeHidden: boolean = hideHalaqaType
     ) => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -766,7 +819,7 @@ export const CardsManager: React.FC = () => {
         canvas.width = width;
         canvas.height = height;
 
-        const baseColor = target.color || (target.type === 'memorization' ? memorizationColor : (target.type === 'sard' ? sardColor : '#8B4513'));
+        const baseColor = target.color || (target.type === 'memorization' ? memorizationColor : (target.type === 'sard' ? sardColor : (target.type === 'generic' ? genericCardsColor : '#8B4513')));
 
         // 1. Background Gradient
         const rgb = hexToRgb(baseColor) || { r: 5, g: 150, b: 105 };
@@ -875,55 +928,70 @@ export const CardsManager: React.FC = () => {
         ctx.textBaseline = 'top';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
         ctx.shadowBlur = 6;
-        ctx.fillText('✦ مشروع إعداد حافظ ✦', logoCenterX, logoCenterY + logoRadius + 14);
-        ctx.restore();
-
-        // 6. Center Section - Halaqa Type Name and Number
-        // Positioned comfortably below "✦ مشروع إعداد حافظ ✦" to eliminate any overlap
-        const typeY = Math.round(height * 0.29);
-
-        ctx.save();
-        let typeFontSize = 50;
-        ctx.font = `bold ${typeFontSize}px Tajawal, Cairo, sans-serif`;
-        let textMetrics = ctx.measureText(target.typeName);
-        while (textMetrics.width > width * 0.82 && typeFontSize > 22) {
-            typeFontSize -= 2;
-            ctx.font = `bold ${typeFontSize}px Tajawal, Cairo, sans-serif`;
-            textMetrics = ctx.measureText(target.typeName);
-        }
-        ctx.fillStyle = '#FFFFFF';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 10;
-        ctx.fillText(target.typeName, width / 2, typeY);
-        ctx.restore();
-
-        // Divider Line (neatly spaced under type name)
-        const lineY = typeY + 44;
-        ctx.save();
-        ctx.strokeStyle = '#D4AF37';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(width / 2 - 160, lineY);
-        ctx.lineTo(width / 2 + 160, lineY);
-        ctx.stroke();
-
-        ctx.fillStyle = '#D4AF37';
-        ctx.beginPath();
-        ctx.arc(width / 2, lineY, 8, 0, Math.PI * 2);
-        ctx.fill();
+        const programTitleY = logoCenterY + logoRadius + 14;
+        ctx.fillText('✦ مشروع إعداد حافظ ✦', logoCenterX, programTitleY);
         ctx.restore();
 
         // Bottom Ornamentation Y coordinate
         const bottomOrnamentY = height - margin - 20;
 
-        // Number Badge - Extra Large Central Circle (Centered vertically and horizontally with maximum diameter)
+        // 6. Center Section - Halaqa Type Name (if shown)
+        const shouldShowType = !isTypeHidden && target.typeName && target.typeName.trim().length > 0;
+        let lineY = 0;
+
+        if (shouldShowType) {
+            const typeY = Math.round(height * 0.29);
+
+            ctx.save();
+            let typeFontSize = 50;
+            ctx.font = `bold ${typeFontSize}px Tajawal, Cairo, sans-serif`;
+            let textMetrics = ctx.measureText(target.typeName);
+            while (textMetrics.width > width * 0.82 && typeFontSize > 22) {
+                typeFontSize -= 2;
+                ctx.font = `bold ${typeFontSize}px Tajawal, Cairo, sans-serif`;
+                textMetrics = ctx.measureText(target.typeName);
+            }
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.fillText(target.typeName, width / 2, typeY);
+            ctx.restore();
+
+            // Divider Line (neatly spaced under type name)
+            lineY = typeY + 44;
+            ctx.save();
+            ctx.strokeStyle = '#D4AF37';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(width / 2 - 160, lineY);
+            ctx.lineTo(width / 2 + 160, lineY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#D4AF37';
+            ctx.beginPath();
+            ctx.arc(width / 2, lineY, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 7. Number Badge - Extra Large Central Circle
         ctx.save();
-        const availableVertical = bottomOrnamentY - lineY;
-        const numY = Math.round(lineY + availableVertical / 2);
-        // Circle radius 405px (810px diameter) maximizes the space between divider line and bottom ornament
-        const circleRadius = 405;
+        let numY: number;
+        let circleRadius = 405;
+
+        if (shouldShowType) {
+            const availableVertical = bottomOrnamentY - lineY;
+            numY = Math.round(lineY + availableVertical / 2);
+            circleRadius = 405;
+        } else {
+            // When type name is hidden: perfectly center the circle between the top program title and bottom ornament
+            const topBoundY = programTitleY + 36;
+            const availableVertical = bottomOrnamentY - topBoundY;
+            numY = Math.round(topBoundY + availableVertical / 2);
+            circleRadius = Math.min(420, Math.round(availableVertical * 0.46));
+        }
 
         // Shadow for depth
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
@@ -1024,14 +1092,14 @@ export const CardsManager: React.FC = () => {
         if (!currentItem) return;
 
         const canvas = document.createElement('canvas');
-        drawHalaqaCardOnCanvas(currentItem, canvas, appLogo, halaqaConfig.width, halaqaConfig.height)
+        drawHalaqaCardOnCanvas(currentItem, canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType)
             .then(() => {
                 setHalaqaPreviewUrl(canvas.toDataURL('image/png'));
             })
             .catch(err => {
                 console.error('Error drawing halaqa card preview:', err);
             });
-    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor, customHalaqaTypes]);
+    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor, customHalaqaTypes, hideHalaqaType, genericCardsCount, genericCardsColor]);
 
     const generateHalaqaPDF = async () => {
         if (activeHalaqaTargets.length === 0) {
@@ -1079,7 +1147,7 @@ export const CardsManager: React.FC = () => {
                 const canvas = document.createElement('canvas');
                 for (let i = 0; i < activeHalaqaTargets.length; i++) {
                     if (i > 0) pdf.addPage([cardWMM, cardHMM], cardWMM > cardHMM ? 'landscape' : 'portrait');
-                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height);
+                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType);
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
                     pdf.addImage(imgData, 'JPEG', 0, 0, cardWMM, cardHMM);
                 }
@@ -1108,7 +1176,7 @@ export const CardsManager: React.FC = () => {
                     const x = startX + col * (cardWMM + gap);
                     const y = startY + row * (cardHMM + gap);
 
-                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height);
+                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType);
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
                     pdf.addImage(imgData, 'JPEG', x, y, cardWMM, cardHMM);
                 }
@@ -2789,6 +2857,17 @@ export const CardsManager: React.FC = () => {
                                     >
                                         السرد ({allHalaqaItems.filter(i => i.type === 'sard').length})
                                     </button>
+                                    {genericCardsCount > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setHalaqaFilter('generic'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
+                                            className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center flex items-center gap-1.5 ${halaqaFilter === 'generic' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                        >
+                                            <span className="w-2.5 h-2.5 rounded-full inline-block border border-white/40 shadow-xs" style={{ backgroundColor: genericCardsColor }} />
+                                            <span>بدون نوع (عامة)</span>
+                                            <span>({genericCardsCount})</span>
+                                        </button>
+                                    )}
                                     {customHalaqaTypes.filter(ct => ct.name.trim()).map(ct => {
                                         const count = allHalaqaItems.filter(i => i.type === `custom_${ct.id}`).length;
                                         const isSelected = halaqaFilter === `custom_${ct.id}`;
@@ -2805,6 +2884,97 @@ export const CardsManager: React.FC = () => {
                                             </button>
                                         );
                                     })}
+                                </div>
+
+                                {/* Option: Hide Halaqa Type from Cards */}
+                                <div className="p-3 bg-gradient-to-r from-emerald-50/90 to-teal-50/70 dark:from-gray-700/80 dark:to-gray-700/50 rounded-xl border border-emerald-200/90 dark:border-gray-600 shadow-xs mb-3 space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                            <div className="relative">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={hideHalaqaType}
+                                                    onChange={(e) => handleToggleHideHalaqaType(e.target.checked)}
+                                                />
+                                                <div className={`block w-10 h-5 rounded-full transition-colors ${hideHalaqaType ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                                                <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform duration-200 shadow-xs ${hideHalaqaType ? 'transform translate-x-5' : ''}`}></div>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-gray-800 dark:text-gray-100 flex items-center gap-1">
+                                                    {hideHalaqaType ? <EyeOff className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Eye className="w-3.5 h-3.5 text-gray-500" />}
+                                                    <span>إخفاء نوع الحلقة من البطاقة</span>
+                                                </span>
+                                                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                    {hideHalaqaType ? 'مفعّل: طباعة الرقم فقط وتكبيره بدون كتابة نوع الحلقة' : 'معطل: كتابة اسم نوع الحلقة فوق رقم البطاقة'}
+                                                </span>
+                                            </div>
+                                        </label>
+                                        {hideHalaqaType && (
+                                            <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700 shrink-0">
+                                                أرقام فقط
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Generic Numbered Cards Section (without type) */}
+                                <div className="p-3 bg-blue-50/70 dark:bg-gray-700/50 rounded-xl border border-blue-200/80 dark:border-gray-600 space-y-2.5 mb-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <Hash className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                            <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                بطاقات عامة بدون نوع (تحديد العدد):
+                                            </span>
+                                        </div>
+                                        {genericCardsCount > 0 && (
+                                            <span className="text-[10px] bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-bold">
+                                                {genericCardsCount} بطاقة جاهزة
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                        تتيح كتابة عدد البطاقات المطلوبة لتوليدها وطباعتها بأرقام متسلسلة (1، 2، 3...) مباشرة
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block mb-0.5">عدد البطاقات المطلوبة:</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={500}
+                                                value={genericCardsCount === 0 ? '' : genericCardsCount}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                                                    handleUpdateGenericCardsCount(isNaN(val) ? 0 : Math.max(0, val));
+                                                }}
+                                                placeholder="مثال: 20 أو 50 بطاقة"
+                                                className="w-full px-2.5 py-1.5 text-xs font-bold border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white focus:ring-1 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block mb-0.5">اللون:</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowGenericColorPicker(true)}
+                                                className="w-7 h-7 rounded-lg border border-gray-300 shadow-xs cursor-pointer focus:outline-none transition-transform hover:scale-105"
+                                                style={{ backgroundColor: genericCardsColor }}
+                                                title="تغيير لون البطاقات العامة"
+                                            />
+                                        </div>
+                                        {genericCardsCount > 0 && (
+                                            <div className="flex flex-col justify-end pt-3.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleUpdateGenericCardsCount(0)}
+                                                    className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded-md hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                    title="إلغاء البطاقات العامة"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Color Settings per Type */}
@@ -3553,6 +3723,47 @@ export const CardsManager: React.FC = () => {
                         </div>
                         <div className="flex gap-2 w-full">
                             <button onClick={() => setShowSardColorPicker(false)} className="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg">تم</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showGenericColorPicker && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowGenericColorPicker(false)}>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-fade-in max-w-xs w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">اختر لون البطاقات العامة</h3>
+                        <HexColorPicker color={genericCardsColor} onChange={(color) => {
+                            handleUpdateGenericCardsColor(color);
+                        }} />
+                        <div className="w-full">
+                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 block mb-1.5 text-right">ألوان مقترحة:</span>
+                            <div className="flex flex-wrap gap-1.5 justify-center">
+                                {['#059669', '#2563EB', '#7C3AED', '#D97706', '#DC2626', '#0D9488', '#1E3A8A', '#8B4513', '#475569'].map(preset => (
+                                    <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => handleUpdateGenericCardsColor(preset)}
+                                        className={`w-6 h-6 rounded-md border transition-transform hover:scale-110 ${genericCardsColor.toLowerCase() === preset.toLowerCase() ? 'ring-2 ring-blue-600 ring-offset-1 border-white' : 'border-gray-300'}`}
+                                        style={{ backgroundColor: preset }}
+                                        title={preset}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <div className="w-full flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">HEX:</span>
+                            <input 
+                                type="text" 
+                                value={genericCardsColor} 
+                                onChange={(e) => {
+                                    handleUpdateGenericCardsColor(e.target.value);
+                                }}
+                                onFocus={e => e.target.select()}
+                                className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase"
+                            />
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <button onClick={() => setShowGenericColorPicker(false)} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-lg transition-colors">تم</button>
                         </div>
                     </div>
                 </div>
