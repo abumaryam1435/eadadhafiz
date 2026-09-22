@@ -229,6 +229,15 @@ export const OTHER_PAPER_PRESETS: OtherPaperPreset[] = [
     { id: 'custom', name: 'أخرى: حجم الورق يدوياً (الطول والعرض)', category: 'custom', widthMM: 0, heightMM: 0, notes: 'تحديد الطول والعرض والوحدة يدوياً' }
 ];
 
+export const HALAQA_SIZE_PRESETS = [
+    { id: 'a5', name: 'A5', width: 148, height: 210, unit: 'mm' as const, label: '14.8 × 21 سم (افتراضي)' },
+    { id: 'a4', name: 'A4', width: 210, height: 297, unit: 'mm' as const, label: '21 × 29.7 سم' },
+    { id: 'a3', name: 'A3', width: 297, height: 420, unit: 'mm' as const, label: '29.7 × 42 سم' },
+    { id: 'a2', name: 'A2', width: 420, height: 594, unit: 'mm' as const, label: '42 × 59.4 سم' },
+    { id: 'a6', name: 'A6', width: 105, height: 148, unit: 'mm' as const, label: '10.5 × 14.8 سم' },
+    { id: 'b5', name: 'B5', width: 176, height: 250, unit: 'mm' as const, label: '17.6 × 25 سم' },
+];
+
 export const DEFAULT_STAGE_COLORS = [
     '#059669', // 1. الأخضر (المرحلة ذات أكبر عدد من الطلاب)
     '#2563eb', // 2. الأزرق (المرحلة التالية - عدد أقل من الأولى)
@@ -517,6 +526,7 @@ export const CardsManager: React.FC = () => {
     const [customPaperUnit, setCustomPaperUnit] = useState<'cm' | 'mm' | 'in'>('cm');
     const [customPaperOrientation, setCustomPaperOrientation] = useState<'portrait' | 'landscape'>('portrait');
     const otherPaperDropdownRef = useRef<HTMLDivElement>(null);
+    const halaqaOtherPaperDropdownRef = useRef<HTMLDivElement>(null);
 
     const [pdfGaps, setPdfGaps] = useState<boolean>(() => {
         const isUserModified = localStorage.getItem('cards_pdf_gaps_user_set');
@@ -602,7 +612,10 @@ export const CardsManager: React.FC = () => {
 
     useEffect(() => {
         const handleOutsideClick = (e: MouseEvent) => {
-            if (otherPaperDropdownRef.current && !otherPaperDropdownRef.current.contains(e.target as Node)) {
+            const target = e.target as Node;
+            const isInsideTab1 = otherPaperDropdownRef.current && otherPaperDropdownRef.current.contains(target);
+            const isInsideTab2 = halaqaOtherPaperDropdownRef.current && halaqaOtherPaperDropdownRef.current.contains(target);
+            if (!isInsideTab1 && !isInsideTab2) {
                 setIsOtherPaperDropdownOpen(false);
             }
         };
@@ -676,6 +689,49 @@ export const CardsManager: React.FC = () => {
         const rows = Math.max(1, Math.floor((availH + gap) / (cardH + gap)));
         return cols * rows;
     }, [exportMode, selectedOtherPaper, customPaperWidth, customPaperHeight, customPaperUnit, customPaperOrientation, config.width, config.height, config.unit, pdfGaps]);
+
+    const estimatedHalaqaCardsPerPage = useMemo(() => {
+        let docW = 210;
+        let docH = 297;
+        if (exportMode === 'a4') {
+            docW = 210; docH = 297;
+        } else if (exportMode === 'a3') {
+            docW = 297; docH = 420;
+        } else if (exportMode === 'single') {
+            return 1;
+        } else if (exportMode === 'other') {
+            const dims = getOtherPaperDimensionsMM();
+            docW = dims.width;
+            docH = dims.height;
+        }
+
+        let cardW = halaqaConfig.width;
+        let cardH = halaqaConfig.height;
+        if (halaqaConfig.unit === 'cm') { cardW *= 10; cardH *= 10; }
+        else if (halaqaConfig.unit === 'in') { cardW *= 25.4; cardH *= 25.4; }
+
+        const gap = pdfGaps ? 5 : 0;
+        const availW = Math.max(0, docW - 20);
+        const availH = Math.max(0, docH - 20);
+        const cols = Math.max(1, Math.floor((availW + gap) / (cardW + gap)));
+        const rows = Math.max(1, Math.floor((availH + gap) / (cardH + gap)));
+        return cols * rows;
+    }, [exportMode, selectedOtherPaper, customPaperWidth, customPaperHeight, customPaperUnit, customPaperOrientation, halaqaConfig.width, halaqaConfig.height, halaqaConfig.unit, pdfGaps]);
+
+    const estimatedHalaqaTotalSheets = useMemo(() => {
+        if (activeHalaqaTargets.length === 0) return 0;
+        if (exportMode === 'single') return activeHalaqaTargets.length;
+        return Math.ceil(activeHalaqaTargets.length / Math.max(1, estimatedHalaqaCardsPerPage));
+    }, [activeHalaqaTargets.length, exportMode, estimatedHalaqaCardsPerPage]);
+
+    const isHalaqaPresetActive = (preset: typeof HALAQA_SIZE_PRESETS[0]) => {
+        let currentW_MM = halaqaConfig.width;
+        let currentH_MM = halaqaConfig.height;
+        if (halaqaConfig.unit === 'cm') { currentW_MM *= 10; currentH_MM *= 10; }
+        else if (halaqaConfig.unit === 'in') { currentW_MM *= 25.4; currentH_MM *= 25.4; }
+
+        return Math.abs(currentW_MM - preset.width) < 0.8 && Math.abs(currentH_MM - preset.height) < 0.8;
+    };
 
     useEffect(() => {
         const saved = localStorage.getItem('stageColors');
@@ -2890,33 +2946,357 @@ export const CardsManager: React.FC = () => {
 
                             {/* Print & Layout Options */}
                             <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
-                                <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                                    <Printer className="w-4 h-4 text-emerald-600" />
-                                    إعدادات الطباعة والتصدير:
-                                </h4>
+                                <div className="bg-gray-50 dark:bg-gray-700/50 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+                                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                        <Printer className="w-4 h-4 text-emerald-600" />
+                                        إعدادات الطباعة
+                                    </h4>
+                                    
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <div className="relative">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={pdfGaps}
+                                                    onChange={(e) => handlePdfGapsChange(e.target.checked)}
+                                                />
+                                                <div className={`block w-10 h-6 rounded-full transition-colors ${pdfGaps ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${pdfGaps ? 'transform translate-x-4' : ''}`}></div>
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">ترك مسافة بين البطاقات</span>
+                                        </label>
+                                    </div>
 
-                                <div>
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 block mb-1">تخطيط الورق:</label>
-                                    <select
-                                        value={exportMode}
-                                        onChange={(e) => setExportMode(e.target.value as any)}
-                                        className="w-full p-2 text-xs border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
-                                    >
-                                        <option value="a4">صفحة A4 (بطاقات متعددة)</option>
-                                        <option value="a3">صفحة A3 (بطاقات متعددة)</option>
-                                        <option value="single">بطاقة واحدة لكل صفحة (قياس بطاقة الحجم المخصص)</option>
-                                        <option value="other">ورق قياس مخصص...</option>
-                                    </select>
-                                </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <label className="cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="halaqaExportMode"
+                                                className="peer hidden"
+                                                checked={exportMode === 'a4'}
+                                                onChange={() => setExportMode('a4')}
+                                            />
+                                            <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
+                                                تجميع في A4
+                                            </div>
+                                        </label>
+                                        <label className="cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="halaqaExportMode"
+                                                className="peer hidden"
+                                                checked={exportMode === 'a3'}
+                                                onChange={() => setExportMode('a3')}
+                                            />
+                                            <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
+                                                تجميع في A3
+                                            </div>
+                                        </label>
+                                        <label className="cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="halaqaExportMode"
+                                                className="peer hidden"
+                                                checked={exportMode === 'single'}
+                                                onChange={() => setExportMode('single')}
+                                            />
+                                            <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
+                                                كل بطاقة في صفحة
+                                            </div>
+                                        </label>
+                                    </div>
 
-                                <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-lg">
-                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300">ترك مسافة بين البطاقات (5 مم):</label>
-                                    <input
-                                        type="checkbox"
-                                        checked={pdfGaps}
-                                        onChange={(e) => setPdfGaps(e.target.checked)}
-                                        className="w-4 h-4 text-emerald-600 rounded accent-emerald-600 cursor-pointer"
-                                    />
+                                    {/* زر وقائمة أحجام الورق الأخرى والمطابع */}
+                                    <div className="relative" ref={halaqaOtherPaperDropdownRef}>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (exportMode !== 'other') {
+                                                    setExportMode('other');
+                                                    setIsOtherPaperDropdownOpen(true);
+                                                } else {
+                                                    setIsOtherPaperDropdownOpen(prev => !prev);
+                                                }
+                                            }}
+                                            className={`w-full p-2.5 rounded-lg border-2 flex items-center justify-between text-xs font-bold transition-all shadow-sm ${
+                                                exportMode === 'other'
+                                                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                                                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 truncate text-right">
+                                                <span className="p-1 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 shrink-0">
+                                                    🖨️
+                                                </span>
+                                                <div className="truncate">
+                                                    <div className="truncate">
+                                                        {exportMode === 'other' ? (
+                                                            <span>حجم مخصص: <strong className="text-emerald-800 dark:text-emerald-200">{currentOtherPaper.name}</strong></span>
+                                                        ) : (
+                                                            'أحجام ورق أخرى ومقاسات المطابع...'
+                                                        )}
+                                                    </div>
+                                                    {exportMode === 'other' && currentOtherPaper.id !== 'custom' && (
+                                                        <div className="text-[10px] font-normal text-gray-500 dark:text-gray-400 truncate">
+                                                            {currentOtherPaper.widthMM / 10} × {currentOtherPaper.heightMM / 10} سم • {currentOtherPaper.notes}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {exportMode === 'other' && (
+                                                    <span className="text-[10px] bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 rounded font-bold">
+                                                        مفعّل
+                                                    </span>
+                                                )}
+                                                <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOtherPaperDropdownOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </button>
+
+                                        {/* القائمة المنسدلة للأحجام */}
+                                        {isOtherPaperDropdownOpen && (
+                                            <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                                                {/* مقاسات المطابع الكبيرة */}
+                                                <div className="p-2">
+                                                    <div className="px-2 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                                                        <span>🏭</span>
+                                                        <span>مقاسات المطابع الكبيرة والفرخ التجاري</span>
+                                                    </div>
+                                                    <div className="space-y-1 mt-1">
+                                                        {OTHER_PAPER_PRESETS.filter(p => p.category === 'press').map(preset => (
+                                                            <button
+                                                                key={preset.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedOtherPaper(preset.id);
+                                                                    setExportMode('other');
+                                                                    setIsOtherPaperDropdownOpen(false);
+                                                                }}
+                                                                className={`w-full text-right p-2 rounded-lg transition-colors flex items-center justify-between ${
+                                                                    exportMode === 'other' && selectedOtherPaper === preset.id
+                                                                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-300 dark:border-emerald-700'
+                                                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                                }`}
+                                                            >
+                                                                <div>
+                                                                    <div className="font-bold">{preset.name}</div>
+                                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400">{preset.notes}</div>
+                                                                </div>
+                                                                {exportMode === 'other' && selectedOtherPaper === preset.id && (
+                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* مقاسات معيارية إضافية */}
+                                                <div className="p-2">
+                                                    <div className="px-2 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                                                        <span>📄</span>
+                                                        <span>مقاسات معيارية إضافية</span>
+                                                    </div>
+                                                    <div className="space-y-1 mt-1">
+                                                        {OTHER_PAPER_PRESETS.filter(p => p.category === 'standard').map(preset => (
+                                                            <button
+                                                                key={preset.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedOtherPaper(preset.id);
+                                                                    setExportMode('other');
+                                                                    setIsOtherPaperDropdownOpen(false);
+                                                                }}
+                                                                className={`w-full text-right p-2 rounded-lg transition-colors flex items-center justify-between ${
+                                                                    exportMode === 'other' && selectedOtherPaper === preset.id
+                                                                        ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-300 dark:border-emerald-700'
+                                                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                                                }`}
+                                                            >
+                                                                <div>
+                                                                    <div className="font-bold">{preset.name}</div>
+                                                                    <div className="text-[10px] text-gray-500 dark:text-gray-400">{preset.notes}</div>
+                                                                </div>
+                                                                {exportMode === 'other' && selectedOtherPaper === preset.id && (
+                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* نهاية القائمة المنسدلة: خيار مخصص يدوي */}
+                                                <div className="p-2 bg-gray-50/70 dark:bg-gray-700/30">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedOtherPaper('custom');
+                                                            setExportMode('other');
+                                                            setIsOtherPaperDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full text-right p-2.5 rounded-lg transition-colors flex items-center justify-between ${
+                                                            exportMode === 'other' && selectedOtherPaper === 'custom'
+                                                                ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-900 dark:text-emerald-100 font-bold border border-emerald-400 dark:border-emerald-600'
+                                                                : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-dashed border-gray-300 dark:border-gray-500'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-base">✍️</span>
+                                                            <div>
+                                                                <div className="font-bold text-emerald-800 dark:text-emerald-300">أخرى: حجم الورق يدوياً (الطول والعرض)</div>
+                                                                <div className="text-[10px] text-gray-500 dark:text-gray-400">إدخال مقاس الورقة المخصص وتحديد الوحدة</div>
+                                                            </div>
+                                                        </div>
+                                                        {exportMode === 'other' && selectedOtherPaper === 'custom' && (
+                                                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* لوحة إدخال الحجم يدوياً عند اختيار أخرى */}
+                                    {exportMode === 'other' && selectedOtherPaper === 'custom' && (
+                                        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-300 dark:border-emerald-700 space-y-2.5 shadow-sm">
+                                            <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300 border-b border-gray-100 dark:border-gray-700 pb-1.5">
+                                                <span className="flex items-center gap-1.5">
+                                                    <span>📐</span>
+                                                    <span>تحديد حجم الورقة يدوياً</span>
+                                                </span>
+                                                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded font-bold">
+                                                    مخصص
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                                                        العرض:
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="0.1"
+                                                        value={customPaperWidth}
+                                                        onChange={e => setCustomPaperWidth(Math.max(1, Number(e.target.value)))}
+                                                        onFocus={e => e.target.select()}
+                                                        className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                                                        الطول (الارتفاع):
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="0.1"
+                                                        value={customPaperHeight}
+                                                        onChange={e => setCustomPaperHeight(Math.max(1, Number(e.target.value)))}
+                                                        onFocus={e => e.target.select()}
+                                                        className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                                                        الوحدة:
+                                                    </label>
+                                                    <select
+                                                        value={customPaperUnit}
+                                                        onChange={e => setCustomPaperUnit(e.target.value as 'cm' | 'mm' | 'in')}
+                                                        className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold cursor-pointer"
+                                                    >
+                                                        <option value="cm">سم (cm)</option>
+                                                        <option value="mm">مم (mm)</option>
+                                                        <option value="in">بوصة (in)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-1 text-[11px]">
+                                                <span className="font-bold text-gray-600 dark:text-gray-400">اتجاه الورقة:</span>
+                                                <div className="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-md">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setCustomPaperOrientation('portrait')}
+                                                        className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                                            customPaperOrientation === 'portrait'
+                                                                ? 'bg-white dark:bg-gray-600 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                                                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+                                                        }`}
+                                                    >
+                                                        طولي (عمودي)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setCustomPaperOrientation('landscape')}
+                                                        className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                                            customPaperOrientation === 'landscape'
+                                                                ? 'bg-white dark:bg-gray-600 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                                                                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
+                                                        }`}
+                                                    >
+                                                        عرضي (أفقي)
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* اتجاه الورقة لأحجام المطابع الجاهزة */}
+                                    {exportMode === 'other' && selectedOtherPaper !== 'custom' && (
+                                        <div className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-[11px] shadow-sm">
+                                            <div className="text-gray-600 dark:text-gray-300">
+                                                <span className="font-bold text-emerald-800 dark:text-emerald-300 ml-1">الاتجاه:</span>
+                                                {customPaperOrientation === 'portrait' ? 'طولي (عمودي)' : 'عرضي (أفقي)'}
+                                            </div>
+                                            <div className="flex bg-gray-100 dark:bg-gray-700 p-0.5 rounded-md">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCustomPaperOrientation('portrait')}
+                                                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                                        customPaperOrientation === 'portrait'
+                                                            ? 'bg-white dark:bg-gray-600 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                                                            : 'text-gray-600 dark:text-gray-400'
+                                                    }`}
+                                                >
+                                                    عمودي
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCustomPaperOrientation('landscape')}
+                                                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                                        customPaperOrientation === 'landscape'
+                                                            ? 'bg-white dark:bg-gray-600 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                                                            : 'text-gray-600 dark:text-gray-400'
+                                                    }`}
+                                                >
+                                                    أفقي
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* سعة الورقة التقديرية */}
+                                    <div className="text-[11px] text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <span>السعة التقديرية للورقة:</span>
+                                            <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                                                {exportMode === 'single' ? 'بطاقة واحدة لكل صفحة' : `~ ${estimatedHalaqaCardsPerPage} بطاقة / ورقة`}
+                                            </span>
+                                        </div>
+                                        {activeHalaqaTargets.length > 0 && exportMode !== 'single' && (
+                                            <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700 text-[10px]">
+                                                <span>إجمالي الأوراق التقديري:</span>
+                                                <span className="font-bold text-gray-800 dark:text-gray-200">
+                                                    {formatSheetsCount(estimatedHalaqaTotalSheets, activeHalaqaTargets.length)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* PDF Generation Button */}
@@ -2924,7 +3304,7 @@ export const CardsManager: React.FC = () => {
                                     type="button"
                                     onClick={generateHalaqaPDF}
                                     disabled={isGenerating || activeHalaqaTargets.length === 0}
-                                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99]"
                                 >
                                     <Printer className="w-5 h-5" />
                                     <span>{isGenerating ? 'جاري الإصدار...' : `إصدار PDF (${activeHalaqaTargets.length} بطاقة)`}</span>
@@ -2934,72 +3314,118 @@ export const CardsManager: React.FC = () => {
 
                         {/* Right Column: Card Preview Panel */}
                         <div className="lg:col-span-2 space-y-6">
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+                            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
                                     <div>
-                                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                                            <Sparkles className="w-5 h-5 text-amber-500" />
+                                        <h4 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                            <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
                                             معاينة بطاقات الحلقات
                                         </h4>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            التصميم الافتراضي المعتمد لبطاقة الحلقة (148 × 210 مم) ببرنامج إعداد حافظ
+                                            التصميم الرسمي المعتمد لبطاقة الحلقة ببرنامج إعداد حافظ
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 shrink-0">
                                         <span className="text-xs font-bold text-gray-500 dark:text-gray-400">القياس الافتراضي:</span>
                                         <span className="px-2.5 py-1 bg-amber-50 dark:bg-gray-700 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-gray-600 text-xs font-bold rounded-md">
-                                            148 × 210 مم (A5)
+                                            A5 (14.8 × 21 سم)
                                         </span>
                                     </div>
                                 </div>
 
-                                {/* Size Customizer */}
-                                <div className="mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 flex flex-wrap gap-4 items-center justify-between">
-                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">أبعاد بطاقة الحلقة:</span>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1.5">
-                                            <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">العرض:</label>
-                                            <input
-                                                type="number"
-                                                value={halaqaConfig.width}
-                                                onChange={e => setHalaqaConfig(p => ({ ...p, width: Number(e.target.value) }))}
-                                                onFocus={e => e.target.select()}
-                                                className="w-16 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
-                                            />
+                                {/* Size Presets & Customizer Bar */}
+                                <div className="mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+                                    {/* Quick Presets Buttons (A5, A4, A3, A2, A6, B5) */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+                                                <span>⚡</span>
+                                                <span>مقاسات جاهزة للبطاقة (اختر للتعيين المباشر):</span>
+                                            </span>
+                                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium hidden sm:inline">
+                                                الافتراضي: A5
+                                            </span>
                                         </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الارتفاع:</label>
-                                            <input
-                                                type="number"
-                                                value={halaqaConfig.height}
-                                                onChange={e => setHalaqaConfig(p => ({ ...p, height: Number(e.target.value) }))}
-                                                onFocus={e => e.target.select()}
-                                                className="w-16 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
-                                            />
+                                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2">
+                                            {HALAQA_SIZE_PRESETS.map((preset) => {
+                                                const isActive = isHalaqaPresetActive(preset);
+                                                return (
+                                                    <button
+                                                        key={preset.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setHalaqaConfig(p => ({
+                                                                ...p,
+                                                                width: preset.width,
+                                                                height: preset.height,
+                                                                unit: preset.unit
+                                                            }));
+                                                            showToast(`📐 تم ضبط مقاس البطاقة على ${preset.name} (${preset.width} × ${preset.height} مم)`);
+                                                        }}
+                                                        className={`p-2 rounded-lg text-xs font-bold transition-all border text-center flex flex-col items-center justify-center gap-0.5 ${
+                                                            isActive
+                                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-400/40'
+                                                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300'
+                                                        }`}
+                                                    >
+                                                        <span className="font-extrabold text-sm">{preset.name}</span>
+                                                        <span className={`text-[10px] font-normal truncate max-w-full ${isActive ? 'text-emerald-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                            {preset.id === 'a5' ? 'افتراضي' : `${preset.width / 10}×${preset.height / 10} سم`}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الوحدة:</label>
-                                            <select
-                                                value={halaqaConfig.unit}
-                                                onChange={e => setHalaqaConfig(p => ({ ...p, unit: e.target.value as any }))}
-                                                className="p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
-                                            >
-                                                <option value="mm">مم</option>
-                                                <option value="cm">سم</option>
-                                                <option value="in">بوصة</option>
-                                            </select>
+                                    </div>
+
+                                    {/* Manual Dimension Inputs */}
+                                    <div className="pt-2 border-t border-gray-200/80 dark:border-gray-600 flex flex-wrap gap-3 items-center justify-between">
+                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">أبعاد بطاقة الحلقة (تخصيص يدوي):</span>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <div className="flex items-center gap-1.5">
+                                                <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">العرض:</label>
+                                                <input
+                                                    type="number"
+                                                    value={halaqaConfig.width}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, width: Number(e.target.value) }))}
+                                                    onFocus={e => e.target.select()}
+                                                    className="w-16 sm:w-20 p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الارتفاع:</label>
+                                                <input
+                                                    type="number"
+                                                    value={halaqaConfig.height}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, height: Number(e.target.value) }))}
+                                                    onFocus={e => e.target.select()}
+                                                    className="w-16 sm:w-20 p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الوحدة:</label>
+                                                <select
+                                                    value={halaqaConfig.unit}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, unit: e.target.value as any }))}
+                                                    className="p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold cursor-pointer"
+                                                >
+                                                    <option value="mm">مم</option>
+                                                    <option value="cm">سم</option>
+                                                    <option value="in">بوصة</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Rendered Preview Canvas Area */}
-                                <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-6 min-h-[420px] flex flex-col items-center justify-center relative shadow-inner overflow-hidden border border-gray-200 dark:border-gray-700">
+                                <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-4 sm:p-6 min-h-[360px] sm:min-h-[420px] flex flex-col items-center justify-center relative shadow-inner overflow-hidden border border-gray-200 dark:border-gray-700 w-full">
                                     {halaqaPreviewUrl ? (
-                                        <div className="relative group max-w-sm w-full flex items-center justify-center">
+                                        <div className="relative group max-w-full sm:max-w-sm w-full flex items-center justify-center">
                                             <img
                                                 src={halaqaPreviewUrl}
                                                 alt="معاينة بطاقة الحلقة"
-                                                className="max-h-[500px] w-auto object-contain rounded-lg shadow-2xl transition-transform duration-300"
+                                                className="max-h-[380px] sm:max-h-[500px] w-auto max-w-full object-contain rounded-lg shadow-2xl transition-transform duration-300"
                                             />
                                         </div>
                                     ) : (
@@ -3011,12 +3437,12 @@ export const CardsManager: React.FC = () => {
 
                                     {/* Navigation controls for Preview */}
                                     {activeHalaqaTargets.length > 0 && (
-                                        <div className="mt-6 flex items-center gap-4 bg-white dark:bg-gray-800 px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+                                        <div className="mt-4 sm:mt-6 flex items-center gap-3 sm:gap-4 bg-white dark:bg-gray-800 px-3 sm:px-4 py-2 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
                                             <button
                                                 type="button"
                                                 onClick={() => setHalaqaPreviewIndex(p => Math.max(0, p - 1))}
                                                 disabled={safeHalaqaPreviewIndex <= 0}
-                                                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg disabled:opacity-40 transition-colors"
+                                                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg disabled:opacity-40 transition-colors"
                                             >
                                                 السابق
                                             </button>
@@ -3027,7 +3453,7 @@ export const CardsManager: React.FC = () => {
                                                 type="button"
                                                 onClick={() => setHalaqaPreviewIndex(p => Math.min(activeHalaqaTargets.length - 1, p + 1))}
                                                 disabled={safeHalaqaPreviewIndex >= activeHalaqaTargets.length - 1}
-                                                className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg disabled:opacity-40 transition-colors"
+                                                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg disabled:opacity-40 transition-colors"
                                             >
                                                 التالي
                                             </button>
@@ -3041,7 +3467,7 @@ export const CardsManager: React.FC = () => {
                                         <a
                                             href={halaqaPreviewUrl}
                                             download={`بطاقة_${activeHalaqaTargets[safeHalaqaPreviewIndex]?.typeName || 'حلقة'}_${activeHalaqaTargets[safeHalaqaPreviewIndex]?.numberStr || 'preview'}.png`}
-                                            className="px-4 py-2 bg-emerald-50 dark:bg-gray-700 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-gray-600 rounded-lg text-xs font-bold border border-emerald-200 dark:border-gray-600 flex items-center gap-2 transition-colors"
+                                            className="w-full sm:w-auto px-4 py-2.5 bg-emerald-50 dark:bg-gray-700 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-gray-600 rounded-lg text-xs font-bold border border-emerald-200 dark:border-gray-600 flex items-center justify-center gap-2 transition-colors shadow-xs"
                                         >
                                             <Download className="w-4 h-4" />
                                             تنزيل صورة المعاينة (PNG)
