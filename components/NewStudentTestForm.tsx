@@ -22,12 +22,24 @@ export const NewStudentTestForm: React.FC<NewStudentTestFormProps> = ({
   const context = useContext(AppContext);
 
   const users = context?.users || [];
+  const students = context?.students || [];
   const currentTeacher = users.find(u => u.id === teacherId);
   const showToast = context?.showToast || (() => {});
   const addNewStudentTest = context?.addNewStudentTest;
   const updateNewStudentTest = context?.updateNewStudentTest;
   const deleteNewStudentTest = context?.deleteNewStudentTest;
   const newStudentTests = context?.newStudentTests || [];
+
+  const getAcceptedStudent = (test: NewStudentTest) => {
+    if (test.createdStudentId) {
+      const found = students.find(s => s.id === test.createdStudentId);
+      if (found) return found;
+    }
+    const cleanTestName = test.studentName.trim().replace(/\s+/g, ' ').toLowerCase();
+    const foundByName = students.find(s => s.name.trim().replace(/\s+/g, ' ').toLowerCase() === cleanTestName);
+    if (foundByName) return foundByName;
+    return null;
+  };
 
   const testScore = context?.newStudentTestScore ?? 100;
   const passingRate = context?.newStudentPassingRate ?? 70;
@@ -605,6 +617,7 @@ export const NewStudentTestForm: React.FC<NewStudentTestFormProps> = ({
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {teacherTests.map(t => {
               const isBeingEdited = editingTestId === t.id;
+              const acceptedStudent = getAcceptedStudent(t);
               return (
                 <div
                   key={t.id}
@@ -617,6 +630,20 @@ export const NewStudentTestForm: React.FC<NewStudentTestFormProps> = ({
                   <div className="space-y-1.5 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-black text-gray-900 dark:text-white">{t.studentName}</span>
+                      {acceptedStudent && (
+                        <>
+                          {acceptedStudent.isAlAmeen && (
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
+                              (من طلاب الأمين)
+                            </span>
+                          )}
+                          {acceptedStudent.isFromIbri !== false && (
+                            <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200/80 dark:border-blue-800">
+                              (من جامع عبري)
+                            </span>
+                          )}
+                        </>
+                      )}
                       {t.grade && (
                         <span className="text-[11px] font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-md">
                           {t.grade}

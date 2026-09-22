@@ -18,6 +18,8 @@ interface ColumnDef {
 const ALL_NEW_STUDENT_COLUMNS: ColumnDef[] = [
   { key: 'sequence', label: 'م' },
   { key: 'studentName', label: 'اسم الطالب' },
+  { key: 'isAlAmeenStr', label: 'من الأمين؟' },
+  { key: 'isFromIbriStr', label: 'من جامع عبري؟' },
   { key: 'grade', label: 'الصف / المرحلة' },
   { key: 'parentPhone', label: 'رقم ولي الأمر' },
   { key: 'teacherName', label: 'المعلم المختبر' },
@@ -40,6 +42,7 @@ export const NewStudentsTestsTable: React.FC = () => {
   const context = useContext(AppContext);
 
   const newStudentTests = context?.newStudentTests || [];
+  const students = context?.students || [];
   const halaqas = context?.halaqas || [];
   const users = context?.users || [];
   const currentUser = context?.currentUser;
@@ -61,10 +64,24 @@ export const NewStudentsTestsTable: React.FC = () => {
   const deleteAllNewStudentTests = context?.deleteAllNewStudentTests;
   const updateNewStudentTest = context?.updateNewStudentTest || (() => {});
 
+  // Helper to find accepted student object for a test
+  const getAcceptedStudent = (test: NewStudentTest) => {
+    if (test.createdStudentId) {
+      const found = students.find(s => s.id === test.createdStudentId);
+      if (found) return found;
+    }
+    const cleanTestName = test.studentName.trim().replace(/\s+/g, ' ').toLowerCase();
+    const foundByName = students.find(s => s.name.trim().replace(/\s+/g, ' ').toLowerCase() === cleanTestName);
+    if (foundByName) return foundByName;
+    return null;
+  };
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
   const [passFilter, setPassFilter] = useState<'all' | 'passed' | 'failed'>('all');
+  const [alAmeenFilter, setAlAmeenFilter] = useState<'all' | 'yes' | 'no' | 'na'>('all');
+  const [ibriFilter, setIbriFilter] = useState<'all' | 'yes' | 'no' | 'na'>('all');
 
   // Modals
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -209,6 +226,8 @@ export const NewStudentsTestsTable: React.FC = () => {
   // Filtered list
   const filteredTests = useMemo(() => {
     return newStudentTests.filter(test => {
+      const acceptedStudent = getAcceptedStudent(test);
+
       // Search match
       if (searchTerm.trim()) {
         const term = searchTerm.trim();
@@ -216,7 +235,10 @@ export const NewStudentsTestsTable: React.FC = () => {
         const matchesGrade = isSmartMatch(test.grade || '', term);
         const matchesPhone = test.parentPhone?.includes(term);
         const matchesTeacher = isSmartMatch(test.teacherName || '', term);
-        if (!matchesName && !matchesGrade && !matchesPhone && !matchesTeacher) {
+        const matchesAlAmeen = acceptedStudent?.isAlAmeen && (isSmartMatch('من طلاب الأمين', term) || isSmartMatch('الأمين', term));
+        const matchesIbri = (acceptedStudent && acceptedStudent.isFromIbri !== false) && (isSmartMatch('من جامع عبري', term) || isSmartMatch('عبري', term));
+
+        if (!matchesName && !matchesGrade && !matchesPhone && !matchesTeacher && !matchesAlAmeen && !matchesIbri) {
           return false;
         }
       }
@@ -231,9 +253,31 @@ export const NewStudentsTestsTable: React.FC = () => {
       if (passFilter === 'passed' && !test.isPassed) return false;
       if (passFilter === 'failed' && test.isPassed) return false;
 
+      // Al-Ameen filter: 'all' | 'yes' | 'no' | 'na'
+      if (alAmeenFilter !== 'all') {
+        if (alAmeenFilter === 'yes') {
+          if (!acceptedStudent || !acceptedStudent.isAlAmeen) return false;
+        } else if (alAmeenFilter === 'no') {
+          if (!acceptedStudent || acceptedStudent.isAlAmeen) return false;
+        } else if (alAmeenFilter === 'na') {
+          if (acceptedStudent) return false;
+        }
+      }
+
+      // Ibri Mosque filter: 'all' | 'yes' | 'no' | 'na'
+      if (ibriFilter !== 'all') {
+        if (ibriFilter === 'yes') {
+          if (!acceptedStudent || acceptedStudent.isFromIbri === false) return false;
+        } else if (ibriFilter === 'no') {
+          if (!acceptedStudent || acceptedStudent.isFromIbri !== false) return false;
+        } else if (ibriFilter === 'na') {
+          if (acceptedStudent) return false;
+        }
+      }
+
       return true;
     });
-  }, [newStudentTests, searchTerm, statusFilter, passFilter]);
+  }, [newStudentTests, searchTerm, statusFilter, passFilter, alAmeenFilter, ibriFilter, students]);
 
   // Confirmation of acceptance
   const confirmAcceptStudent = () => {
@@ -256,13 +300,29 @@ export const NewStudentsTestsTable: React.FC = () => {
   const exportData = useMemo(() => {
     return filteredTests.map((t, idx) => {
       const row: Record<string, any> = {};
+      const acceptedStudent = getAcceptedStudent(t);
+
       visibleColumns.forEach(c => {
         switch (c.key) {
           case 'sequence':
             row.sequence = idx + 1;
             break;
-          case 'studentName':
-            row.studentName = t.studentName;
+          case 'studentName': {
+            let nameStr = t.studentName;
+            if (acceptedStudent) {
+              const tags: string[] = [];
+              if (acceptedStudent.isAlAmeen) tags.push('(من طلاب الأمين)');
+              if (acceptedStudent.isFromIbri !== false) tags.push('(من جامع عبري)');
+              if (tags.length > 0) nameStr += ` ${tags.join(' ')}`;
+            }
+            row.studentName = nameStr;
+            break;
+          }
+          case 'isAlAmeenStr':
+            row.isAlAmeenStr = acceptedStudent ? (acceptedStudent.isAlAmeen ? 'نعم' : 'لا') : '—';
+            break;
+          case 'isFromIbriStr':
+            row.isFromIbriStr = acceptedStudent ? (acceptedStudent.isFromIbri !== false ? 'نعم' : 'لا') : '—';
             break;
           case 'grade':
             row.grade = t.grade || '—';
@@ -304,16 +364,18 @@ export const NewStudentsTestsTable: React.FC = () => {
       });
       return row;
     });
-  }, [filteredTests, visibleColumns]);
+  }, [filteredTests, visibleColumns, students]);
 
   const exportHeaderInfo = useMemo(() => {
     const statusLabel = statusFilter === 'accepted' ? 'المقبولين' : statusFilter === 'rejected' ? 'غير المقبولين' : statusFilter === 'pending' ? 'قيد الانتظار' : 'جميع الحالات';
+    const alAmeenLabel = alAmeenFilter === 'yes' ? ' - طلاب الأمين' : alAmeenFilter === 'no' ? ' - ليسوا من الأمين' : alAmeenFilter === 'na' ? ' - الأمين: لا ينطبق' : '';
+    const ibriLabel = ibriFilter === 'yes' ? ' - جامع عبري' : ibriFilter === 'no' ? ' - ليسوا من جامع عبري' : ibriFilter === 'na' ? ' - جامع عبري: لا ينطبق' : '';
     return {
       title: 'تقرير نتائج اختبارات قبول الطلاب الجدد',
       fileName: `نتائج_اختبارات_الطلاب_الجدد_${new Date().toISOString().split('T')[0]}`,
-      subtitle: `إجمالي السجلات: ${filteredTests.length} (${statusLabel})`,
+      subtitle: `إجمالي السجلات: ${filteredTests.length} (${statusLabel}${alAmeenLabel}${ibriLabel})`,
     };
-  }, [filteredTests.length, statusFilter]);
+  }, [filteredTests.length, statusFilter, alAmeenFilter, ibriFilter]);
 
   // Export to Excel
   const exportToExcel = () => {
@@ -326,10 +388,23 @@ export const NewStudentsTestsTable: React.FC = () => {
     const headers = exportCols.map(c => c.label === 'م' ? '#' : c.label);
 
     const rows = filteredTests.map((t, idx) => {
+      const acceptedStudent = getAcceptedStudent(t);
+
       return exportCols.map(c => {
         switch (c.key) {
           case 'sequence': return idx + 1;
-          case 'studentName': return t.studentName;
+          case 'studentName': {
+            let nameStr = t.studentName;
+            if (acceptedStudent) {
+              const tags: string[] = [];
+              if (acceptedStudent.isAlAmeen) tags.push('(من طلاب الأمين)');
+              if (acceptedStudent.isFromIbri !== false) tags.push('(من جامع عبري)');
+              if (tags.length > 0) nameStr += ` ${tags.join(' ')}`;
+            }
+            return nameStr;
+          }
+          case 'isAlAmeenStr': return acceptedStudent ? (acceptedStudent.isAlAmeen ? 'نعم' : 'لا') : '—';
+          case 'isFromIbriStr': return acceptedStudent ? (acceptedStudent.isFromIbri !== false ? 'نعم' : 'لا') : '—';
           case 'grade': return t.grade || '';
           case 'parentPhone': return t.parentPhone || '';
           case 'teacherName': return t.teacherName || '';
@@ -527,6 +602,108 @@ export const NewStudentsTestsTable: React.FC = () => {
               }`}
             >
               غير المقبولين ({stats.rejected})
+            </button>
+          </div>
+
+          {/* Al-Ameen Filter */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
+            <span className="text-[11px] font-black text-gray-600 dark:text-gray-300 px-2 whitespace-nowrap">
+              من الأمين؟:
+            </span>
+            <button
+              type="button"
+              onClick={() => setAlAmeenFilter('all')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                alAmeenFilter === 'all'
+                  ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              الكل
+            </button>
+            <button
+              type="button"
+              onClick={() => setAlAmeenFilter('yes')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                alAmeenFilter === 'yes'
+                  ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              نعم
+            </button>
+            <button
+              type="button"
+              onClick={() => setAlAmeenFilter('no')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                alAmeenFilter === 'no'
+                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              لا
+            </button>
+            <button
+              type="button"
+              onClick={() => setAlAmeenFilter('na')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                alAmeenFilter === 'na'
+                  ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              لا ينطبق
+            </button>
+          </div>
+
+          {/* Ibri Mosque Filter */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
+            <span className="text-[11px] font-black text-gray-600 dark:text-gray-300 px-2 whitespace-nowrap">
+              من جامع عبري؟:
+            </span>
+            <button
+              type="button"
+              onClick={() => setIbriFilter('all')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                ibriFilter === 'all'
+                  ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              الكل
+            </button>
+            <button
+              type="button"
+              onClick={() => setIbriFilter('yes')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                ibriFilter === 'yes'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              نعم
+            </button>
+            <button
+              type="button"
+              onClick={() => setIbriFilter('no')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                ibriFilter === 'no'
+                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              لا
+            </button>
+            <button
+              type="button"
+              onClick={() => setIbriFilter('na')}
+              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                ibriFilter === 'na'
+                  ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              لا ينطبق
             </button>
           </div>
 
@@ -781,6 +958,10 @@ export const NewStudentsTestsTable: React.FC = () => {
                         return <th key="sequence" className="py-3 px-3 w-10 text-center">م</th>;
                       case 'studentName':
                         return <th key="studentName" className="py-3 px-4">اسم الطالب</th>;
+                      case 'isAlAmeenStr':
+                        return <th key="isAlAmeenStr" className="py-3 px-3 text-center">من الأمين؟</th>;
+                      case 'isFromIbriStr':
+                        return <th key="isFromIbriStr" className="py-3 px-3 text-center">من جامع عبري؟</th>;
                       case 'grade':
                         return <th key="grade" className="py-3 px-3">الصف / المرحلة</th>;
                       case 'parentPhone':
@@ -817,6 +998,7 @@ export const NewStudentsTestsTable: React.FC = () => {
                 {filteredTests.map((test, index) => {
                   const isAccepted = test.status === 'accepted';
                   const isRejected = test.status === 'rejected';
+                  const acceptedStudent = getAcceptedStudent(test);
 
                   return (
                     <tr
@@ -837,16 +1019,65 @@ export const NewStudentsTestsTable: React.FC = () => {
                           case 'studentName':
                             return (
                               <td key="studentName" className="py-3 px-4">
-                                <div className="font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+                                <div className="font-black text-gray-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                                   <span>{test.studentName}</span>
                                   {isAccepted && (
                                     <span className="text-emerald-600 text-xs" title="مقبول ومدرج في التطبيق">✓</span>
                                   )}
                                 </div>
+                                {/* Affiliation Subtitles */}
+                                {acceptedStudent && (
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                    {acceptedStudent.isAlAmeen && (
+                                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold leading-tight bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
+                                        (من طلاب الأمين)
+                                      </span>
+                                    )}
+                                    {acceptedStudent.isFromIbri !== false && (
+                                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold leading-tight bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200/80 dark:border-blue-800">
+                                        (من جامع عبري)
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 {test.surahs && test.surahs.length > 0 && (
                                   <span className="text-[10px] text-gray-400 block mt-0.5">
                                     سور: {test.surahs.join('، ')}
                                   </span>
+                                )}
+                              </td>
+                            );
+
+                          case 'isAlAmeenStr':
+                            return (
+                              <td key="isAlAmeenStr" className="py-3 px-3 text-center font-bold">
+                                {acceptedStudent ? (
+                                  acceptedStudent.isAlAmeen ? (
+                                    <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-md text-[11px] border border-emerald-200 dark:border-emerald-800">
+                                      نعم
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">لا</span>
+                                  )
+                                ) : (
+                                  <span className="text-gray-300 dark:text-gray-600">-</span>
+                                )}
+                              </td>
+                            );
+
+                          case 'isFromIbriStr':
+                            return (
+                              <td key="isFromIbriStr" className="py-3 px-3 text-center font-bold">
+                                {acceptedStudent ? (
+                                  acceptedStudent.isFromIbri !== false ? (
+                                    <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded-md text-[11px] border border-blue-200 dark:border-blue-800">
+                                      نعم
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">لا</span>
+                                  )
+                                ) : (
+                                  <span className="text-gray-300 dark:text-gray-600">-</span>
                                 )}
                               </td>
                             );
