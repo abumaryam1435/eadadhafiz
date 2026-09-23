@@ -53,6 +53,7 @@ export const SardManagement: React.FC = () => {
     const [existingStudentSearch, setExistingStudentSearch] = useState('');
     const [selectedLevelFilter, setSelectedLevelFilter] = useState<string>('all');
     const [selectedStudentIdsToAssign, setSelectedStudentIdsToAssign] = useState<number[]>([]);
+    const [showMemorizedPagesRange, setShowMemorizedPagesRange] = useState<boolean>(false);
 
     // New student text input
     const [newStudentName, setNewStudentName] = useState('');
@@ -529,12 +530,30 @@ export const SardManagement: React.FC = () => {
                                 </button>
                             </div>
                         </div>
+
+                        {/* زر إظهار/إخفاء أرقام صفحات المحفوظ (القديم والجديد) */}
+                        <div className="flex items-center justify-between gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowMemorizedPagesRange(prev => !prev)}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
+                                    showMemorizedPagesRange
+                                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
+                                        : 'bg-white dark:bg-slate-700 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-slate-600'
+                                }`}
+                            >
+                                <span>{showMemorizedPagesRange ? '📖' : '📑'}</span>
+                                <span>{showMemorizedPagesRange ? 'إخفاء أرقام صفحات المحفوظ' : 'إظهار أرقام صفحات المحفوظ (القديم والجديد)'}</span>
+                            </button>
+                        </div>
                         
                         {/* Student Checklist */}
                         <div className="max-h-64 overflow-y-auto border-2 rounded-2xl p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700 divide-y dark:divide-slate-700">
                             {filteredAndSortedStudentsToAssign.map(student => {
                                 const isSelected = selectedStudentIdsToAssign.includes(student.id);
                                 const level = getStudentLevel(student);
+                                const studentPagesData = showMemorizedPagesRange ? getMemorizedPagesData(student, evaluations) : null;
+                                const pagesRangeStr = studentPagesData?.combinedStr && studentPagesData.combinedStr !== '—' ? studentPagesData.combinedStr : (studentPagesData ? 'لا يوجد محفوظ' : '');
 
                                 return (
                                     <label 
@@ -562,6 +581,11 @@ export const SardManagement: React.FC = () => {
                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-black bg-emerald-100 text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
                                                         {level}
                                                     </span>
+                                                    {showMemorizedPagesRange && (
+                                                        <span className="text-xs font-black text-emerald-900 dark:text-emerald-200">
+                                                            ({pagesRangeStr})
+                                                        </span>
+                                                    )}
                                                     {student.isAlAmeen && (
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
                                                             طالب أمين

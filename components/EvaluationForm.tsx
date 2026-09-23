@@ -1471,7 +1471,18 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         {currentStep === 'selectWeek' && (
           <div className="space-y-4">
             <label className="text-xl font-bold">أدخل رقم الأسبوع:</label>
-            <input type="number" min="1" value={selectedWeek || ''} onChange={e => { setSelectedWeek(e.target.value === '' ? null : parseInt(e.target.value)); setHighlightWeekInput(false); }} className={`input-style text-center text-4xl font-bold h-24 ${highlightWeekInput ? 'ring-4 ring-red-400 animate-pulse' : ''}`} placeholder="0" onFocus={handleInputFocus}/>
+            <input 
+              type="number" 
+              min="1" 
+              value={selectedWeek || ''} 
+              onChange={e => { setSelectedWeek(e.target.value === '' ? null : parseInt(e.target.value)); setHighlightWeekInput(false); }} 
+              className={`input-style text-center text-4xl font-bold h-24 ${highlightWeekInput ? 'ring-4 ring-red-400 animate-pulse' : ''}`} 
+              placeholder="0" 
+              onFocus={(e) => {
+                e.target.select();
+                handleInputFocus(e);
+              }}
+            />
             <div className={`flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center border-t pt-4 mt-6 bg-white dark:bg-gray-800 py-4 gap-3`}>
                 <button 
                   type="button" 
