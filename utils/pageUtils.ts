@@ -1,6 +1,8 @@
 import { Student, Evaluation, AttendanceStatus, EvaluationType } from "../types";
 import { toArabicDigits, toEnglishDigits, formatRtlRange, formatAndCountJuzs } from "./juzUtils";
-import { quranPageMap, surahNames, surahPagesMap } from "./quranData";
+import { quranPageMap, surahNames, surahPagesMap, countQuranPages } from "./quranData";
+
+export { countQuranPages };
 
 export function getSurahIdByName(name: string): number {
   if (!name) return 0;
@@ -225,7 +227,9 @@ export function getMemorizedPagesData(student: Student, evaluations: Evaluation[
       oldStr: formatSet(oldSet) || "—",
       newStr: formatSet(newSet) || "—",
       combinedStr: formatSet(totalSet) || "—",
-      totalCount: totalSet.size,
+      totalCount: countQuranPages(totalSet),
+      oldCount: countQuranPages(oldSet),
+      newCount: countQuranPages(newSet),
       totalSet: totalSet,
       oldSet: oldSet,
       newSet: newSet
@@ -242,8 +246,8 @@ export const LEVEL_WORDS_ORDER = [
 export const ALL_LEVEL_NAMES = LEVEL_WORDS_ORDER.map(w => `المستوى ${w}`);
 
 export function calculateStudentLevel(totalCount: number): string {
-  if (totalCount < 40) return "المستوى الأول";
-  const levelNum = Math.floor(totalCount / 20);
+  if (totalCount < 20) return `المستوى ${LEVEL_WORDS_ORDER[0]}`;
+  const levelNum = Math.floor(totalCount / 20) + 1;
   if (levelNum >= 1 && levelNum <= LEVEL_WORDS_ORDER.length) {
     return `المستوى ${LEVEL_WORDS_ORDER[levelNum - 1]}`;
   }

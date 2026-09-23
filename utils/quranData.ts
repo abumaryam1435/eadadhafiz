@@ -5091,11 +5091,13 @@ export function computeSelectionState(
 
   // الصفحات الجديدة المحسوبة فعلياً في الحفظ الجديد (باستثناء الصفحات المحسوبة سابقاً)
   const newlyCountedPages = allActivePages.filter(p => !allCountedPages.has(p));
-  const newPagesCount = newlyCountedPages.length;
+  const prevCount = countQuranPages(allCountedPages);
+  const combinedSet = new Set([...allCountedPages, ...allActivePages]);
+  const newPagesCount = Math.max(0, countQuranPages(combinedSet) - prevCount);
 
   // الصفحات المحسوبة سابقاً والتي يتم إكمالها في هذا التحديد
   const recompletedPages = allActivePages.filter(p => allCountedPages.has(p));
-  const recompletedPagesCount = recompletedPages.length;
+  const recompletedPagesCount = Math.max(0, countQuranPages(allActivePages) - newPagesCount);
 
   return {
     directSurahs,
@@ -5112,4 +5114,24 @@ export function computeSelectionState(
     fullPages: directPages,
     partialPages: derivedPages
   };
+}
+
+/**
+ * دالة لحساب عدد صفحات القرآن الكريم مع استثناء الصفحات الأخيرة:
+ * بحيث تحسب الصفحات 601 إلى 604 عن صفحة واحدة في الحساب، في كل شيء
+ * وبذلك يصبح جزء عم (الصفحات 582 إلى 604) يُحسب تلقائياً بـ 20 صفحة (19 صفحة حتى 600 + صفحة واحدة لـ 601-604)
+ */
+export function countQuranPages(pages: Iterable<number>): number {
+  if (!pages) return 0;
+  let countBelow601 = 0;
+  let hasLastPages = false;
+  for (const p of pages) {
+    if (typeof p !== 'number' || isNaN(p) || p <= 0) continue;
+    if (p >= 601 && p <= 604) {
+      hasLastPages = true;
+    } else {
+      countBelow601++;
+    }
+  }
+  return countBelow601 + (hasLastPages ? 1 : 0);
 }

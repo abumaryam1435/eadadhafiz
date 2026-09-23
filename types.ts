@@ -78,6 +78,7 @@ export interface Student {
   manualParts?: (number | string)[];
   manualSavedParts?: (number | string)[];
   manualLevel?: string;
+  studentLevel?: string;
 }
 
 export interface SardHalaqa {
@@ -265,6 +266,7 @@ export interface FullBackupData {
   newStudentTestScore?: number;
   newStudentPassingRate?: number;
   newStudentTestDeductions?: TestDeductions;
+  allowTeacherEditOldMemorized?: boolean;
   lastUsedWeek?: number | null;
   isDistributable?: boolean;
   isPublishedConnected?: boolean;

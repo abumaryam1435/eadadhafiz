@@ -210,13 +210,35 @@ export const OverviewTable: React.FC = () => {
   const evaluations = context?.evaluations || [];
   const deleteStudent = context?.deleteStudent || (() => {});
   const updateStudent = context?.updateStudent || (() => {});
+  const resetAllStudentsLevelToAuto = context?.resetAllStudentsLevelToAuto;
   const showToast = context?.showToast || (() => {});
   const hijriAdjustments = context?.hijriAdjustments;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [showResetLevelsModal, setShowResetLevelsModal] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleResetAllLevels = () => {
+    if (resetAllStudentsLevelToAuto) {
+      resetAllStudentsLevelToAuto();
+    } else {
+      let count = 0;
+      students.forEach((s) => {
+        if (s.manualStudentLevel || s.manualLevel) {
+          updateStudent({
+            ...s,
+            manualStudentLevel: "",
+            manualLevel: "",
+          });
+          count++;
+        }
+      });
+      showToast(`✅ تم إعادة ضبط مستويات جميع الطلاب لتكون تلقائية بحسب الحفظ (${students.length} طالب)`, "success");
+    }
+    setShowResetLevelsModal(false);
+  };
 
   const scrollTable = (direction: 'right' | 'left') => {
     if (tableContainerRef.current) {
@@ -784,6 +806,42 @@ export const OverviewTable: React.FC = () => {
         </Modal>
       )}
 
+      {showResetLevelsModal && (
+        <Modal
+          title="تأكيد العودة للمستوى التلقائي لجميع الطلاب"
+          onClose={() => setShowResetLevelsModal(false)}
+          hideDefaultCloseButton={true}
+        >
+          <div className="text-center p-2">
+            <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <p className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2">
+              هل أنت متأكد من إعادة ضبط مستويات جميع الطلاب لتكون تلقائية؟
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+              سيتم احتساب مستوى كل طالب تلقائياً بحسب عدد صفحات حفظه المسجلة. يمكنك دائماً تخصيص وتعديل مستوى أي طالب يدوياً لاحقاً من استمارة تعديل بيانات الطالب.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t dark:border-gray-700">
+              <button
+                onClick={handleResetAllLevels}
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md active:scale-95 transition-all"
+              >
+                نعم، اعتماد التلقائي للجميع
+              </button>
+              <button
+                onClick={() => setShowResetLevelsModal(false)}
+                className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-xl font-bold transition-all"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {editingStudent && (
         <Modal
           title="تعديل بيانات الطالب"
@@ -1088,6 +1146,16 @@ export const OverviewTable: React.FC = () => {
               className="px-3 py-2 text-[10px] font-bold text-white bg-blue-600 rounded-lg shadow-sm"
             >
               Word
+            </button>
+            <button
+              onClick={() => setShowResetLevelsModal(true)}
+              title="إعادة ضبط مستوى جميع الطلاب ليكون تلقائياً بحسب صفحات الحفظ"
+              className="px-3 py-2 text-[10px] font-bold text-indigo-700 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/70 rounded-lg shadow-sm active:scale-95 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              العودة للتلقائي للجميع
             </button>
             <div className="flex gap-1">
               <button

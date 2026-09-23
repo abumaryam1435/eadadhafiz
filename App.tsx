@@ -54,6 +54,7 @@ interface AppContextType {
   addStudent: (student: Omit<Student, 'id'>) => number;
   updateStudent: (student: Student) => void;
   deleteStudent: (studentId: number) => void;
+  resetAllStudentsLevelToAuto: () => void;
   assignStudentToSardHalaqa: (studentId: number, sardHalaqaId?: number) => void;
   addHalaqa: (halaqa: Omit<Halaqa, 'id'>) => number;
   updateHalaqa: (halaqa: Halaqa) => void;
@@ -96,6 +97,8 @@ interface AppContextType {
   setTestDeductions: (deductions: { fath: number; tashkeel: number; tajweed: number; passageChange?: number }) => void;
   isNewStudentTestActive: boolean;
   setIsNewStudentTestActive: (active: boolean) => void;
+  allowTeacherEditOldMemorized?: boolean;
+  setAllowTeacherEditOldMemorized?: (allowed: boolean) => void;
   newStudentTestScore: number;
   setNewStudentTestScore: (score: number) => void;
   newStudentPassingRate: number;
@@ -237,7 +240,13 @@ const App: React.FC = () => {
     users: initialBackupData?.users || INITIAL_USERS,
     halaqas: initialBackupData?.halaqas || [],
     sardHalaqas: initialBackupData?.sardHalaqas || [],
-    students: (initialBackupData?.students || []).map(s => ({ ...s, isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true })),
+    students: (initialBackupData?.students || []).map(s => ({
+      ...s,
+      isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true,
+      manualStudentLevel: undefined,
+      manualLevel: undefined,
+      studentLevel: undefined,
+    })),
     evaluations: initialBackupData?.evaluations || [],
     sardEvaluations: initialBackupData?.sardEvaluations || [],
     maghribAttendances: initialBackupData?.maghribAttendances || [],
@@ -282,6 +291,7 @@ const App: React.FC = () => {
   const [testNameState, setTestNameState] = useState<string>(() => initialBackupData?.testName || '');
   const [testDeductionsState, setTestDeductionsState] = useState<{ fath: number; tashkeel: number; tajweed: number; passageChange?: number }>(() => initialBackupData?.testDeductions ? { fath: 1, tashkeel: 1, tajweed: 0.5, passageChange: 2, ...initialBackupData.testDeductions } : { fath: 1, tashkeel: 1, tajweed: 0.5, passageChange: 2 });
   const [isNewStudentTestActiveState, setIsNewStudentTestActiveState] = useState<boolean>(() => initialBackupData?.isNewStudentTestActive ?? false);
+  const [allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorizedState] = useState<boolean>(() => initialBackupData?.allowTeacherEditOldMemorized ?? false);
   const [newStudentTestScoreState, setNewStudentTestScoreState] = useState<number>(() => initialBackupData?.newStudentTestScore ?? 100);
   const [newStudentPassingRateState, setNewStudentPassingRateState] = useState<number>(() => initialBackupData?.newStudentPassingRate ?? 70);
   const [newStudentTestDeductionsState, setNewStudentTestDeductionsState] = useState<{ fath: number; tashkeel: number; tajweed: number }>(() => initialBackupData?.newStudentTestDeductions || { fath: 1, tashkeel: 1, tajweed: 0.5 });
@@ -515,6 +525,7 @@ const App: React.FC = () => {
             if(val.newStudentTestScore !== undefined) setNewStudentTestScoreState(val.newStudentTestScore);
             if(val.newStudentPassingRate !== undefined) setNewStudentPassingRateState(val.newStudentPassingRate);
             if(val.newStudentTestDeductions !== undefined) setNewStudentTestDeductionsState(val.newStudentTestDeductions);
+            if(val.allowTeacherEditOldMemorized !== undefined) setAllowTeacherEditOldMemorizedState(val.allowTeacherEditOldMemorized);
             if(val.lastUsedWeek !== undefined) setLastUsedWeekState(val.lastUsedWeek);
             if(val.colorMap !== undefined) setColorMapState(val.colorMap);
             if(val.saveColors !== undefined) setSaveColorsState(val.saveColors);
@@ -696,6 +707,25 @@ const App: React.FC = () => {
   const updateStudent = (s: any) => writeData(`data/students/${s.id}`, { ...s, updatedAt: Date.now() });
   const deleteStudent = (id: number) => writeData(`data/students/${id}`, null);
   
+  const resetAllStudentsLevelToAuto = () => {
+    const updatedStudents = (data.students || []).map(s => {
+      const copy = { ...s };
+      delete copy.manualStudentLevel;
+      delete copy.manualLevel;
+      delete copy.studentLevel;
+      copy.updatedAt = Date.now();
+      return copy;
+    });
+
+    const toObj = (arr: any[]) => arr.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});
+    writeData('data/students', toObj(updatedStudents));
+    setData(prev => ({
+      ...prev,
+      students: updatedStudents
+    }));
+    showToast(`✅ تم إعادة ضبط مستويات جميع الطلاب لتكون تلقائية بحسب الحفظ (${updatedStudents.length} طالب)`, 'success');
+  };
+  
   const assignStudentToSardHalaqa = (studentId: number, sardHalaqaId?: number) => {
     const s = (data.students || []).find(x => x.id === studentId);
     if (s) {
@@ -793,6 +823,11 @@ const App: React.FC = () => {
   const setIsNewStudentTestActive = useCallback((a: boolean) => {
     setIsNewStudentTestActiveState(a);
     writeData('config/isNewStudentTestActive', a);
+  }, [writeData]);
+
+  const setAllowTeacherEditOldMemorized = useCallback((a: boolean) => {
+    setAllowTeacherEditOldMemorizedState(a);
+    writeData('config/allowTeacherEditOldMemorized', a);
   }, [writeData]);
 
   const setNewStudentTestScore = useCallback((score: number) => {
@@ -925,7 +960,17 @@ const App: React.FC = () => {
       if (db) {
           const toObj = (arr: any[]) => arr.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});
           const cleanData = sanitizeForFirebase({
-              users: toObj(d.users), halaqas: toObj(d.halaqas), sardHalaqas: toObj(d.sardHalaqas || []), students: toObj(d.students), evaluations: toObj(d.evaluations), sardEvaluations: toObj(d.sardEvaluations || []), maghribAttendances: toObj(d.maghribAttendances || [])
+              users: toObj(d.users || []),
+              halaqas: toObj(d.halaqas || []),
+              sardHalaqas: toObj(d.sardHalaqas || []),
+              students: toObj(d.students || []),
+              evaluations: toObj(d.evaluations || []),
+              sardEvaluations: toObj(d.sardEvaluations || []),
+              maghribAttendances: toObj(d.maghribAttendances || []),
+              suggestions: toObj(d.suggestions || []),
+              studentBehaviors: toObj(d.studentBehaviors || []),
+              matns: toObj(d.matns || []),
+              newStudentTests: toObj(d.newStudentTests || [])
           });
           db.ref('data').set(cleanData);
           db.ref('config').set(sanitizeForFirebase({
@@ -1036,7 +1081,7 @@ const App: React.FC = () => {
     users: data.users || [], students: data.students || [], halaqas: data.halaqas || [], sardHalaqas: data.sardHalaqas || [], evaluations: data.evaluations || [], sardEvaluations: data.sardEvaluations || [], maghribAttendances: data.maghribAttendances || [], suggestions: data.suggestions || [], studentBehaviors: data.studentBehaviors || [], matns: data.matns || [], newStudentTests: data.newStudentTests || [],
     addEvaluation, updateEvaluation, deleteEvaluation,
     addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations,
-    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, assignStudentToSardHalaqa,
+    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa,
     addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
     addSuggestion, updateSuggestion, deleteSuggestion, addMatn, updateMatn, deleteMatn,
@@ -1055,6 +1100,7 @@ const App: React.FC = () => {
     testName: testNameState, setTestName,
     testDeductions: testDeductionsState, setTestDeductions,
     isNewStudentTestActive: isNewStudentTestActiveState, setIsNewStudentTestActive,
+    allowTeacherEditOldMemorized: allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorized,
     newStudentTestScore: newStudentTestScoreState, setNewStudentTestScore,
     newStudentPassingRate: newStudentPassingRateState, setNewStudentPassingRate,
     newStudentTestDeductions: newStudentTestDeductionsState, setNewStudentTestDeductions,
@@ -1074,14 +1120,14 @@ const App: React.FC = () => {
     syncSettingsToCloud,
     resetCloudSettings
   }), [
-    data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, assignStudentToSardHalaqa,
+    data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa, addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
     addStudentBehavior, updateStudentBehavior, deleteStudentBehavior, deleteAllStudentBehaviors,
     customLogo, setCustomLogo, addTeacher, updateTeacher, deleteTeacher, handleImportFullBackup,
     supervisorPassword, setSupervisorPassword, maghribPassword, setMaghribPassword,
     handleLogout, isLoading, isLoadingFirebase, lastUsedWeek, setLastUsedWeek,
     isTestActiveState, setIsTestActive, testScoreState, setTestScore, testNameState, setTestName, testDeductionsState, setTestDeductions,
-    isNewStudentTestActiveState, setIsNewStudentTestActive, newStudentTestScoreState, setNewStudentTestScore, newStudentPassingRateState, setNewStudentPassingRate, newStudentTestDeductionsState, setNewStudentTestDeductions,
+    isNewStudentTestActiveState, setIsNewStudentTestActive, allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorized, newStudentTestScoreState, setNewStudentTestScore, newStudentPassingRateState, setNewStudentPassingRate, newStudentTestDeductionsState, setNewStudentTestDeductions,
     addNewStudentTest, updateNewStudentTest, deleteNewStudentTest, deleteAllNewStudentTests, acceptNewStudent, rejectNewStudent,
     initiateLogoutCheck, appName, setAppName, darkMode, toggleDarkMode,
     firebaseConnectionStatus, firebaseConfigState, setFirebaseConfigState,

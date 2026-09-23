@@ -3,7 +3,7 @@ import Modal from './Modal';
 import { SardEvaluation, Student, SardHalaqa, SardPageRange } from '../types';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { AppContext } from '../App';
-import { getMemorizedPagesData, getCompletedJuzs } from '../utils/pageUtils';
+import { getMemorizedPagesData, getCompletedJuzs, countQuranPages } from '../utils/pageUtils';
 import { surahNames, surahPagesMap, juzPagesMap } from '../utils/quranData';
 import { toArabicDigits } from '../utils/exportWord';
 import { isSmartMatch } from '../utils/searchUtils';
@@ -220,6 +220,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
     const hasAtLeastOneFilledRange = pageRanges.some(r => r.fromPage !== '' && r.toPage !== '');
     const isValid = allRangesValid && !hasPartial && hasAtLeastOneFilledRange;
 
+    const countedPages = countQuranPages(allUniquePagesSet);
     let summaryMessage = '';
     if (allUnmemorizedList.length > 0) {
       summaryMessage = `⚠️ تنبيه: توجد صفحات ضمن النطاقات المحددة ليست ضمن محفوظ الطالب (القديم أو الجديد): ${allUnmemorizedList.slice(0, 8).map(toArabicDigits).join('، ')}${allUnmemorizedList.length > 8 ? '...' : ''} (لا يمكن سرد صفحات غير محفوظة)`;
@@ -230,12 +231,12 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
     } else if (!isValid) {
       summaryMessage = '⚠️ يرجى تصحيح أرقام النطاقات للمتابعة';
     } else {
-      summaryMessage = `✅ جميع النطاقات محفوظة بالكامل (${toArabicDigits(allUniquePagesSet.size)} صفحة فريدة)`;
+      summaryMessage = `✅ جميع النطاقات محفوظة بالكامل (${toArabicDigits(countedPages)} صفحة)`;
     }
 
     return {
       isValid,
-      totalCount: allUniquePagesSet.size,
+      totalCount: countedPages,
       hasEmptyRanges: hasEmpty,
       hasPartialRanges: hasPartial,
       allUnmemorizedPages: allUnmemorizedList,
@@ -289,7 +290,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
   // Auto calculate pages count based on mode
   const calculatedPages = useMemo(() => {
     if (selectionMode === 'juz') {
-      return selectedJuzList.reduce((acc, j) => acc + (j === 1 ? 21 : j === 30 ? 23 : 20), 0);
+      return selectedJuzList.reduce((acc, j) => acc + (j === 1 ? 21 : 20), 0);
     }
     if (selectionMode === 'surahs') {
       const pageSet = new Set<number>();
@@ -300,7 +301,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
           (surahPagesMap[sId] || []).forEach(p => pageSet.add(p));
         }
       });
-      return pageSet.size;
+      return countQuranPages(pageSet);
     }
     if (selectionMode === 'pages') {
       return multiRangeAnalysis.isValid ? multiRangeAnalysis.totalCount : 0;

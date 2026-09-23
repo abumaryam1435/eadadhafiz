@@ -31,7 +31,7 @@ import {
   StudentQuranHistory
 } from '../utils/quranData';
 import { StudentProgressInfo } from './StudentProgressInfo';
-import { getMemorizedPagesData, getCompletedJuzs } from '../utils/pageUtils';
+import { getMemorizedPagesData, getCompletedJuzs, countQuranPages } from '../utils/pageUtils';
 import { preloadMushafPages } from '../utils/mushafPreload';
 
 interface EvaluationFormProps {
@@ -586,7 +586,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       return {
         student: s,
         memData,
-        pagesCount: memData.totalSet.size,
+        pagesCount: memData.totalCount,
         completedJuzs,
       };
     });
@@ -748,6 +748,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     const hasAtLeastOneFilledRange = sardPageRanges.some(r => r.fromPage !== '' && r.toPage !== '');
     const isValid = allRangesValid && !hasPartial && hasAtLeastOneFilledRange;
 
+    const countedPages = countQuranPages(allUniquePagesSet);
     let summaryMessage = '';
     if (allUnmemorizedList.length > 0) {
       summaryMessage = `⚠️ تنبيه: توجد صفحات ضمن النطاقات المحددة ليست ضمن محفوظ الطالب (القديم أو الجديد): ${allUnmemorizedList.slice(0, 8).map(toArabicDigits).join('، ')}${allUnmemorizedList.length > 8 ? '...' : ''} (لا يمكن سرد صفحات غير محفوظة)`;
@@ -758,12 +759,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     } else if (!isValid) {
       summaryMessage = '⚠️ يرجى تصحيح أرقام النطاقات للمتابعة';
     } else {
-      summaryMessage = `✅ جميع النطاقات محفوظة بالكامل (${toArabicDigits(allUniquePagesSet.size)} صفحة فريدة)`;
+      summaryMessage = `✅ جميع النطاقات محفوظة بالكامل (${toArabicDigits(countedPages)} صفحة)`;
     }
 
     return {
       isValid,
-      totalCount: allUniquePagesSet.size,
+      totalCount: countedPages,
       hasEmptyRanges: hasEmpty,
       hasPartialRanges: hasPartial,
       allUnmemorizedPages: allUnmemorizedList,
@@ -805,14 +806,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
   const calculatedSardPages = useMemo(() => {
     if (sardSelectionMode === 'juz') {
-      return selectedSardJuzList.reduce((acc, j) => acc + (j === 1 ? 21 : j === 30 ? 23 : 20), 0);
+      return selectedSardJuzList.reduce((acc, j) => acc + (j === 1 ? 21 : 20), 0);
     }
     if (sardSelectionMode === 'surahs') {
       const pageSet = new Set<number>();
       selectedSardSurahIds.forEach(sId => {
         (surahPagesMap[sId] || []).forEach(p => pageSet.add(p));
       });
-      return pageSet.size;
+      return countQuranPages(pageSet);
     }
     if (sardSelectionMode === 'pages') {
       return sardMultiRangeAnalysis.isValid ? sardMultiRangeAnalysis.totalCount : 0;
@@ -1292,7 +1293,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       attendance: attendance!, 
       absenceReason: absenceReason || null, 
       evaluationType: evalType || null, 
-      pages: evalType === EvaluationType.REVIEW ? (studentQuranHistory.oldFullPages.size + studentQuranHistory.newEvalsFullPages.size) : (selectionState.allActivePages.length > 0 ? selectionState.newPagesCount : null),
+      pages: evalType === EvaluationType.REVIEW ? countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) : (selectionState.allActivePages.length > 0 ? selectionState.newPagesCount : null),
       fromAyah: range[0] || null, 
       toAyah: range[1] || range[0] || null, 
       surahs: surahs || null, 
@@ -1612,31 +1613,81 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   ) : null}
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <p className="font-bold text-lg">اختر الطلاب للسرد:</p>
-                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setSardEvalMode('individual')}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                        sardEvalMode === 'individual'
-                          ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
-                          : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
-                      }`}
-                    >
-                      فردي
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSardEvalMode('group')}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                        sardEvalMode === 'group'
-                          ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
-                          : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
-                      }`}
-                    >
-                      جماعي
-                    </button>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <p className="font-bold text-lg">اختر الطلاب للسرد:</p>
+                    {sardEvalMode === 'group' && (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                        تم تحديد {toArabicDigits(selectedSardGroupIds.length)} طالب
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    {sardEvalMode === 'group' && (() => {
+                      const visibleStudentIds = students
+                        .filter(s => {
+                          if (!isSmartMatch(s.name, sardSearch)) return false;
+                          if (selectedSardGroupIds.includes(s.id)) return true;
+                          if (teacherSardHalaqas.length > 0 && !isGuest) {
+                            return s.sardHalaqaId === activeSardHalaqaId;
+                          }
+                          if (selectedSardHalaqaFilter) {
+                            return s.sardHalaqaId === selectedSardHalaqaFilter;
+                          }
+                          return !!s.sardHalaqaId;
+                        })
+                        .map(s => s.id);
+                      
+                      const allVisibleSelected = visibleStudentIds.length > 0 && visibleStudentIds.every(id => selectedSardGroupIds.includes(id));
+                      
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (allVisibleSelected) {
+                              // إلغاء تحديد المعروضين
+                              setSelectedSardGroupIds(prev => prev.filter(id => !visibleStudentIds.includes(id)));
+                            } else {
+                              // تحديد جميع المعروضين
+                              setSelectedSardGroupIds(prev => Array.from(new Set([...prev, ...visibleStudentIds])));
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-xs ${
+                            allVisibleSelected
+                              ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                          }`}
+                        >
+                          <span>{allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد جميع الطلاب'}</span>
+                          <span className="text-[11px] opacity-75">({toArabicDigits(visibleStudentIds.length)})</span>
+                        </button>
+                      );
+                    })()}
+
+                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setSardEvalMode('individual')}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                          sardEvalMode === 'individual'
+                            ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
+                            : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                        }`}
+                      >
+                        فردي
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSardEvalMode('group')}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                          sardEvalMode === 'group'
+                            ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
+                            : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                        }`}
+                      >
+                        جماعي
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -3602,11 +3653,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   <div className="mt-3 flex justify-center gap-4 text-sm font-bold bg-indigo-50 dark:bg-indigo-900/30 p-2.5 rounded-xl border border-indigo-100 dark:border-indigo-800/60 max-w-sm mx-auto">
                     <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                      قديم: {studentQuranHistory.oldFullPages.size} ص
+                      قديم: {countQuranPages(studentQuranHistory.oldFullPages)} ص
                     </span>
                     <span className="text-[#8B4513] dark:text-amber-400 flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-[#8B4513]"></span>
-                      جديد: {studentQuranHistory.newEvalsFullPages.size} ص
+                      جديد: {countQuranPages(studentQuranHistory.newEvalsFullPages)} ص
                     </span>
                   </div>
                 )}
@@ -3737,14 +3788,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           <button
                             type="button"
                             onClick={() => setIsMushafModalOpen(true)}
-                            disabled={evalType === EvaluationType.REVIEW ? (studentQuranHistory.oldFullPages.size + studentQuranHistory.newEvalsFullPages.size === 0) : selectionState.allActivePages.length === 0}
+                            disabled={evalType === EvaluationType.REVIEW ? (countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) === 0) : selectionState.allActivePages.length === 0}
                             className="py-2 px-3 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 border border-emerald-600/80 shrink-0"
                             title="فتح صفحات المصحف للمراجعة"
                           >
                             <span>📖 المصحف</span>
-                            {(evalType === EvaluationType.REVIEW ? (studentQuranHistory.oldFullPages.size + studentQuranHistory.newEvalsFullPages.size) : totalQuranPages) > 0 && (
+                            {(evalType === EvaluationType.REVIEW ? countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) : totalQuranPages) > 0 && (
                               <span className="bg-emerald-900/70 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                                {toArabicDigits(evalType === EvaluationType.REVIEW ? (studentQuranHistory.oldFullPages.size + studentQuranHistory.newEvalsFullPages.size) : totalQuranPages)} ص
+                                {toArabicDigits(evalType === EvaluationType.REVIEW ? countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) : totalQuranPages)} ص
                               </span>
                             )}
                           </button>
@@ -3979,7 +4030,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         <p className="flex justify-between"><strong>نوع الإنجاز:</strong> <span>{translationMap[evalType!]}</span></p>
                         {(evalType === EvaluationType.MEMORIZATION || evalType === EvaluationType.REVIEW) && (
                           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2.5 text-sm">
-                            <p className="flex justify-between"><strong>عدد الصفحات:</strong> <span>{evalType === EvaluationType.REVIEW ? toArabicDigits(studentQuranHistory.oldFullPages.size + studentQuranHistory.newEvalsFullPages.size) : (selectionState.allActivePages.length > 0 ? toArabicDigits(selectionState.newPagesCount) : (pages !== '' && pages !== null && pages !== undefined ? toArabicDigits(pages) : '—'))}</span></p>
+                            <p className="flex justify-between"><strong>عدد الصفحات:</strong> <span>{evalType === EvaluationType.REVIEW ? toArabicDigits(countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) : (selectionState.allActivePages.length > 0 ? toArabicDigits(selectionState.newPagesCount) : (pages !== '' && pages !== null && pages !== undefined ? toArabicDigits(pages) : '—'))}</span></p>
                             
                             <p className="flex justify-between">
                               <strong>أرقام الصفحات:</strong> 

@@ -62,6 +62,8 @@ export const Settings: React.FC = () => {
   const setTestDeductions = context?.setTestDeductions || (() => {});
   const isNewStudentTestActive = context?.isNewStudentTestActive || false;
   const setIsNewStudentTestActive = context?.setIsNewStudentTestActive || (() => {});
+  const allowTeacherEditOldMemorized = context?.allowTeacherEditOldMemorized || false;
+  const setAllowTeacherEditOldMemorized = context?.setAllowTeacherEditOldMemorized || (() => {});
   const newStudentTestScore = context?.newStudentTestScore ?? 100;
   const setNewStudentTestScore = context?.setNewStudentTestScore || (() => {});
   const newStudentPassingRate = context?.newStudentPassingRate ?? 70;
@@ -348,7 +350,9 @@ export const Settings: React.FC = () => {
               if (oldMemorizedPagesStr) {
                 studentData.oldMemorizedPages = oldMemorizedPagesStr;
               }
-              if (studentLevelValue) {
+              // مستوى الطالب يكون تلقائياً بحسب الحفظ، ويمكن تعديله لاحقاً من استمارة التعديل في نظرة عامة
+              // لا نقفل المستوى يدوياً عند الاستيراد لضمان حسابه تلقائياً
+              if (studentLevelValue && studentLevelValue.includes("يدوي")) {
                 studentData.manualStudentLevel = studentLevelValue;
               }
 
@@ -726,6 +730,42 @@ export const Settings: React.FC = () => {
               >
                 حفظ التعديل لهذا الشهر
               </button>
+            </div>
+          </div>
+
+          {/* تفعيل تعديل المحفوظ القديم للمعلم */}
+          <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 dark:bg-slate-800/50 dark:border-slate-700">
+            <h4 className="text-lg font-black text-gray-800 mb-4 dark:text-gray-200 flex items-center gap-2">
+              <span className="text-xl">📖</span>
+              تعديل المحفوظ القديم للطلاب (صلاحية المعلم)
+            </h4>
+            <div className="bg-white dark:bg-slate-700 p-5 rounded-2xl border border-gray-200 dark:border-slate-600 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex-1">
+                <label className="inline-flex items-center cursor-pointer">
+                  <div className="relative" dir="ltr">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={allowTeacherEditOldMemorized}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAllowTeacherEditOldMemorized(checked);
+                        showToast(checked ? '✅ تم تفعيل خانات تعديل المحفوظ القديم للمعلمين' : 'تم تعطيل خانات تعديل المحفوظ القديم للمعلمين', 'info');
+                      }}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600"></div>
+                  </div>
+                  <span className="mr-3 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    إظهار خانات كتابة وتعديل المحفوظ القديم (على هيئة نطاقات) في شاشة تقييم الطالب
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 mr-14">
+                  عند التفعيل، سيتمكن المعلم في شاشة التقييم من كتابة نطاقات المحفوظ السابق (بداية ونهاية النطاق) وتعديلها مباشرة مع تأكيد الحفظ.
+                </p>
+              </div>
+              <span className={`text-xs font-bold px-3.5 py-1.5 rounded-xl whitespace-nowrap ${allowTeacherEditOldMemorized ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-600'}`}>
+                {allowTeacherEditOldMemorized ? 'مفعل حالياً' : 'معطل'}
+              </span>
             </div>
           </div>
 

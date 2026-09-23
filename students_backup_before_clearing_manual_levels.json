@@ -1,0 +1,3087 @@
+{
+  "1765824960671": {
+    "halaqaId": 1789749166162724,
+    "id": 1765824960671,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30 = 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"محمد\"",
+      "\"الأحقاف\"",
+      "\"الجاثية\"]"
+    ],
+    "name": "عبدالملك بن خليل بن عبدالله الخليلي",
+    "oldMemorizedPages": "٤٩٩ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081835934798,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1790083941273,
+    "useManualData": true
+  },
+  "1765824960672": {
+    "halaqaId": 1789749180632963,
+    "id": 1765824960672,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الجاثية\"]"
+    ],
+    "name": "سليم بن محمد بن سليم الهنائي",
+    "oldMemorizedPages": "٥٠٢ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081835934798,
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1790083941273,
+    "useManualData": true
+  },
+  "1765824960673": {
+    "halaqaId": 1789749141864233,
+    "id": 1765824960673,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30 = 4أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الطور\"]"
+    ],
+    "name": "محمد بن محمود بن محمد المنذري",
+    "oldMemorizedPages": "٣٣١ - ٦٠٤",
+    "parentPhone": "",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث عشر",
+    "updatedAt": 1789795308611,
+    "useManualData": true
+  },
+  "1765824960674": {
+    "halaqaId": 1765824959671,
+    "id": 1765824960674,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "",
+    "manualParts": [
+      "[\"28- 30=3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"التحريم\"]"
+    ],
+    "name": "حميد بن حمد بن محمد الحاتمي",
+    "oldMemorizedPages": "٥٦٠ - ٦٠٤",
+    "parentPhone": "",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1790157166247,
+    "useManualData": true
+  },
+  "1765824960675": {
+    "halaqaId": 1765824959671,
+    "id": 1765824960675,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"٢٨- ٣٠= ٣ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الممتحنة\"]"
+    ],
+    "name": "ناصر بن عمير بن ناصر الريامي",
+    "oldMemorizedPages": "٥٤٥ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1789978295997,
+    "useManualData": true
+  },
+  "1765824960676": {
+    "halaqaId": 1789749141864233,
+    "id": 1765824960676,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"٢٨- ٣٠= ٣ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"التغابن\"]"
+    ],
+    "name": "علي بن فهد بن علي الشندودي",
+    "oldMemorizedPages": "٥٥٧ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978295998,
+    "useManualData": true
+  },
+  "1765824960677": {
+    "halaqaId": 1765824959671,
+    "id": 1765824960677,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"٢٩- ٣٠= ٢ جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الإنسان\"]"
+    ],
+    "name": "عبدالله بن عيسى بن عبدالله المنذري",
+    "oldMemorizedPages": "٥٨٠ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407099,
+    "useManualData": true
+  },
+  "1765824960678": {
+    "halaqaId": 1765824959671,
+    "id": 1765824960678,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 8",
+    "manualParts": [
+      "[\"الجزء 30= جزء واحد\"]"
+    ],
+    "manualSurahs": [
+      "[\"الشمس\"",
+      "\"البلد\"",
+      "\"الفجر\"",
+      "\"الغاشية\"",
+      "\"الأعلى\"",
+      "\"الطارق\"",
+      "\"البروج\"]"
+    ],
+    "name": "يوسف بن مبارك بن محمد المصلحي",
+    "oldMemorizedPages": "٥٩٠ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407100,
+    "useManualData": true
+  },
+  "1765824960679": {
+    "halaqaId": 1789749086241107,
+    "id": 1765824960679,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"٢٨- ٣٠= ٣ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"التغابن\"]"
+    ],
+    "name": "أحمد بن ساعد بن سعيد الغافري",
+    "oldMemorizedPages": "٥٦١ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978295998,
+    "useManualData": true
+  },
+  "1765824960680": {
+    "halaqaId": 1765824959672,
+    "id": 1765824960680,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"٢٧- ٣٠= ٤ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "داود بن سليمان بن سيف الصوافي",
+    "oldMemorizedPages": "٥٣٣ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407102,
+    "useManualData": true
+  },
+  "1765824960681": {
+    "halaqaId": 1789749086241107,
+    "id": 1765824960681,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"٢٥- ٣٠= ٦ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualSurahs": [
+      "[\"الشورى\"]"
+    ],
+    "name": "أنس بن مالك بن محمد الوائلي",
+    "oldMemorizedPages": "٤٨٩ - ٦٠٤",
+    "sardHalaqaId": 1790081835934798,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1790083941272,
+    "useManualData": true
+  },
+  "1765824960682": {
+    "halaqaId": 1765824959672,
+    "id": 1765824960682,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"٢٧- ٣٠= ٤ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "عمر بن أحمد بن خميس الناصري",
+    "oldMemorizedPages": "٥٣٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407103,
+    "useManualData": true
+  },
+  "1765824960683": {
+    "halaqaId": 1765824959672,
+    "id": 1765824960683,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"٢٧- ٣٠= ٤ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "معاذ بن عوض بن راشد المرشودي",
+    "oldMemorizedPages": "٥٤٠ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407103,
+    "useManualData": true
+  },
+  "1765824960685": {
+    "halaqaId": 1765824959672,
+    "id": 1765824960685,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"٢٧- ٣٠= ٤ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "سعيد بن علي بن سعيد الزيدي",
+    "oldMemorizedPages": "٥٣٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407104,
+    "useManualData": true
+  },
+  "1765824960686": {
+    "halaqaId": 1765824959673,
+    "id": 1765824960686,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"٢٩- ٣٠= ٢ جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الملك\"]"
+    ],
+    "name": "سعيد بن ناصر بن سعيد المرشودي",
+    "oldMemorizedPages": "٥٦٤ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789357312176,
+    "useManualData": true
+  },
+  "1765824960687": {
+    "halaqaId": 1789749086241107,
+    "id": 1765824960687,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 2",
+    "manualParts": [
+      "[\"٢٣- ٣٠= ٨ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"23\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"ص\"",
+      "\"غافر\"]"
+    ],
+    "name": "خالد بن وليد بن عبدالله الخليلي",
+    "oldMemorizedPages": "٤٧٦ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081835934798,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1790083941267,
+    "useManualData": true
+  },
+  "1765824960688": {
+    "halaqaId": 1765824959673,
+    "id": 1765824960688,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"٢٧- ٣٠= ٤ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"القمر\"]"
+    ],
+    "name": "جابر بن عبدالعزيز بن ناصر الفارسي",
+    "oldMemorizedPages": "٥٣١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407107,
+    "useManualData": true
+  },
+  "1765824960689": {
+    "halaqaId": 1765824959673,
+    "id": 1765824960689,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"٢٧- ٣٠= ٤ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"لرحمن\"]"
+    ],
+    "name": "محمد بن هلال بن محمد الشندودي",
+    "oldMemorizedPages": "٥٣٧ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407107,
+    "useManualData": true
+  },
+  "1765824960690": {
+    "halaqaId": 1765824959673,
+    "id": 1765824960690,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"٢٩- ٣٠= ٢ جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"نوح\"]"
+    ],
+    "name": "زكريا بن ناصر بن سالم السكيتي",
+    "oldMemorizedPages": "٥٧١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407108,
+    "useManualData": true
+  },
+  "1765824960691": {
+    "halaqaId": 1765824959673,
+    "id": 1765824960691,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"٢٩- ٣٠= ٢ جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الإنسان\"]"
+    ],
+    "name": "مشعل بن عادل بن ناصر الجساسي",
+    "oldMemorizedPages": "٥٨٠ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407108,
+    "useManualData": true
+  },
+  "1765824960693": {
+    "halaqaId": 1765824959686,
+    "id": 1765824960693,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 2",
+    "manualParts": [
+      "[\"٢٢- ٣٠= ٩ أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"22\"]"
+    ],
+    "manualSurahs": [
+      "[\"الأحزاب\"]"
+    ],
+    "name": "محمد بن سعود بن طالب المقرشي",
+    "oldMemorizedPages": "٤٢٧ - ٦٠٤",
+    "sardHalaqaId": 1790081881427692,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثامن",
+    "updatedAt": 1790083135468,
+    "useManualData": true
+  },
+  "1765824960695": {
+    "halaqaId": 1765824959674,
+    "id": 1765824960695,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"نوح\"]"
+    ],
+    "name": "سعود بن عمر بن مسعود المرشودي",
+    "oldMemorizedPages": "٥٧١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407110,
+    "useManualData": true
+  },
+  "1765824960699": {
+    "halaqaId": 1765824959675,
+    "id": 1765824960699,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الذاريات\"]"
+    ],
+    "name": "فهد بن محمود بن حارب الكلباني",
+    "oldMemorizedPages": "٥٢٣ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الرابع",
+    "updatedAt": 1788156407112,
+    "useManualData": true
+  },
+  "1765824960700": {
+    "halaqaId": 1765824959675,
+    "id": 1765824960700,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"القمر\"]"
+    ],
+    "name": "مهند بن أحمد بن محمد الريامي",
+    "oldMemorizedPages": "٥٣٧ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407112,
+    "useManualData": true
+  },
+  "1765824960702": {
+    "halaqaId": 1765824959675,
+    "id": 1765824960702,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 2",
+    "manualParts": [
+      "[\"23- 30= 8 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"23\"]"
+    ],
+    "manualSurahs": [
+      "[\"الصافات\"]"
+    ],
+    "name": "بطي بن سليم بن بطي المقرشي",
+    "oldMemorizedPages": "٤٥٢ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى السابع",
+    "updatedAt": 1789978293715,
+    "useManualData": true
+  },
+  "1765824960706": {
+    "halaqaId": 1765824959676,
+    "id": 1765824960706,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "إبراهيم بن حمدان بن سالم المقرشي",
+    "oldMemorizedPages": "٥٤١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407116,
+    "useManualData": true
+  },
+  "1765824960707": {
+    "halaqaId": 1765824959686,
+    "id": 1765824960707,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "عبدالعزيز بن سعود بن طالب المقرشي",
+    "oldMemorizedPages": "٥٤١ - ٦٠٤",
+    "parentPhone": "",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1789875897091,
+    "useManualData": true
+  },
+  "1765824960708": {
+    "halaqaId": 1765824959676,
+    "id": 1765824960708,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الملك\"]"
+    ],
+    "name": "تركي بن محمد بن عبدالله الشيباني",
+    "oldMemorizedPages": "٥٦٤ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1788156407117,
+    "useManualData": true
+  },
+  "1765824960709": {
+    "halaqaId": 1765824959676,
+    "id": 1765824960709,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الممتحنة\"]"
+    ],
+    "name": "يوسف بن عبدالله بن خلفان الهنائي",
+    "oldMemorizedPages": "٥٥١ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978295999,
+    "useManualData": true
+  },
+  "1765824960710": {
+    "halaqaId": 1765824959676,
+    "id": 1765824960710,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجن\"]"
+    ],
+    "name": "الأزهر بن سلطان بن خميس الناصري",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407118,
+    "useManualData": true
+  },
+  "1765824960711": {
+    "halaqaId": 1765824959676,
+    "id": 1765824960711,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القيامة\"]"
+    ],
+    "name": "محمد بن ناصر بن مسعود الغافري",
+    "oldMemorizedPages": "٥٧٨ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407119,
+    "useManualData": true
+  },
+  "1765824960712": {
+    "halaqaId": 1765824959677,
+    "id": 1765824960712,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الواقعة\"]"
+    ],
+    "name": "عبدالعزيز بن عمر بن مسعود المرشودي",
+    "oldMemorizedPages": "٥٣٧ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407119,
+    "useManualData": true
+  },
+  "1765824960713": {
+    "halaqaId": 1789749290471520,
+    "id": 1765824960713,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الحشر\"]"
+    ],
+    "name": "أمير بن محمود بن عوض اليعقوبي",
+    "oldMemorizedPages": "٥٤٨ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1790084121765,
+    "useManualData": true
+  },
+  "1765824960714": {
+    "halaqaId": 1789749166162724,
+    "id": 1765824960714,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"القمر\"]"
+    ],
+    "name": "عبدالودود بن سعيد بن عبدالله المجرفي",
+    "oldMemorizedPages": "٥٣١ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1789977260019,
+    "useManualData": true
+  },
+  "1765824960715": {
+    "halaqaId": 1765824959685,
+    "id": 1765824960715,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "عمر بن عبدالله بن معيوف الهنائي",
+    "oldMemorizedPages": "٥٤١ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1790082502229,
+    "useManualData": true
+  },
+  "1765824960716": {
+    "halaqaId": 1765824959677,
+    "id": 1765824960716,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المدثر\"]"
+    ],
+    "name": "عبدالله بن عادل بن عبدالله العزري",
+    "oldMemorizedPages": "٥٧٦ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407121,
+    "useManualData": true
+  },
+  "1765824960717": {
+    "halaqaId": 1765824959677,
+    "id": 1765824960717,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"المجادلة\"]"
+    ],
+    "name": "عبدالله بن سعيد بن حميد المقبالي",
+    "oldMemorizedPages": "٥٤٣ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1789978296001,
+    "useManualData": true
+  },
+  "1765824960718": {
+    "halaqaId": 1765824959678,
+    "id": 1765824960718,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجاثية\"]"
+    ],
+    "name": "أحمد بن محمد بن فاضل الشندودي",
+    "oldMemorizedPages": "٥٠٢ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1788156407125,
+    "useManualData": true
+  },
+  "1765824960719": {
+    "halaqaId": 1789749290471520,
+    "id": 1765824960719,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 2",
+    "manualParts": [
+      "[\"23- 30= 8 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"23\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الصافات\"]"
+    ],
+    "name": "يوسف بن يعقوب بن عبدالله الغافري",
+    "oldMemorizedPages": "٤٥٢ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى السابع",
+    "updatedAt": 1790082502206,
+    "useManualData": true
+  },
+  "1765824960720": {
+    "halaqaId": 1789749166162724,
+    "id": 1765824960720,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الشورى\"]"
+    ],
+    "name": "الأيهم بن خميس بن صالح الغافري",
+    "oldMemorizedPages": "٤٨٩ - ٦٠٤",
+    "parentPhone": "",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1789795946882,
+    "useManualData": true
+  },
+  "1765824960721": {
+    "halaqaId": 1765824959678,
+    "id": 1765824960721,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 4",
+    "manualParts": [
+      "[\"26- 30= 5 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"26\"]"
+    ],
+    "manualSurahs": [
+      "[\"الأحقاف\"]"
+    ],
+    "name": "عبدالرحمن بن محمد بن ناصر الفارسي",
+    "oldMemorizedPages": "٥٠٦ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الرابع",
+    "updatedAt": 1788156407126,
+    "useManualData": true
+  },
+  "1765824960722": {
+    "halaqaId": 1765824959678,
+    "id": 1765824960722,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الطلاق\"]"
+    ],
+    "name": "حمد بن ناصر بن حمد اليعقوبي",
+    "oldMemorizedPages": "٥٥٩ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978296001,
+    "useManualData": true
+  },
+  "1765824960723": {
+    "halaqaId": 1765824959678,
+    "id": 1765824960723,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 1",
+    "manualParts": [
+      "[\"21- 30\"",
+      "\"8- 10 = ١٣ جزءا\"]"
+    ],
+    "manualSavedParts": [
+      "[\"8\"",
+      "\"21\"]"
+    ],
+    "manualSurahs": [
+      "[\"الأنفال\"]"
+    ],
+    "name": "أسامة بن سلطان بن سالم العزري",
+    "oldMemorizedPages": "١٤٢ - 186، 402 - ٦٠٤",
+    "sardHalaqaId": 1790081881427692,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثاني عشر",
+    "updatedAt": 1790083135472,
+    "useManualData": true
+  },
+  "1765824960725": {
+    "halaqaId": 1789749086241107,
+    "id": 1765824960725,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 1",
+    "manualParts": [
+      "[\"20- 30= 11 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"20\"]"
+    ],
+    "manualSurahs": [
+      "[\"القصص\"]"
+    ],
+    "name": "محمد بن حمدان بن سعيد المدسري",
+    "oldMemorizedPages": "٣٩٥ - ٦٠٤",
+    "sardHalaqaId": 1790081881427692,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى العاشر",
+    "updatedAt": 1790083135464,
+    "useManualData": true
+  },
+  "1765824960726": {
+    "halaqaId": 1789749199958953,
+    "id": 1765824960726,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 1",
+    "manualParts": [
+      "[\"19- 30\"",
+      "\"15- 18 =15 جزءا\"]"
+    ],
+    "manualSavedParts": [
+      "[\"15\"",
+      "\"19\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"المؤمنون\"]"
+    ],
+    "name": "الوليد بن خالد بن خميس اليعقوبي",
+    "oldMemorizedPages": "٣٤٧ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني عشر",
+    "updatedAt": 1790082502172,
+    "useManualData": true
+  },
+  "1765824960727": {
+    "halaqaId": 1789749086241107,
+    "id": 1765824960727,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualSurahs": [
+      "[\"الدخان\"]"
+    ],
+    "name": "محمد بن بدر بن سعيد الغافري",
+    "oldMemorizedPages": "٤٩٦ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1789812891007,
+    "useManualData": true
+  },
+  "1765824960728": {
+    "halaqaId": 1765824959679,
+    "id": 1765824960728,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"24- 30= 7 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"24\"]"
+    ],
+    "manualSurahs": [
+      "[\"غافر\"]"
+    ],
+    "name": "سالم بن سلطان بن سالم العزري",
+    "oldMemorizedPages": "٤٥٩ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى السابع",
+    "updatedAt": 1788156407129,
+    "useManualData": true
+  },
+  "1765824960729": {
+    "halaqaId": 1765824959679,
+    "id": 1765824960729,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualSurahs": [
+      "[\"الشورى\"]"
+    ],
+    "name": "سلطان بن حمدان بن سالم المقرشي",
+    "oldMemorizedPages": "٤٨٥ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1788156407130,
+    "useManualData": true
+  },
+  "1765824960730": {
+    "halaqaId": 1765824959679,
+    "id": 1765824960730,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القيامة\"]"
+    ],
+    "name": "محمد بن سليمان بن ناصر الفارسي",
+    "oldMemorizedPages": "٥٧٨ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407130,
+    "useManualData": true
+  },
+  "1765824960731": {
+    "halaqaId": 1789749199958953,
+    "id": 1765824960731,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"1- 5\"",
+      "\"30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"1\"",
+      "\"30\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"آل عمران\"",
+      "\"النساء\"]"
+    ],
+    "name": "عمر بن محمد بن زاهر العبري",
+    "oldMemorizedPages": "١ - ٧٨، ٥٨٢ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1790082502213,
+    "useManualData": true
+  },
+  "1765824960732": {
+    "halaqaId": 1765824959680,
+    "id": 1765824960732,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجاثية\"]"
+    ],
+    "name": "الخطاب بن ناصر بن سعيد المرشودي",
+    "oldMemorizedPages": "٥٠٢ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الخامس",
+    "updatedAt": 1788156407131,
+    "useManualData": true
+  },
+  "1765824960733": {
+    "halaqaId": 1789749166162724,
+    "id": 1765824960733,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"24- 30= 7 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"24\"]"
+    ],
+    "manualSurahs": [
+      "[\"غافر\"]"
+    ],
+    "name": "خالد بن وليد بن صالح الغافري",
+    "oldMemorizedPages": "٤٧٦ - ٦٠٤",
+    "sardHalaqaId": 1790081835934798,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1790083941272,
+    "useManualData": true
+  },
+  "1765824960734": {
+    "halaqaId": 1765824959680,
+    "id": 1765824960734,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 4",
+    "manualParts": [
+      "[\"26- 30= 5 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"26\"]"
+    ],
+    "manualSurahs": [
+      "[\"الأحقاف\"]"
+    ],
+    "name": "البراء بن سليم بن بطي المقرشي",
+    "oldMemorizedPages": "٥٠٦ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الرابع",
+    "updatedAt": 1788156407132,
+    "useManualData": true
+  },
+  "1765824960735": {
+    "halaqaId": 1765824959680,
+    "id": 1765824960735,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"24- 30= 7 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"24\"]"
+    ],
+    "manualSurahs": [
+      "[\"الزمر\"]"
+    ],
+    "name": "سالم بن حمدان بن سالم المقرشي",
+    "oldMemorizedPages": "٤٦٧ - ٦٠٤",
+    "sardHalaqaId": 1790081835934798,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1790083941272,
+    "useManualData": true
+  },
+  "1765824960736": {
+    "halaqaId": 1765824959680,
+    "id": 1765824960736,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "داود بن سليمان بن سعيد الشملي",
+    "oldMemorizedPages": "٥٤١ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407133,
+    "useManualData": true
+  },
+  "1765824960737": {
+    "halaqaId": 1765824959680,
+    "id": 1765824960737,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحاقة\"]"
+    ],
+    "name": "عبدالله بن خليل بن عبدالله الخليلي",
+    "oldMemorizedPages": "٥٦٨ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407134,
+    "useManualData": true
+  },
+  "1765824960738": {
+    "halaqaId": 1765824959680,
+    "id": 1765824960738,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المدثر\"]"
+    ],
+    "name": "إبراهيم بن محمد بن عبدالله الشيباني",
+    "oldMemorizedPages": "٥٧٧ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407134,
+    "useManualData": true
+  },
+  "1765824960739": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960739,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"27- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "عبدالله بن محمد بن عبدالله الغافري",
+    "oldMemorizedPages": "٥٣٤ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1789978296002,
+    "useManualData": true
+  },
+  "1765824960740": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960740,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحشر\"]"
+    ],
+    "name": "الخليل بن أحمد بن سليمان المرشودي",
+    "oldMemorizedPages": "٥٤٨ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978296002,
+    "useManualData": true
+  },
+  "1765824960741": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960741,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "أمير بن عبدالله بن خليفة الشملي",
+    "oldMemorizedPages": "٥٤٠ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407136,
+    "useManualData": true
+  },
+  "1765824960742": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960742,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"المجادلة\"]"
+    ],
+    "name": "الحواري بن محمد بن حميد الهنائي",
+    "oldMemorizedPages": "٥٤٤ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1789978296003,
+    "useManualData": true
+  },
+  "1765824960743": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960743,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "عبدالله بن محمد بن عبدالله الخليلي",
+    "oldMemorizedPages": "٥٣٩ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407137,
+    "useManualData": true
+  },
+  "1765824960744": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960744,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الرحمن\"]"
+    ],
+    "name": "الحسن بن ناصر بن سعيد الشملي",
+    "oldMemorizedPages": "٥٣١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407138,
+    "useManualData": true
+  },
+  "1765824960745": {
+    "halaqaId": 1765824959681,
+    "id": 1765824960745,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القلم\"]"
+    ],
+    "name": "وارث بن وليد بن عبدالله الخليلي",
+    "oldMemorizedPages": "٥٦٨ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407138,
+    "useManualData": true
+  },
+  "1765824960746": {
+    "halaqaId": 1765824959682,
+    "id": 1765824960746,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 4",
+    "manualParts": [
+      "[\"26- 30= 5 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"26\"]"
+    ],
+    "manualSurahs": [
+      "[\"ق\"]"
+    ],
+    "name": "محمد بن أحمد بن محمد الريامي",
+    "oldMemorizedPages": "٥٢٠ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الرابع",
+    "updatedAt": 1790082502222,
+    "useManualData": true
+  },
+  "1765824960747": {
+    "halaqaId": 1765824959682,
+    "id": 1765824960747,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"25- 30= 6 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"25\"]"
+    ],
+    "manualSurahs": [
+      "[\"الشورى\"]"
+    ],
+    "name": "محمد بن عيسى بن عبدالله المنذري",
+    "oldMemorizedPages": "٤٨٤ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1790082502218,
+    "useManualData": true
+  },
+  "1765824960749": {
+    "halaqaId": 1765824959682,
+    "id": 1765824960749,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "عبدالرحمن بن عيسى بن سالم المقبالي",
+    "oldMemorizedPages": "٥٤٠ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1790082502223,
+    "useManualData": true
+  },
+  "1765824960752": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960752,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualStudentLevel": "",
+    "name": "خالد بن سليمان بن علي الهنائي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "المرحلة الجامعية",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1790082502208,
+    "useManualData": true
+  },
+  "1765824960753": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960753,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "عبدالملك بن عبدالله بن معيوف الهنائي",
+    "oldMemorizedPages": "٥٤١ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1790082502225,
+    "useManualData": true
+  },
+  "1765824960754": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960754,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحديد\"]"
+    ],
+    "name": "عبدالملك بن عوض بن راشد المنذري",
+    "oldMemorizedPages": "٥٤١ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1790082502227,
+    "useManualData": true
+  },
+  "1765824960755": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960755,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"24- 30= 7 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"24\"]"
+    ],
+    "manualSurahs": [
+      "[\"فصلت\"]"
+    ],
+    "name": "محمد بن عبدالله بن سالم الغافري",
+    "oldMemorizedPages": "٤٨٢ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1790082502215,
+    "useManualData": true
+  },
+  "1765824960756": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960756,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"المجادلة\"]"
+    ],
+    "name": "محمد بن حمد بن خميس المحروقي",
+    "oldMemorizedPages": "٥٤٥ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1790082502236,
+    "useManualData": true
+  },
+  "1765824960757": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960757,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 4",
+    "manualParts": [
+      "[\"1\"",
+      "\"27- 30= 5 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"1\"",
+      "\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"البقرة\"",
+      "\"الذاريات\"]"
+    ],
+    "name": "حمدان بن سلطان بن محمد الحاتمي",
+    "oldMemorizedPages": "١ - ٤٩، ٥٢٢ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى السادس",
+    "updatedAt": 1790082502220,
+    "useManualData": true
+  },
+  "1765824960758": {
+    "halaqaId": 1765824959683,
+    "id": 1765824960758,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"المنافقون\"]"
+    ],
+    "name": "أنس بن مالك بن راشد المحروقي",
+    "oldMemorizedPages": "٥٥٥ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1790082502232,
+    "useManualData": true
+  },
+  "1765824960762": {
+    "halaqaId": 1765824959684,
+    "id": 1765824960762,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الواقعة\"]"
+    ],
+    "name": "المنتصر بن حمود بن ناصر الساعدي",
+    "oldMemorizedPages": "٥٣٧ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث",
+    "updatedAt": 1788156407146,
+    "useManualData": true
+  },
+  "1765824960763": {
+    "halaqaId": 1765824959684,
+    "id": 1765824960763,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 8",
+    "manualParts": [
+      "[\"الجزء 30= جزء واحد\"]"
+    ],
+    "manualSurahs": [
+      "[\"المطففين\"]"
+    ],
+    "name": "اليزن بن أحمد بن عبدالله العزري",
+    "oldMemorizedPages": "٥٨٩ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407146,
+    "useManualData": true
+  },
+  "1765824960766": {
+    "halaqaId": 1765824959685,
+    "id": 1765824960766,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 3",
+    "manualParts": [
+      "[\"1- 5\"",
+      "\"29- 30= 7 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"1\"",
+      "\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"النساء\"",
+      "\"عم\"",
+      "\"تبارك\"]"
+    ],
+    "name": "سرحان بن عبدالله بن ناصر الريامي",
+    "oldMemorizedPages": "١ - ١٠٥، ٥٦٢ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى السابع",
+    "updatedAt": 1790082502210,
+    "useManualData": true
+  },
+  "1765824960767": {
+    "halaqaId": 1765824959685,
+    "id": 1765824960767,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "name": "محمد بن يوسف بن محمد المقبالي",
+    "sardHalaqaId": 1790082382162155,
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1790082502199,
+    "useManualData": true
+  },
+  "1765824960769": {
+    "halaqaId": 1765824959685,
+    "id": 1765824960769,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "محمد بن خالد بن حمد الجساسي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1790082502195,
+    "useManualData": false
+  },
+  "1765824960770": {
+    "halaqaId": 1765824959685,
+    "id": 1765824960770,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 8",
+    "manualParts": [
+      "[\"الجزء 30= جزء واحد\"]"
+    ],
+    "manualSurahs": [
+      "[\"عبس\"]"
+    ],
+    "name": "عبدالرحمن بن يوسف بن ناصر العبري",
+    "oldMemorizedPages": "٥٨٥ - ٦٠٤",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1790082502241,
+    "useManualData": true
+  },
+  "1765824960771": {
+    "halaqaId": 1790072239975683,
+    "id": 1765824960771,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"الحشر\"]"
+    ],
+    "name": "سليمان بن محمد بن سليمان الهنائي",
+    "oldMemorizedPages": "٥٤٨ - ٦٠٤",
+    "parentPhone": "",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1790084172835,
+    "useManualData": true
+  },
+  "1765824960772": {
+    "halaqaId": 1765824959686,
+    "id": 1765824960772,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 1",
+    "manualParts": [
+      "[\"1- 12\"",
+      "\"19= 13 جزءا\"]"
+    ],
+    "manualSavedParts": [
+      "[\"1\"",
+      "\"19\"]"
+    ],
+    "manualSurahs": [
+      "[\"هود\"]"
+    ],
+    "name": "المقداد بن حمدان بن حمد العلوي",
+    "oldMemorizedPages": "1-241، 362-381",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثالث عشر",
+    "updatedAt": 1790083073849,
+    "useManualData": true
+  },
+  "1765824960774": {
+    "halaqaId": 1765824959686,
+    "id": 1765824960774,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 5",
+    "manualParts": [
+      "[\"27- 30= 4 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"27\"]"
+    ],
+    "manualSurahs": [
+      "[\"الذاريات\"]"
+    ],
+    "name": "أحمد بن يعقوب بن عبدالله الغافري",
+    "oldMemorizedPages": "٥٢٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الرابع",
+    "updatedAt": 1788156407152,
+    "useManualData": true
+  },
+  "1765824960778": {
+    "halaqaId": 1765824959687,
+    "id": 1765824960778,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحاقة\"]"
+    ],
+    "name": "قصي بن محمد بن عبيد الجساسي",
+    "oldMemorizedPages": "٥٦٨ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407154,
+    "useManualData": true
+  },
+  "1765824960779": {
+    "halaqaId": 1765824959687,
+    "id": 1765824960779,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الطلاق\"]"
+    ],
+    "name": "قصي بن عادل بن سالم الكلباني",
+    "oldMemorizedPages": "٥٥٩ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978296005,
+    "useManualData": true
+  },
+  "1765824960780": {
+    "halaqaId": 1765824959687,
+    "id": 1765824960780,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"نوح\"]"
+    ],
+    "name": "أحمد بن حمدان بن سعيد المدسري",
+    "oldMemorizedPages": "٥٧١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407155,
+    "useManualData": true
+  },
+  "1765824960781": {
+    "halaqaId": 1765824959687,
+    "id": 1765824960781,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القلم\"]"
+    ],
+    "name": "أسامة بن خميس بن صالح الغافري",
+    "oldMemorizedPages": "٥٦٦ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407155,
+    "useManualData": true
+  },
+  "1765824960782": {
+    "halaqaId": 1765824959687,
+    "id": 1765824960782,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المرسلات\"]"
+    ],
+    "name": "محمد بن ناصر بن مبارك الصوافي",
+    "oldMemorizedPages": "٥٨١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407156,
+    "useManualData": true
+  },
+  "1765824960785": {
+    "halaqaId": 1789749141864233,
+    "id": 1765824960785,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المزمل\"]"
+    ],
+    "name": "سليمان بن مهنا بن سليمان الكلباني",
+    "oldMemorizedPages": "٥٧٥ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1789819201595,
+    "useManualData": true
+  },
+  "1765824960786": {
+    "halaqaId": 1765824959688,
+    "id": 1765824960786,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجن\"]"
+    ],
+    "name": "عزان بن قيس بن عوض السكيتي",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407158,
+    "useManualData": true
+  },
+  "1765824960787": {
+    "halaqaId": 1765824959688,
+    "id": 1765824960787,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"المنافقون\"]"
+    ],
+    "name": "علي بن حمد بن سليمان الكلباني",
+    "oldMemorizedPages": "٥٥٥ - ٦٠٤",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1790084183938,
+    "useManualData": true
+  },
+  "1765824960791": {
+    "halaqaId": 1765824959689,
+    "id": 1765824960791,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجن\"]"
+    ],
+    "name": "خالد بن عبدالله بن خلفان الهنائي",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407159,
+    "useManualData": true
+  },
+  "1765824960793": {
+    "halaqaId": 1765824959689,
+    "id": 1765824960793,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الإنسان\"]"
+    ],
+    "name": "ماجد بن عمر بن مسعود المرشودي",
+    "oldMemorizedPages": "٥٧٩ - ٦٠٤",
+    "schoolStage": "الحادي عشر، الثاني عشر، جامعي",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407160,
+    "useManualData": true
+  },
+  "1765824960794": {
+    "halaqaId": 1789749290471520,
+    "id": 1765824960794,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualStudentLevel": "",
+    "manualSurahs": [
+      "[\"المدثر\"]"
+    ],
+    "name": "صالح بن سالم بن صالح الغافري",
+    "oldMemorizedPages": "٥٧٧ - ٦٠٤",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1790084197946,
+    "useManualData": true
+  },
+  "1765824960795": {
+    "halaqaId": 1765824959689,
+    "id": 1765824960795,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"نوح\"]"
+    ],
+    "name": "الأزهر بن ناصر بن سعيد المرشودي",
+    "oldMemorizedPages": "٥٧١ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407161,
+    "useManualData": true
+  },
+  "1765824960797": {
+    "halaqaId": 1765824959689,
+    "id": 1765824960797,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"نوح\"]"
+    ],
+    "name": "سليمان بن حمير بن ناصر الريامي",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407161,
+    "useManualData": true
+  },
+  "1765824960798": {
+    "halaqaId": 1765824959690,
+    "id": 1765824960798,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القلم\"]"
+    ],
+    "name": "أنس بن محمد بن حميد الهنائي",
+    "oldMemorizedPages": "٥٦٦ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407162,
+    "useManualData": true
+  },
+  "1765824960799": {
+    "halaqaId": 1765824959690,
+    "id": 1765824960799,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجن\"]"
+    ],
+    "name": "بدر بن سالم بن سعيد المدسري",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407162,
+    "useManualData": true
+  },
+  "1765824960800": {
+    "halaqaId": 1765824959690,
+    "id": 1765824960800,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الصف\"]"
+    ],
+    "name": "بلعرب بن حمير بن ناصر الريامي",
+    "oldMemorizedPages": "٥٥٢ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978296006,
+    "useManualData": true
+  },
+  "1765824960801": {
+    "halaqaId": 1765824959690,
+    "id": 1765824960801,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المزمل\"]"
+    ],
+    "name": "تركي بن بدر بن حمد الحاتمي",
+    "oldMemorizedPages": "٥٧٧ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407163,
+    "useManualData": true
+  },
+  "1765824960802": {
+    "halaqaId": 1765824959690,
+    "id": 1765824960802,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجن\"]"
+    ],
+    "name": "محمد بن يوسف بن سيف الكلباني",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407163,
+    "useManualData": true
+  },
+  "1765824960803": {
+    "halaqaId": 1765824959690,
+    "id": 1765824960803,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المزمل\"]"
+    ],
+    "name": "منصور بن أحمد بن معيوف الهنائي",
+    "oldMemorizedPages": "٥٧٥ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407164,
+    "useManualData": true
+  },
+  "1765824960805": {
+    "halaqaId": 1765824959691,
+    "id": 1765824960805,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الإنسان\"]"
+    ],
+    "name": "إبراهيم بن محمد بن عبدالله الخليلي",
+    "oldMemorizedPages": "٥٨٠ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407165,
+    "useManualData": true
+  },
+  "1765824960806": {
+    "halaqaId": 1765824959691,
+    "id": 1765824960806,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القلم\"]"
+    ],
+    "name": "أواب بن ناصر بن خميس الناصري",
+    "oldMemorizedPages": "٥٦٦ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407165,
+    "useManualData": true
+  },
+  "1765824960807": {
+    "halaqaId": 1765824959691,
+    "id": 1765824960807,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المزمل\"]"
+    ],
+    "name": "ناصر بن عبدالله بن ناصر الريامي",
+    "oldMemorizedPages": "٥٧٥ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407166,
+    "useManualData": true
+  },
+  "1765824960808": {
+    "halaqaId": 1765824959691,
+    "id": 1765824960808,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualLevel": "المستوى 6",
+    "manualParts": [
+      "[\"28- 30= 3 أجزاء\"]"
+    ],
+    "manualSavedParts": [
+      "[\"28\"]"
+    ],
+    "manualSurahs": [
+      "[\"الطلاق\"]"
+    ],
+    "name": "مصعب بن عمير بن ناصر الريامي",
+    "oldMemorizedPages": "٥٥٩ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الثاني",
+    "updatedAt": 1789978296007,
+    "useManualData": true
+  },
+  "1765824960810": {
+    "halaqaId": 1765824959692,
+    "id": 1765824960810,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المرسلات\"]"
+    ],
+    "name": "حربي بن بدر بن حمد الحاتمي",
+    "oldMemorizedPages": "٥٨٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407167,
+    "useManualData": true
+  },
+  "1765824960811": {
+    "halaqaId": 1765824959692,
+    "id": 1765824960811,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 8",
+    "manualParts": [
+      "[\"الجزء 30= جزء واحد\"]"
+    ],
+    "manualSurahs": [
+      "[\"النبأ\"]"
+    ],
+    "name": "أحمد بن سلطان بن محمد الحاتمي",
+    "oldMemorizedPages": "٥٨٤ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407168,
+    "useManualData": true
+  },
+  "1765824960812": {
+    "halaqaId": 1765824959692,
+    "id": 1765824960812,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"القيامة\"]"
+    ],
+    "name": "أنس بن محمد بن عبدالله الخليلي",
+    "oldMemorizedPages": "٥٨٠ - ٦٠٤",
+    "schoolStage": "الخامس، السادس",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407168,
+    "useManualData": true
+  },
+  "1765824960813": {
+    "halaqaId": 1765824959692,
+    "id": 1765824960813,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الحاقة\"]"
+    ],
+    "name": "عبدالله بن يحيى بن عبدالله الصوافي",
+    "oldMemorizedPages": "٥٧٠ - ٦٠٤",
+    "schoolStage": "التاسع، العاشر",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407168,
+    "useManualData": true
+  },
+  "1765824960814": {
+    "halaqaId": 1765824959692,
+    "id": 1765824960814,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"المرسلات\"]"
+    ],
+    "name": "الصلت بن مالك بن محمد الوائلي",
+    "oldMemorizedPages": "٥٨١ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407169,
+    "useManualData": true
+  },
+  "1765824960815": {
+    "halaqaId": 1765824959692,
+    "id": 1765824960815,
+    "isAlAmeen": false,
+    "manualLevel": "المستوى 7",
+    "manualParts": [
+      "[\"29- 30= 2 جزأين\"]"
+    ],
+    "manualSavedParts": [
+      "[\"29\"]"
+    ],
+    "manualSurahs": [
+      "[\"الجن\"]"
+    ],
+    "name": "عبدالعزيز بن عبدالله بن معيوف الهنائي",
+    "oldMemorizedPages": "٥٧٣ - ٦٠٤",
+    "schoolStage": "السابع، الثامن",
+    "studentLevel": "المستوى الأول",
+    "updatedAt": 1788156407169,
+    "useManualData": true
+  },
+  "1778774643571": {
+    "halaqaId": 1778774623603,
+    "id": 1778774643571,
+    "isAlAmeen": true,
+    "manualStudentLevel": "",
+    "name": "داوود بن سليمان بن محمد الريامي",
+    "oldMemorizedPages": "382-604",
+    "schoolStage": "",
+    "studentLevel": "المستوى الحادي عشر",
+    "updatedAt": 1788971372863,
+    "useManualData": false
+  },
+  "1789736198974312": {
+    "halaqaId": 1789749141864233,
+    "id": 1789736198974312,
+    "isFromIbri": true,
+    "name": "عمر بن محمود بن محمد المنذري",
+    "parentPhone": "99413464",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082969687
+  },
+  "1789736218450906": {
+    "halaqaId": 1765824959682,
+    "id": 1789736218450906,
+    "isFromIbri": true,
+    "name": "يوسف بن سالم بن عبدالله الكلباني",
+    "parentPhone": "‎9943 5282",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082757111
+  },
+  "1789736243470076": {
+    "halaqaId": 1765824959687,
+    "id": 1789736243470076,
+    "isFromIbri": true,
+    "name": "سالم بن محمد بن مبارك المجرفي",
+    "parentPhone": "99812666",
+    "schoolStage": "السادس",
+    "updatedAt": 1789978290471
+  },
+  "1789736281668662": {
+    "halaqaId": 1765824959677,
+    "id": 1789736281668662,
+    "isFromIbri": true,
+    "name": "ناصر بن سلطان بن سالم العزري",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082969695
+  },
+  "1789736326597930": {
+    "halaqaId": 1765824959671,
+    "id": 1789736326597930,
+    "isFromIbri": true,
+    "name": "اليقظان بن علي بن محمد الوائلي",
+    "parentPhone": "99337749",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082757085
+  },
+  "1789736364818662": {
+    "halaqaId": 1765824959682,
+    "id": 1789736364818662,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "عمر بن خالد بن حماد المجرفي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99657174",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الثاني عشر",
+    "updatedAt": 1790082502189
+  },
+  "1789736399048959": {
+    "halaqaId": 1789749199958953,
+    "id": 1789736399048959,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "زكريا بن بدر بن سالم المجرفي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر",
+    "updatedAt": 1790082502181
+  },
+  "1789736418648269": {
+    "halaqaId": 1765824959688,
+    "id": 1789736418648269,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "سليمان بن سيف بن محمد المقبالي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "",
+    "updatedAt": 1790082502184
+  },
+  "1789736430130421": {
+    "halaqaId": 1789749290471520,
+    "id": 1789736430130421,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "يعرب بن خميس بن عبيد اليعربي",
+    "oldMemorizedPages": "",
+    "parentPhone": "95570988",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084209909
+  },
+  "1789736443502417": {
+    "halaqaId": 1765824959685,
+    "id": 1789736443502417,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "محمد بن ناصر بن سالم الحاتمي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084221431
+  },
+  "1789736451304841": {
+    "halaqaId": 1765824959674,
+    "id": 1789736451304841,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "راشد بن خلف بن راشد العبري",
+    "oldMemorizedPages": "",
+    "parentPhone": "99223130",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "الثامن",
+    "updatedAt": 1790082757088
+  },
+  "1789736458831084": {
+    "halaqaId": 1765824959688,
+    "id": 1789736458831084,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "حمد بن حمود بن حمد التميمي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99314568",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الحادي عشر",
+    "updatedAt": 1790082502177
+  },
+  "1789736464884131": {
+    "halaqaId": 1765824959688,
+    "id": 1789736464884131,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "أكرم بن طاهر بن حميد الغافري",
+    "oldMemorizedPages": "",
+    "parentPhone": "95561746",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084231396
+  },
+  "1789736473895372": {
+    "halaqaId": 1765824959685,
+    "id": 1789736473895372,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "محسن بن ناصر بن محمد الحاتمي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "",
+    "updatedAt": 1790084240996
+  },
+  "1789736485823113": {
+    "halaqaId": 1789749290471520,
+    "id": 1789736485823113,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "البراء بن عوض بن خميس اليعقوبي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99238287",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084247874
+  },
+  "1789736492593805": {
+    "halaqaId": 1789749199958953,
+    "id": 1789736492593805,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "أسامة بن سالم بن زاهر الغريبي",
+    "oldMemorizedPages": "",
+    "parentPhone": "96545353",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084255609
+  },
+  "1789736500086448": {
+    "halaqaId": 1789749290471520,
+    "id": 1789736500086448,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "عمر بن حسن بن ناصر الهنائي",
+    "oldMemorizedPages": "",
+    "parentPhone": "79195888",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084269011
+  },
+  "1789736506702180": {
+    "halaqaId": 1765824959682,
+    "id": 1789736506702180,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "أحمد بن شهاب بن حمود التميمي",
+    "oldMemorizedPages": "",
+    "parentPhone": "94717110",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084275729
+  },
+  "1789736516448190": {
+    "halaqaId": 1765824959688,
+    "id": 1789736516448190,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "مجاهد بن حمود بن حمود التميمي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99314168",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084287646
+  },
+  "1789736531200206": {
+    "halaqaId": 1789749199958953,
+    "id": 1789736531200206,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "بدر بن مالك بن راشد المحروقي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99230058",
+    "sardHalaqaId": 1790081881430571,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790084294798
+  },
+  "1789736555514347": {
+    "halaqaId": 1765824959672,
+    "id": 1789736555514347,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "مصعب بن حمد بن ناصر الفارسي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082969693
+  },
+  "1789736630212786": {
+    "halaqaId": 1765824959675,
+    "id": 1789736630212786,
+    "isFromIbri": true,
+    "name": "عبد الرحمن بن عوض بن راشدالمنذري",
+    "parentPhone": "99344399",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790082757093
+  },
+  "1789736655394739": {
+    "halaqaId": 1765824959678,
+    "id": 1789736655394739,
+    "isFromIbri": true,
+    "name": "إياد بن أحمد بن عبدالله المنذري",
+    "parentPhone": "98528515",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "السابع",
+    "updatedAt": 1790082885712
+  },
+  "1789736680628736": {
+    "halaqaId": 1789749180632963,
+    "id": 1789736680628736,
+    "isFromIbri": true,
+    "name": "الخليل بن أحمد بن عبدالله الخليلي",
+    "parentPhone": "96137096",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082969679
+  },
+  "1789736694721341": {
+    "halaqaId": 1789749180632963,
+    "id": 1789736694721341,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "الأزهر بن خليل بن عبدالله الخليلي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99207307",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082885704
+  },
+  "1789736709819181": {
+    "halaqaId": 1765824959689,
+    "id": 1789736709819181,
+    "isFromIbri": true,
+    "name": "عمار بن ياسر بن حمد المرشودي",
+    "parentPhone": "99617122",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الثامن",
+    "updatedAt": 1790082969685
+  },
+  "1789736726181601": {
+    "halaqaId": 1765824959684,
+    "id": 1789736726181601,
+    "isFromIbri": true,
+    "name": "عبدالله بن حمد بن عبدالله المنذري",
+    "parentPhone": "99877992",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082885714
+  },
+  "1789736734150717": {
+    "halaqaId": 1789749180632963,
+    "id": 1789736734150717,
+    "isFromIbri": true,
+    "name": "يحيى بن ناصر بن سالم السكيتي",
+    "parentPhone": "99004317",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082969697
+  },
+  "1789736763083901": {
+    "halaqaId": 1765824959673,
+    "id": 1789736763083901,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "عبد الرحيم بن عوض بن راشد المنذري",
+    "oldMemorizedPages": "",
+    "parentPhone": "99344399",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790082757096
+  },
+  "1789736856926382": {
+    "halaqaId": 1765824959674,
+    "id": 1789736856926382,
+    "isFromIbri": true,
+    "name": "محمد بن يحيى بن سليمان المرشودي",
+    "parentPhone": "97444717",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082885720
+  },
+  "1789736896638976": {
+    "halaqaId": 1765824959678,
+    "id": 1789736896638976,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "أحمد بن خالد بن محمد الوائلي",
+    "oldMemorizedPages": "",
+    "parentPhone": "99347887",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "السابع",
+    "updatedAt": 1790083022717
+  },
+  "1789736965671375": {
+    "halaqaId": 1789749199958953,
+    "id": 1789736965671375,
+    "isAlAmeen": true,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "معضد بن عبدالله بن علي الفارسي",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1790082382162155,
+    "schoolStage": "الثاني عشر",
+    "updatedAt": 1790082502201
+  },
+  "1789737011686198": {
+    "halaqaId": 1765824959674,
+    "id": 1789737011686198,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "أحمد بن موسى بن سعيد الكلباني",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "التاسع",
+    "updatedAt": 1790082757081
+  },
+  "1789737013598632": {
+    "halaqaId": 1765824959679,
+    "id": 1789737013598632,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "عمر بن موسى بن سعيد الكلباني",
+    "oldMemorizedPages": "",
+    "parentPhone": "",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "السابع",
+    "updatedAt": 1790082757103
+  },
+  "1789737024389584": {
+    "halaqaId": 1765824959684,
+    "id": 1789737024389584,
+    "isFromIbri": true,
+    "name": "تركي بن أحمد الشملي",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082969681
+  },
+  "1789737078570430": {
+    "halaqaId": 1789749180632963,
+    "id": 1789737078570430,
+    "isFromIbri": true,
+    "name": "إبراهيم بن أحمد بن عبدالله العزري",
+    "parentPhone": "96222231",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "الصف الثامن",
+    "updatedAt": 1790082757076
+  },
+  "1789737081895899": {
+    "halaqaId": 1765824959674,
+    "id": 1789737081895899,
+    "isFromIbri": true,
+    "name": "محمد بن يوسف بن عبدالله العزري",
+    "parentPhone": "92519235",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "التاسع",
+    "updatedAt": 1790082757110
+  },
+  "1789737084066430": {
+    "halaqaId": 1765824959679,
+    "id": 1789737084066430,
+    "isFromIbri": true,
+    "name": "عبدالله بن أحمد بن عبدالله العزري",
+    "parentPhone": "96222231",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "العاشر",
+    "updatedAt": 1790082757098
+  },
+  "1789737104939664": {
+    "halaqaId": 1765824959684,
+    "id": 1789737104939664,
+    "isFromIbri": true,
+    "name": "صلاح الدين بن حمدان بن سيف الربيعي",
+    "parentPhone": "99316445",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "7",
+    "updatedAt": 1790082757091
+  },
+  "1789803615505723": {
+    "halaqaId": 1765824959675,
+    "id": 1789803615505723,
+    "isFromIbri": true,
+    "name": "إلياس بن خميس بن عبيد اليعربي",
+    "parentPhone": "95570988",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "التاسع",
+    "updatedAt": 1790082757083
+  },
+  "1789803645408764": {
+    "halaqaId": 1765824959672,
+    "id": 1789803645408764,
+    "isFromIbri": true,
+    "name": "مختار بن عمر بن سالم النزواني",
+    "parentPhone": "92988008",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082885723
+  },
+  "1789803684189939": {
+    "halaqaId": 1765824959691,
+    "id": 1789803684189939,
+    "isFromIbri": true,
+    "name": "مالك بن هلال بن محمد الصارخي",
+    "parentPhone": "‎9937 5259",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082885717
+  },
+  "1789803702741953": {
+    "halaqaId": 1789749141864233,
+    "id": 1789803702741953,
+    "isFromIbri": true,
+    "name": "معتز بن يحيى بن قاسم الصارخي",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082885725
+  },
+  "1789803843534786": {
+    "halaqaId": 1765824959675,
+    "id": 1789803843534786,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "محمد بن منير  بن محمد الصارخي",
+    "oldMemorizedPages": "",
+    "parentPhone": "‎9937 5259",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082969690
+  },
+  "1789803877085345": {
+    "halaqaId": 1765824959679,
+    "id": 1789803877085345,
+    "isFromIbri": true,
+    "name": "إبراهيم بن أحمد بن عبدالله الغافري",
+    "parentPhone": "99565469",
+    "sardHalaqaId": 1790081835928258,
+    "schoolStage": "الحادي عشر",
+    "updatedAt": 1790082969675
+  },
+  "1789803902179188": {
+    "halaqaId": 1765824959684,
+    "id": 1789803902179188,
+    "isFromIbri": true,
+    "name": "إسحاق بن عبدالرحمن بن عبدالله المرشودي",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082885701
+  },
+  "1789804149491926": {
+    "halaqaId": 1765824959677,
+    "id": 1789804149491926,
+    "isFromIbri": true,
+    "name": "ماجد بن محمد بن حمود الشكيلي",
+    "parentPhone": "99426339",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082757106
+  },
+  "1789808813564443": {
+    "halaqaId": 1765824959691,
+    "id": 1789808813564443,
+    "isFromIbri": true,
+    "name": "انس بن ناصر بن حمد اليعقوبي",
+    "parentPhone": "92239514",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الخامس",
+    "updatedAt": 1790082885709
+  },
+  "1789808832228916": {
+    "halaqaId": 1789749166162724,
+    "id": 1789808832228916,
+    "isFromIbri": true,
+    "name": "الخليل بن احمد بن عبدالله الغافري",
+    "parentPhone": "99565469",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "الرابع",
+    "updatedAt": 1790082885706
+  },
+  "1789809275360709": {
+    "halaqaId": 1765824959671,
+    "id": 1789809275360709,
+    "isAlAmeen": false,
+    "isFromIbri": true,
+    "manualStudentLevel": "",
+    "name": "عمر بن إبراهيم بن سالم العزري",
+    "oldMemorizedPages": "",
+    "parentPhone": "98120020",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082757100
+  },
+  "1789809308731875": {
+    "halaqaId": 1765824959677,
+    "id": 1789809308731875,
+    "isFromIbri": true,
+    "name": "فرناس بن محمد بن عبدالله الهنائي",
+    "parentPhone": "92917509",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "7",
+    "updatedAt": 1790082757105
+  },
+  "1789809352861781": {
+    "halaqaId": 1789749141864233,
+    "id": 1789809352861781,
+    "isFromIbri": true,
+    "name": "يوسف بن خالد بن حمد بن سعيد الجساسي",
+    "parentPhone": "99010251",
+    "sardHalaqaId": 1790081835922638,
+    "schoolStage": "السابع",
+    "updatedAt": 1790082885727
+  },
+  "1789895562822376": {
+    "halaqaId": 1765824959689,
+    "id": 1789895562822376,
+    "isFromIbri": true,
+    "name": "ماجد بن سلطان بن محمد المعمري",
+    "parentPhone": "92610192",
+    "sardHalaqaId": 1789986195257201,
+    "schoolStage": "السادس",
+    "updatedAt": 1790082757108
+  },
+  "1790128609638623": {
+    "halaqaId": 1765824959686,
+    "id": 1790128609638623,
+    "isFromIbri": true,
+    "name": "الصلت بن محمد بن زاهر العبري",
+    "updatedAt": 1790129568696
+  },
+  "1790129401129430": {
+    "halaqaId": 1789749180632963,
+    "id": 1790129401129430,
+    "isFromIbri": true,
+    "name": "عبدالله بن محمد بن عبدالله الغافري",
+    "parentPhone": "96292288",
+    "schoolStage": "الرابع",
+    "updatedAt": 1790129511755
+  },
+  "1790130523775350": {
+    "halaqaId": 1765824959674,
+    "id": 1790130523775350,
+    "isFromIbri": true,
+    "name": "أحمد بن ناصر بن خميس الناصري",
+    "parentPhone": "96058087",
+    "schoolStage": "الخامس",
+    "updatedAt": 1790130579024
+  }
+}
