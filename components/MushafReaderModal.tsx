@@ -12,7 +12,7 @@ interface MushafReaderModalProps {
   isOpen: boolean;
   onClose: () => void;
   newPages: number[];
-  previousWeekPages: Set<number> | number[];
+  previousWeekPages?: Set<number> | number[];
   studentName?: string;
   evalFath?: number;
   setEvalFath?: (val: number | ((prev: number) => number)) => void;
@@ -46,7 +46,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   isOpen,
   onClose,
   newPages,
-  previousWeekPages,
+  previousWeekPages = [],
   studentName,
   evalFath = 0,
   setEvalFath,
@@ -75,21 +75,33 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   sardGroupErrors = {},
   setSardGroupErrors,
 }) => {
+  // Stable key for pages to prevent unnecessary re-computations when array/Set references change
+  const pagesKey = useMemo(() => {
+    const n = (newPages || []).slice().sort((a, b) => a - b).join(',');
+    const p = (previousWeekPages instanceof Set
+      ? Array.from(previousWeekPages)
+      : (previousWeekPages || [])
+    ).slice().sort((a, b) => a - b).join(',');
+    return `${n}|${p}`;
+  }, [newPages, previousWeekPages]);
+
   // Convert previousWeekPages to Set for fast lookup
   const prevWeekSet = useMemo(() => {
     if (previousWeekPages instanceof Set) return previousWeekPages;
     return new Set<number>(previousWeekPages || []);
-  }, [previousWeekPages]);
+  }, [pagesKey, previousWeekPages]);
 
-  const newPagesSet = useMemo(() => new Set<number>(newPages || []), [newPages]);
+  const newPagesSet = useMemo(() => new Set<number>(newPages || []), [pagesKey, newPages]);
 
   // Combine and sort relevant pages only
   const targetPages = useMemo(() => {
     const combined = new Set<number>();
-    newPages.forEach(p => combined.add(p));
-    prevWeekSet.forEach(p => combined.add(p));
+    (newPages || []).forEach(p => combined.add(p));
+    if (previousWeekPages) {
+      previousWeekPages.forEach(p => combined.add(p));
+    }
     return Array.from(combined).sort((a, b) => a - b);
-  }, [newPages, prevWeekSet]);
+  }, [pagesKey, newPages, previousWeekPages]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState(false);
@@ -205,6 +217,18 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
   const currentPage = targetPages[currentIndex] || 0;
 
+  // Track previous isOpen state, active passage, and currently active page number to prevent unwanted resets
+  const prevIsOpenRef = useRef(false);
+  const prevActivePassageRef = useRef<SuggestedTestPassage | null>(null);
+  const currentPageRef = useRef<number>(0);
+
+  // Keep currentPageRef in sync with currentPage whenever it changes
+  useEffect(() => {
+    if (currentPage > 0) {
+      currentPageRef.current = currentPage;
+    }
+  }, [currentPage]);
+
   // Preload all target pages as soon as modal opens or pages change
   useEffect(() => {
     if (isOpen && targetPages.length > 0) {
@@ -213,9 +237,18 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
     }
   }, [isOpen, targetPages]);
 
-  // Reset index when modal opens or active passage changes
+  // Manage page index when modal opens, active passage changes, or pages update
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      prevIsOpenRef.current = false;
+      return;
+    }
+
+    const wasClosed = !prevIsOpenRef.current;
+    prevIsOpenRef.current = true;
+
+    // 1. If modal just opened (transitioned from closed to open)
+    if (wasClosed) {
       setZoom(1);
       let targetIdx = 0;
       if (activePassage && activePassage.pages.length > 0) {
@@ -224,11 +257,48 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       }
       setCurrentIndex(targetIdx);
       const firstPage = targetPages[targetIdx] || 0;
+      currentPageRef.current = firstPage;
       if (firstPage) {
         preloadSurroundingPages(firstPage, 3);
       }
       if (readerAreaRef.current) {
         readerAreaRef.current.scrollTop = 0;
+      }
+      prevActivePassageRef.current = activePassage;
+      return;
+    }
+
+    // 2. If modal was already open, but activePassage changed (in test mode)
+    if (activePassage !== prevActivePassageRef.current) {
+      prevActivePassageRef.current = activePassage;
+      if (activePassage && activePassage.pages.length > 0) {
+        const found = targetPages.indexOf(activePassage.pages[0]);
+        if (found !== -1) {
+          setCurrentIndex(found);
+          currentPageRef.current = targetPages[found] || 0;
+          if (readerAreaRef.current) {
+            readerAreaRef.current.scrollTop = 0;
+          }
+          return;
+        }
+      }
+    }
+
+    // 3. If modal was ALREADY open and targetPages updated (e.g. background data sync):
+    // DO NOT reset to page 0! Preserve the user's currently viewed page!
+    if (targetPages.length > 0) {
+      const currentPg = currentPageRef.current || targetPages[currentIndex] || 0;
+      const foundIdx = targetPages.indexOf(currentPg);
+      if (foundIdx !== -1) {
+        if (foundIdx !== currentIndex) {
+          setCurrentIndex(foundIdx);
+        }
+      } else {
+        // If current page is no longer in targetPages, safely clamp to valid range
+        const clampedIdx = Math.min(currentIndex, targetPages.length - 1);
+        if (clampedIdx !== currentIndex) {
+          setCurrentIndex(Math.max(0, clampedIdx));
+        }
       }
     }
   }, [isOpen, targetPages, activePassage]);
