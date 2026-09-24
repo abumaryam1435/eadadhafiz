@@ -8,6 +8,11 @@ import { isSmartMatch, findSimilarHalaqa, normalizeHalaqaName } from '../utils/s
 import { SardManagement } from './SardManagement';
 import { exportMainHalaqasTemplate } from '../utils/halaqaExcelUtils';
 import { HalaqaExcelImportModal } from './HalaqaExcelImportModal';
+import { exportToWord } from '../utils/exportWord';
+import { exportToExcel } from '../utils/exportExcel';
+import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
+import { WordExportModal } from './WordExportModal';
+import { ExcelExportModal } from './ExcelExportModal';
 
 const StudentManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -47,6 +52,8 @@ const StudentManagement: React.FC = () => {
 
     // Modal for Excel Import
     const [showImportModal, setShowImportModal] = useState(false);
+    const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+    const [isWordModalOpen, setIsWordModalOpen] = useState(false);
 
     // New states for transferring students
     const [transferringStudent, setTransferringStudent] = useState<Student | null>(null);
@@ -223,28 +230,62 @@ const StudentManagement: React.FC = () => {
         showToast(`✅ تم نقل الطالب "${student.name}" إلى "${targetHalaqa.name}"`);
     };
 
-    const exportHalaqasToExcel = () => {
+    const mainHalaqasExportHeaders = [
+        { key: 'sequence', label: 'م' },
+        { key: 'halaqaName', label: 'اسم الحلقة' },
+        { key: 'teacherName', label: 'اسم المعلم' },
+        { key: 'studentName', label: 'اسم الطالب' },
+    ];
+
+    const getMainHalaqasExportData = () => {
         const exportData: any[] = [];
+        let seq = 1;
         sortedHalaqas.forEach(h => {
             const teacher = users.find(u => u.id === h.teacherId);
             const hStudents = students.filter(s => s.halaqaId === h.id);
             if (hStudents.length === 0) {
                 exportData.push({
+                    sequence: seq,
+                    halaqaName: h.name,
+                    teacherName: teacher?.name || 'غير معين',
+                    studentName: 'لا يوجد طلاب',
+                    'م': seq,
                     'اسم الحلقة': h.name,
                     'اسم المعلم': teacher?.name || 'غير معين',
                     'اسم الطالب': 'لا يوجد طلاب'
                 });
+                seq++;
             } else {
                 hStudents.forEach(s => {
                     exportData.push({
+                        sequence: seq,
+                        halaqaName: h.name,
+                        teacherName: teacher?.name || 'غير معين',
+                        studentName: s.name,
+                        'م': seq,
                         'اسم الحلقة': h.name,
                         'اسم المعلم': teacher?.name || 'غير معين',
                         'اسم الطالب': s.name
                     });
+                    seq++;
                 });
             }
         });
+        return exportData;
+    };
 
+    const handlePdfPrint = () => {
+        const data = getMainHalaqasExportData();
+        exportToPdf(mainHalaqasExportHeaders, data, 'بيانات_الحلقات_الرئيسة', 'قائمة الحلقات الرئيسة والمعلمين والطلاب');
+    };
+
+    const handlePdfShare = () => {
+        const data = getMainHalaqasExportData();
+        sharePdfDirectly(mainHalaqasExportHeaders, data, 'بيانات_الحلقات_الرئيسة', 'قائمة الحلقات الرئيسة والمعلمين والطلاب', undefined, {}, {}, undefined, 'landscape');
+    };
+
+    const exportHalaqasToExcel = () => {
+        const exportData = getMainHalaqasExportData();
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         worksheet['!rightToLeft'] = true;
         const workbook = XLSX.utils.book_new();
@@ -494,28 +535,58 @@ const StudentManagement: React.FC = () => {
                         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 no-print border-b pb-4 dark:border-gray-700">
                             <div>
                                 <h3 className="text-2xl font-extrabold text-green-900 dark:text-green-300">إدارة الحلقات الرئيسة</h3>
-                                <p className="text-xs text-gray-500 font-bold mt-1">إدارة المعلمين، الحلقات، والطلاب مع تصدير واستيراد ملفات Excel</p>
+                                <p className="text-xs text-gray-500 font-bold mt-1">إدارة المعلمين، الحلقات، والطلاب مع تصدير واستيراد ملفات Excel و Word و PDF</p>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2.5">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <button 
-                                    onClick={exportHalaqasToExcel}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-green-700 hover:bg-green-800 text-white font-black rounded-xl shadow-md active:scale-95 transition-all text-xs"
-                                    title="تصدير جميع الحلقات والمعلمين والطلاب إلى ملف Excel"
+                                    type="button"
+                                    onClick={() => setIsExcelModalOpen(true)}
+                                    className="px-3.5 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                    title="تصدير أكسل مع خيارات الاتجاه والمشاركة"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                    تصدير الحلقات
+                                    <span>Excel</span>
                                 </button>
                                 <button 
+                                    type="button"
+                                    onClick={() => setIsWordModalOpen(true)}
+                                    className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                    title="تصدير وورد مع خيارات الاتجاه والتنسيق"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    <span>Word</span>
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={handlePdfPrint}
+                                    className="px-3.5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                    title="طباعة وتصدير ملف PDF"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                    <span>طباعة</span>
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={handlePdfShare}
+                                    className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                    title="مشاركة الملف كـ PDF عبر الواتساب والتطبيقات"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                                    <span>مشاركة PDF</span>
+                                </button>
+                                <button 
+                                    type="button"
                                     onClick={() => exportMainHalaqasTemplate('قالب_استيراد_الحلقات_الرئيسة', users, students)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 font-black rounded-xl shadow-sm active:scale-95 transition-all text-xs"
-                                    title="تنزيل قالب أكسل فارغ مع أمثلة يحتوي على (اسم الحلقة، اسم المعلم، الطالب)"
+                                    className="px-3.5 py-2 text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                                    title="تنزيل قالب أكسل فارغ مع أمثلة"
                                 >
                                     <span>📄</span>
                                     <span>تصدير قالب أكسل</span>
                                 </button>
                                 <button 
+                                    type="button"
                                     onClick={() => setShowImportModal(true)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-md active:scale-95 transition-all text-xs"
+                                    className="px-3.5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
                                     title="استيراد الحلقات والمعلمين والطلاب من ملف Excel مع كشف التعارضات"
                                 >
                                     <span>📥</span>
@@ -994,6 +1065,34 @@ const StudentManagement: React.FC = () => {
                 </>
                 )}
             </div>
+
+            <WordExportModal 
+                isOpen={isWordModalOpen} 
+                onClose={() => setIsWordModalOpen(false)} 
+                onExport={(orientation, action) => {
+                    const data = getMainHalaqasExportData();
+                    const fileName = 'بيانات_الحلقات_الرئيسة';
+                    const title = 'قائمة الحلقات الرئيسة والمعلمين والطلاب';
+                    if (action === 'share-pdf') {
+                        sharePdfDirectly(mainHalaqasExportHeaders, data, fileName, title, undefined, {}, {}, undefined, orientation);
+                    } else if (action === 'pdf') {
+                        exportToPdf(mainHalaqasExportHeaders, data, fileName, title, undefined, {}, {});
+                    } else {
+                        exportToWord(mainHalaqasExportHeaders, data, fileName, title, {}, {}, undefined, orientation, action);
+                    }
+                }} 
+            />
+
+            <ExcelExportModal 
+                isOpen={isExcelModalOpen} 
+                onClose={() => setIsExcelModalOpen(false)} 
+                onExport={(orientation, action) => {
+                    const data = getMainHalaqasExportData();
+                    const fileName = 'بيانات_الحلقات_الرئيسة';
+                    const title = 'قائمة الحلقات الرئيسة والمعلمين والطلاب';
+                    exportToExcel(mainHalaqasExportHeaders, data, fileName, title, {}, {}, undefined, orientation, action);
+                }} 
+            />
         </>
     );
 };

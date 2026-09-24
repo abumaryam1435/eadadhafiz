@@ -1,5 +1,5 @@
 import { translationMap } from "../constants";
-import { getDualDate, getReportStyles, getReportContent, exportToPdf, sharePdfDirectly } from "./exportPdf"; // استيراد الدوال المساعدة
+import { getDualDate, getReportStyles, getReportContent, getPaginatedReportContent, exportToPdf, sharePdfDirectly } from "./exportPdf"; // استيراد الدوال المساعدة
 import { toArabicDigits, formatRtlRange } from "./juzUtils";
 
 import { getStorage } from "./firebase";
@@ -45,7 +45,22 @@ async function generateClientPdfBlob(
   htmlContent: string,
   orientation: "landscape" | "portrait" = "landscape"
 ): Promise<Blob> {
-  const html2pdf = (window as any).html2pdf;
+  let html2pdf = (window as any).html2pdf;
+  if (!html2pdf) {
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+      html2pdf = (window as any).html2pdf;
+    } catch (err) {
+      console.warn("Failed to load html2pdf script dynamically:", err);
+    }
+  }
+
   if (!html2pdf) {
     throw new Error("مكتبة html2pdf غير متوفرة على المتصفح");
   }
@@ -85,21 +100,24 @@ async function generateClientPdfBlob(
       }
     } catch (e) {}
 
-    const targetElement = iframeDoc.body;
+    const targetElement = (iframeDoc.querySelector('.report-container') as HTMLElement) || iframeDoc.body;
 
     const opt = {
-      margin: [8, 5, 8, 5],
+      margin: [0, 0, 0, 0],
       filename: "report.pdf",
       image: { type: "jpeg", quality: 0.98 },
-      pagebreak: { mode: ['css', 'legacy'] },
+      pagebreak: { mode: ['css', 'legacy'], after: '.pdf-page-block' },
       html2canvas: {
-        scale: 1.5,
+        scale: 2,
         useCORS: true,
         letterRendering: false,
         backgroundColor: "#ffffff",
         windowWidth: orientation === "landscape" ? 1122 : 794,
+        width: orientation === "landscape" ? 1122 : 794,
         scrollX: 0,
         scrollY: 0,
+        x: 0,
+        y: 0
       },
       jsPDF: { unit: "mm", format: "a4", orientation: orientation },
     };
@@ -368,7 +386,7 @@ export const exportToWord = async (
             margin: 8px 0 !important;
             border-collapse: collapse !important;
             direction: rtl !important;
-            table-layout: auto !important;
+            table-layout: fixed !important;
             box-sizing: border-box !important;
           }
 
@@ -441,9 +459,9 @@ export const exportToWord = async (
           }
         </style>
       </head>
-      <body class="orientation-${orientation} fs-medium">
-        <div class="report-container">
-          ${getReportContent(headers, data, reportTitle || fileName, "", adjustments, colorMap, rankColors)}
+      <body class="orientation-${orientation} fs-medium" dir="rtl">
+        <div class="report-container" style="display: block; width: 100%; max-width: ${orientation === "landscape" ? 1122 : 794}px; padding: 0; box-sizing: border-box !important; overflow: visible; direction: rtl; margin: 0 auto; text-align: center;">
+          ${getPaginatedReportContent(headers, data, reportTitle || fileName, "", adjustments, colorMap, rankColors, orientation)}
         </div>
       </body>
       </html>

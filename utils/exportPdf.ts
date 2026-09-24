@@ -207,24 +207,29 @@ const getTableHtmlParts = (
   colorMap: Record<string, string> = {},
   rankColors?: Record<string, string>,
 ) => {
-  const tableHeaders = headers
-    .map((h) => {
-      const isSequence =
-        h.key === "sequence" ||
-        h.key === "serialNumber" ||
-        h.key === "index" ||
-        h.key === "no" ||
-        h.label === "#" ||
-        h.label === "م" ||
-        h.label === "الرقم" ||
-        h.label === "التسلسل";
+  const sequenceHeaderIndex = headers.findIndex(
+    (h) =>
+      h.key === "sequence" ||
+      h.key === "serialNumber" ||
+      h.key === "index" ||
+      h.key === "no" ||
+      h.label === "#" ||
+      h.label === "م" ||
+      h.label === "الرقم" ||
+      h.label === "التسلسل"
+  );
 
-      let style =
-        "background-color: #006A4E; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #004D40; padding: 4px 2px; font-size: 11px;";
-      
-      if (isSequence) {
-        style += " width: 1% !important; white-space: nowrap !important; width: fit-content !important; min-width: 18px !important; max-width: 32px !important; padding: 3px 2px !important;";
-      }
+  const hasSeq = sequenceHeaderIndex !== -1;
+  const seqWidthPct = hasSeq ? (headers.length > 8 ? 4 : 5) : 0;
+  const remainingColsCount = hasSeq ? headers.length - 1 : headers.length;
+  const remainingWidthPct = (100 - seqWidthPct) / Math.max(1, remainingColsCount);
+
+  const tableHeaders = headers
+    .map((h, idx) => {
+      const isSequence = idx === sequenceHeaderIndex;
+      const colWidth = isSequence ? `${seqWidthPct}%` : `${remainingWidthPct.toFixed(2)}%`;
+
+      let style = `background-color: #006A4E; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #004D40; padding: 5px 3px; font-size: 10px; width: ${colWidth}; box-sizing: border-box;`;
 
       return `<th style="${style} direction: rtl; unicode-bidi: isolate;">${h.label}</th>`;
     })
@@ -275,23 +280,16 @@ const getTableHtmlParts = (
         : baseBg;
 
       const rowCellsHtml = headers
-        .map((header) => {
+        .map((header, idx) => {
           const value = item[header.key as keyof typeof item];
           let cellContent = renderCell(value, header.type);
 
-          const isSequence =
-            header.key === "sequence" ||
-            header.key === "serialNumber" ||
-            header.key === "index" ||
-            header.key === "no" ||
-            header.label === "#" ||
-            header.label === "م" ||
-            header.label === "الرقم" ||
-            header.label === "التسلسل";
+          const isSequence = idx === sequenceHeaderIndex;
+          const colWidth = isSequence ? `${seqWidthPct}%` : `${remainingWidthPct.toFixed(2)}%`;
 
-          let cellStyle = "";
+          let cellStyle = `width: ${colWidth}; box-sizing: border-box; `;
           if (isSequence) {
-            cellStyle += " width: 1% !important; white-space: nowrap !important; width: fit-content !important; min-width: 18px !important; max-width: 32px !important; padding: 2px 2px !important; font-weight: bold; text-align: center;";
+            cellStyle += "font-weight: bold; text-align: center; ";
           }
 
           if (
@@ -428,7 +426,7 @@ export const getReportStyles = () => `
     max-width: 100% !important; 
     margin: 6px auto 14px auto !important; 
     border-collapse: collapse !important; 
-    table-layout: auto !important; 
+    table-layout: fixed !important; 
     box-sizing: border-box !important;
   }
   th { 
@@ -628,6 +626,115 @@ export const getReportContent = (
         <tbody>${tableRowsHtml}</tbody>
       </table>
   `;
+};
+
+const estimateRowHeightMm = (item: any, headers: ExportHeader[], isSmallFont: boolean): number => {
+  let lineCount = 1;
+  headers.forEach((h) => {
+    const val = item[h.key];
+    const strVal = val !== undefined && val !== null ? String(val) : "";
+    if (strVal.length > 38) {
+      lineCount = Math.max(lineCount, 3);
+    } else if (strVal.length > 20) {
+      lineCount = Math.max(lineCount, 2);
+    }
+  });
+
+  const baseRowMm = isSmallFont ? 6.2 : 6.8;
+  const extraLineMm = isSmallFont ? 3.5 : 3.8;
+  return baseRowMm + (lineCount - 1) * extraLineMm;
+};
+
+export const getPaginatedReportContent = (
+  headers: ExportHeader[],
+  data: any[],
+  reportTitle: string,
+  subtitle?: string,
+  adjustments: Record<string, number> = {},
+  colorMap: Record<string, string> = {},
+  rankColors?: Record<string, string>,
+  orientation: "landscape" | "portrait" = "landscape"
+) => {
+  const isLandscape = orientation === "landscape";
+  const isSmallFont = headers.length > 8;
+
+  const page1MaxRowsMm = isLandscape ? 162 : 240;
+  const pageNMaxRowsMm = isLandscape ? 176 : 260;
+
+  const today = new Date();
+  const fullDateLine = gregorianToHijriFormatted(today, adjustments);
+
+  const pageDataChunks: any[][] = [];
+  let currentChunk: any[] = [];
+  let currentChunkMm = 0;
+  let isPage1 = true;
+
+  data.forEach((item) => {
+    const rMm = estimateRowHeightMm(item, headers, isSmallFont);
+    const maxMmForThisPage = isPage1 ? page1MaxRowsMm : pageNMaxRowsMm;
+
+    if (currentChunk.length > 0 && currentChunkMm + rMm > maxMmForThisPage) {
+      pageDataChunks.push(currentChunk);
+      currentChunk = [item];
+      currentChunkMm = rMm;
+      isPage1 = false;
+    } else {
+      currentChunk.push(item);
+      currentChunkMm += rMm;
+    }
+  });
+
+  if (currentChunk.length > 0) {
+    pageDataChunks.push(currentChunk);
+  }
+
+  if (pageDataChunks.length <= 1) {
+    return getReportContent(headers, data, reportTitle, subtitle, adjustments, colorMap, rankColors);
+  }
+
+  const pageWidthMm = isLandscape ? "297mm" : "210mm";
+  const pageHeightMm = isLandscape ? "208mm" : "295mm";
+
+  return pageDataChunks
+    .map((chunk, pageIdx) => {
+      const { tableHeaders, tableRowsHtml } = getTableHtmlParts(
+        headers,
+        chunk,
+        adjustments,
+        colorMap,
+        rankColors
+      );
+
+      const isFirstPage = pageIdx === 0;
+      const isLastPage = pageIdx === pageDataChunks.length - 1;
+
+      return `
+        <div class="pdf-page-block" style="width: ${pageWidthMm}; height: ${pageHeightMm}; max-height: ${pageHeightMm}; box-sizing: border-box !important; ${isLastPage ? '' : 'page-break-after: always; break-after: page;'} page-break-inside: avoid !important; overflow: hidden !important; position: relative; padding: 6mm 10mm 4mm 10mm; background: #ffffff; direction: rtl; text-align: right; margin: 0 auto;">
+          ${
+            isFirstPage
+              ? `
+            <div class="header" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; margin: 0 auto 6px auto; padding-bottom: 5px; border-bottom: 2px double #D4AF37;">
+              <h1 style="color: #006A4E; margin: 0 0 3px 0; font-size: 17px; font-weight: 800; text-align: center; width: 100%;">${reportTitle}</h1>
+              ${subtitle ? `<div class="filters" style="text-align: center; display: inline-flex; align-items: center; justify-content: center; margin: 2px auto 3px auto; padding: 2px 10px; background: #f0fdf4; border: 1px dashed #006A4E; border-radius: 9999px; font-size: 9.5px; font-weight: bold; color: #374151;">${subtitle}</div>` : ""}
+              <div class="date-line" style="text-align: center; width: 100%; color: #4b5563; font-size: 9px; font-weight: 700; margin: 2px auto 0 auto;">${fullDateLine}</div>
+            </div>
+          `
+              : `
+            <div class="header-repeat" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; margin: 0 auto 6px auto; padding-bottom: 4px; border-bottom: 1px dashed #006A4E;">
+              <span style="color: #006A4E; font-size: 11.5px; font-weight: 800; text-align: center;">${reportTitle} - (صفحة ${toArabicDigits(pageIdx + 1)})</span>
+            </div>
+          `
+          }
+          <table style="width: 100% !important; max-width: 100% !important; margin: 0 auto !important; border-collapse: collapse; table-layout: fixed !important; box-sizing: border-box !important;">
+            <thead>
+                <tr>${tableHeaders}</tr>
+            </thead>
+            <tbody>${tableRowsHtml}</tbody>
+          </table>
+        </div>
+      `;
+    })
+    .join("");
 };
 
 export const exportToPdf = async (
@@ -1119,18 +1226,19 @@ export const sharePdfDirectly = async (
 
   try {
     const styles = getReportStyles();
-    const content = getReportContent(
+    const content = getPaginatedReportContent(
       headers,
       data,
       reportTitle,
       subtitle,
       adjustments,
       colorMap,
-      rankColors
+      rankColors,
+      orientation
     );
 
     const isLandscape = orientation === "landscape";
-    const targetWidth = isLandscape ? 1060 : 740;
+    const canvasWidth = isLandscape ? 1122 : 794;
 
     const pdfHtmlContent = `
       <!DOCTYPE html>
@@ -1158,7 +1266,7 @@ export const sharePdfDirectly = async (
         </style>
       </head>
       <body class="orientation-${orientation} ${headers.length > 8 ? 'fs-small' : 'fs-medium'}" dir="rtl">
-        <div class="report-container" style="display: block; width: 100%; max-width: ${targetWidth}px; padding: 4px 4px; box-sizing: border-box; overflow: visible; direction: rtl; margin: 0 auto; text-align: center;">
+        <div class="report-container" style="display: block; width: 100%; max-width: ${canvasWidth}px; padding: 0; box-sizing: border-box !important; overflow: visible; direction: rtl; margin: 0 auto; text-align: center;">
           ${content}
         </div>
       </body>
@@ -1195,7 +1303,7 @@ export const sharePdfDirectly = async (
       iframe.style.position = "fixed";
       iframe.style.top = "0";
       iframe.style.left = "0";
-      iframe.style.width = `${targetWidth + 40}px`;
+      iframe.style.width = `${canvasWidth}px`;
       iframe.style.height = "2500px";
       iframe.style.border = "none";
       iframe.style.zIndex = "-99999";
@@ -1223,17 +1331,17 @@ export const sharePdfDirectly = async (
 
         const targetElement = (iframeDoc.querySelector('.report-container') as HTMLElement) || iframeDoc.body;
         const opt = {
-          margin: isLandscape ? [4, 4, 4, 4] : [4, 4, 4, 4],
+          margin: [0, 0, 0, 0],
           filename: fileName + ".pdf",
           image: { type: "jpeg", quality: 0.98 },
-          pagebreak: { mode: ['css', 'legacy'] },
+          pagebreak: { mode: ['css', 'legacy'], after: '.pdf-page-block' },
           html2canvas: {
             scale: 2,
             useCORS: true,
             letterRendering: false,
             backgroundColor: "#ffffff",
-            windowWidth: targetWidth,
-            width: targetWidth,
+            windowWidth: canvasWidth,
+            width: canvasWidth,
             scrollX: 0,
             scrollY: 0,
             x: 0,

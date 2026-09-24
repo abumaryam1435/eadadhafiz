@@ -113,9 +113,13 @@ async function startServer() {
         return;
       }
 
-      console.log("Launching/getting browser...");
-      // Reuse browser instance
-      const browser = await getBrowser();
+      try {
+        browser = await getBrowser();
+      } catch (e: any) {
+        console.info("Puppeteer is not available in this server environment. Fallback to client-side PDF generation.");
+        res.status(501).json({ error: "Puppeteer is not available", clientFallback: true });
+        return;
+      }
 
       console.log("Creating new page...");
       page = await browser.newPage();

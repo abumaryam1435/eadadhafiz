@@ -7,6 +7,11 @@ import { isSmartMatch, findSimilarHalaqa, normalizeHalaqaName } from '../utils/s
 import { exportSardHalaqasTemplate } from '../utils/halaqaExcelUtils';
 import { HalaqaExcelImportModal } from './HalaqaExcelImportModal';
 import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, LEVEL_WORDS_ORDER, normalizeStudentLevel } from '../utils/pageUtils';
+import { exportToWord } from '../utils/exportWord';
+import { exportToExcel } from '../utils/exportExcel';
+import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
+import { WordExportModal } from './WordExportModal';
+import { ExcelExportModal } from './ExcelExportModal';
 
 export const SardManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -43,6 +48,8 @@ export const SardManagement: React.FC = () => {
 
     // Modal for Excel Import
     const [showImportModal, setShowImportModal] = useState(false);
+    const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+    const [isWordModalOpen, setIsWordModalOpen] = useState(false);
 
     // Transfer student between Sard halaqas
     const [transferringStudent, setTransferringStudent] = useState<Student | null>(null);
@@ -274,28 +281,62 @@ export const SardManagement: React.FC = () => {
         showToast(`✅ تم نقل الطالب "${student.name}" إلى حلقة السرد "${targetHalaqa.name}"`);
     };
 
-    const exportSardHalaqasToExcel = () => {
+    const sardHalaqasExportHeaders = [
+        { key: 'sequence', label: 'م' },
+        { key: 'halaqaName', label: 'اسم حلقة السرد' },
+        { key: 'teacherName', label: 'اسم المعلم' },
+        { key: 'studentName', label: 'اسم الطالب' },
+    ];
+
+    const getSardHalaqasExportData = () => {
         const exportData: any[] = [];
+        let seq = 1;
         sortedSardHalaqas.forEach(h => {
             const teacher = users.find(u => u.id === h.teacherId);
             const hStudents = students.filter(s => s.sardHalaqaId === h.id);
             if (hStudents.length === 0) {
                 exportData.push({
+                    sequence: seq,
+                    halaqaName: h.name,
+                    teacherName: teacher?.name || 'غير معين',
+                    studentName: 'لا يوجد طلاب',
+                    'م': seq,
                     'اسم حلقة السرد': h.name,
                     'اسم المعلم': teacher?.name || 'غير معين',
                     'اسم الطالب': 'لا يوجد طلاب'
                 });
+                seq++;
             } else {
                 hStudents.forEach(s => {
                     exportData.push({
+                        sequence: seq,
+                        halaqaName: h.name,
+                        teacherName: teacher?.name || 'غير معين',
+                        studentName: s.name,
+                        'م': seq,
                         'اسم حلقة السرد': h.name,
                         'اسم المعلم': teacher?.name || 'غير معين',
                         'اسم الطالب': s.name
                     });
+                    seq++;
                 });
             }
         });
+        return exportData;
+    };
 
+    const handlePdfPrint = () => {
+        const data = getSardHalaqasExportData();
+        exportToPdf(sardHalaqasExportHeaders, data, 'بيانات_حلقات_السرد', 'قائمة حلقات السرد والمعلمين والطلاب');
+    };
+
+    const handlePdfShare = () => {
+        const data = getSardHalaqasExportData();
+        sharePdfDirectly(sardHalaqasExportHeaders, data, 'بيانات_حلقات_السرد', 'قائمة حلقات السرد والمعلمين والطلاب', undefined, {}, {}, undefined, 'landscape');
+    };
+
+    const exportSardHalaqasToExcel = () => {
+        const exportData = getSardHalaqasExportData();
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         worksheet['!rightToLeft'] = true;
         const workbook = XLSX.utils.book_new();
@@ -679,28 +720,58 @@ export const SardManagement: React.FC = () => {
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 no-print border-b pb-4 dark:border-gray-700">
                     <div>
                         <h3 className="text-2xl font-extrabold text-emerald-900 dark:text-emerald-300">إدارة حلقات السرد</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">توزيع مستقل لطلاب ومعلمي السرد القرآني مع تصدير واستيراد ملفات Excel</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">توزيع مستقل لطلاب ومعلمي السرد القرآني مع تصدير واستيراد ملفات Excel و Word و PDF</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
                         <button 
-                            onClick={exportSardHalaqasToExcel}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-xl shadow-md active:scale-95 transition-all text-xs"
-                            title="تصدير جميع حلقات السرد ومعلميها وطلابها إلى Excel"
+                            type="button"
+                            onClick={() => setIsExcelModalOpen(true)}
+                            className="px-3.5 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="تصدير أكسل مع خيارات الاتجاه والمشاركة"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                            تصدير حلقات السرد
+                            <span>Excel</span>
                         </button>
                         <button 
+                            type="button"
+                            onClick={() => setIsWordModalOpen(true)}
+                            className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="تصدير وورد مع خيارات الاتجاه والتنسيق"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Word</span>
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={handlePdfPrint}
+                            className="px-3.5 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="طباعة وتصدير ملف PDF"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            <span>طباعة</span>
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={handlePdfShare}
+                            className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="مشاركة الملف كـ PDF عبر الواتساب والتطبيقات"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                            <span>مشاركة PDF</span>
+                        </button>
+                        <button 
+                            type="button"
                             onClick={() => exportSardHalaqasTemplate('قالب_استيراد_حلقات_السرد', users, students)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 font-black rounded-xl shadow-sm active:scale-95 transition-all text-xs"
-                            title="تنزيل قالب أكسل فارغ مع أمثلة لحلقات السرد (اسم حلقة السرد، اسم المعلم، الطالب)"
+                            className="px-3.5 py-2 text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 rounded-xl shadow-xs active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="تنزيل قالب أكسل فارغ مع أمثلة لحلقات السرد"
                         >
                             <span>📄</span>
                             <span>تصدير قالب أكسل</span>
                         </button>
                         <button 
+                            type="button"
                             onClick={() => setShowImportModal(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-md active:scale-95 transition-all text-xs"
+                            className="px-3.5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
                             title="استيراد حلقات السرد والمعلمين والطلاب من ملف Excel مع كشف التعارضات"
                         >
                             <span>📥</span>
@@ -939,6 +1010,34 @@ export const SardManagement: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <WordExportModal 
+                isOpen={isWordModalOpen} 
+                onClose={() => setIsWordModalOpen(false)} 
+                onExport={(orientation, action) => {
+                    const data = getSardHalaqasExportData();
+                    const fileName = 'بيانات_حلقات_السرد';
+                    const title = 'قائمة حلقات السرد والمعلمين والطلاب';
+                    if (action === 'share-pdf') {
+                        sharePdfDirectly(sardHalaqasExportHeaders, data, fileName, title, undefined, {}, {}, undefined, orientation);
+                    } else if (action === 'pdf') {
+                        exportToPdf(sardHalaqasExportHeaders, data, fileName, title, undefined, {}, {});
+                    } else {
+                        exportToWord(sardHalaqasExportHeaders, data, fileName, title, {}, {}, undefined, orientation, action);
+                    }
+                }} 
+            />
+
+            <ExcelExportModal 
+                isOpen={isExcelModalOpen} 
+                onClose={() => setIsExcelModalOpen(false)} 
+                onExport={(orientation, action) => {
+                    const data = getSardHalaqasExportData();
+                    const fileName = 'بيانات_حلقات_السرد';
+                    const title = 'قائمة حلقات السرد والمعلمين والطلاب';
+                    exportToExcel(sardHalaqasExportHeaders, data, fileName, title, {}, {}, undefined, orientation, action);
+                }} 
+            />
         </>
     );
 };
