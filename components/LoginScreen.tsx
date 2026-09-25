@@ -200,9 +200,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
             {mode === 'teacher' && (
             <div className="space-y-4 animate-in slide-in-from-right-4 duration-300 flex flex-col w-full">
-                <div className="relative">
-                <input type="text" placeholder="ابحث عن اسمك..." value={teacherSearchTerm} onChange={e => setTeacherSearchTerm(e.target.value)} className="input-style pr-12 font-bold py-4" disabled={isLoadingFirebase} />
-                <svg className="absolute right-4 top-4.5 h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <div className="relative flex items-center">
+                <input type="text" placeholder="ابحث عن اسمك..." value={teacherSearchTerm} onChange={e => setTeacherSearchTerm(e.target.value)} className="input-style pr-12 pl-10 font-bold py-4 w-full" disabled={isLoadingFirebase} />
+                <svg className="absolute right-4 top-4.5 h-6 w-6 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                {teacherSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setTeacherSearchTerm('')}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                    title="مسح البحث"
+                  >
+                    ✕
+                  </button>
+                )}
                 </div>
                 
                 <div className="max-h-[40dvh] overflow-y-auto border-2 border-gray-100 rounded-[1.5rem] p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700 custom-scrollbar shadow-inner">

@@ -538,9 +538,19 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
                     )}
                 </div>
 
-                <div className="relative">
+                <div className="relative flex items-center">
                     <input type="text" placeholder="البحث عن طالب للإختبار..." value={studentSearch} onChange={e => setStudentSearch(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                    <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    {studentSearch && (
+                        <button
+                            type="button"
+                            onClick={() => setStudentSearch('')}
+                            className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                            title="مسح البحث"
+                        >
+                            ✕
+                        </button>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-1">
                     {filteredStudents.map(student => {
@@ -906,9 +916,19 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
                             <h3 className="text-lg font-black text-indigo-800 dark:text-indigo-400">تعديل سور الاختبار</h3>
                             <button onClick={() => setIsSurahOpen(false)} className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all">موافق</button>
                         </div>
-                        <div className="relative mb-4 shrink-0">
-                            <input type="text" placeholder="بحث عن سورة..." value={surahSearchTerm} onChange={e => setSurahSearchTerm(e.target.value)} className="w-full p-4 pr-12 text-base bg-gray-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl dark:bg-gray-800 dark:border-gray-700 transition-all" />
-                            <svg className="absolute right-4 top-4 h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <div className="relative mb-4 shrink-0 flex items-center">
+                            <input type="text" placeholder="بحث عن سورة..." value={surahSearchTerm} onChange={e => setSurahSearchTerm(e.target.value)} className="w-full p-4 pr-12 pl-10 text-base bg-gray-50 border-2 border-transparent focus:border-indigo-500 rounded-2xl dark:bg-gray-800 dark:border-gray-700 transition-all" />
+                            <svg className="absolute right-4 top-4 h-6 w-6 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            {surahSearchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSurahSearchTerm('')}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                    title="مسح البحث"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                         <div className="flex-grow overflow-y-auto custom-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 content-start">
                             {Object.keys(SURAH_JUZ_MAPPING).filter(s => isSmartMatch(s, surahSearchTerm)).map(s => (

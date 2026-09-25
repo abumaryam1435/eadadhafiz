@@ -267,7 +267,19 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
             </div>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto flex-wrap">
-            <input type="text" placeholder="بحث..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-style w-full sm:w-64 py-2 text-sm" />
+            <div className="relative flex items-center w-full sm:w-64">
+              <input type="text" placeholder="بحث..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-style w-full pl-8 py-2 text-sm" />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                  title="مسح البحث"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <div className="w-full sm:w-44">
                 <FilterItem 
                     id="weeks" 

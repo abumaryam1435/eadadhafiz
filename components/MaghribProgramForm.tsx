@@ -111,7 +111,19 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({ onBack, 
                             </div>
                         </div>
 
-                        <input type="text" placeholder="بحث سريع..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-style" />
+                        <div className="relative flex items-center">
+                            <input type="text" placeholder="بحث سريع..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-style w-full pl-8" />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                    title="مسح البحث"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
                         <div className="max-h-96 overflow-y-auto grid grid-cols-1 gap-2">
                             {filteredStudents.map(s => (
                                 <button key={s.id} onClick={() => {setSelectedStudent(s); setStep(3);}} className="p-4 text-right bg-gray-50 hover:bg-green-50 rounded-xl border border-gray-100 dark:bg-gray-700 dark:border-gray-600 font-bold">{s.name}</button>

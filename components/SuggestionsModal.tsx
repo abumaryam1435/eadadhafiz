@@ -410,17 +410,27 @@ export const SuggestionsModal: React.FC<SuggestionsModalProps> = ({ onClose }) =
                   <h3 className="text-xl font-black text-indigo-900 dark:text-indigo-400 mb-1">سجل سلوكيات الطلاب ({studentBehaviors?.length || 0})</h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400 font-bold">عرض جميع السلوكيات المسجلة للطلاب من قبل جميع المعلمين.</p>
                 </div>
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-64 flex items-center">
                   <input
                     type="text"
                     value={behaviorAllSearchTerm}
                     onChange={(e) => setBehaviorAllSearchTerm(e.target.value)}
                     placeholder="بحث..."
-                    className="w-full pl-4 pr-10 py-2.5 rounded-xl border-2 border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-white text-sm outline-none focus:border-indigo-500 transition-all font-bold"
+                    className="w-full pl-8 pr-10 py-2.5 rounded-xl border-2 border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-white text-sm outline-none focus:border-indigo-500 transition-all font-bold"
                   />
-                  <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
+                  {behaviorAllSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setBehaviorAllSearchTerm('')}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                      title="مسح البحث"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -599,13 +609,25 @@ export const SuggestionsModal: React.FC<SuggestionsModalProps> = ({ onClose }) =
         }} className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-sm font-black text-gray-700 dark:text-gray-300">بحث واختيار الطالب</label>
-            <input
-              type="text"
-              placeholder="ابحث عن اسم الطالب..."
-              value={studentSearchTerm}
-              onChange={(e) => setStudentSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-white font-bold text-sm focus:border-green-500 outline-none transition-all"
-            />
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="ابحث عن اسم الطالب..."
+                value={studentSearchTerm}
+                onChange={(e) => setStudentSearchTerm(e.target.value)}
+                className="w-full px-4 pl-8 py-3 rounded-2xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-white font-bold text-sm focus:border-green-500 outline-none transition-all"
+              />
+              {studentSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setStudentSearchTerm('')}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                  title="مسح البحث"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <div className="max-h-40 overflow-y-auto bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-2 mt-2 space-y-1">
               {[...students]
                 .filter(s => s.name.toLowerCase().includes(studentSearchTerm.trim().toLowerCase()))

@@ -529,13 +529,25 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
           {selectionMode === 'surahs' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs">
-                <input
-                  type="text"
-                  placeholder="🔍 ابحث عن سورة..."
-                  value={surahSearch}
-                  onChange={e => setSurahSearch(e.target.value)}
-                  className="input-style py-1 px-2.5 text-xs w-44 font-bold"
-                />
+                <div className="relative flex items-center w-44">
+                  <input
+                    type="text"
+                    placeholder="🔍 ابحث عن سورة..."
+                    value={surahSearch}
+                    onChange={e => setSurahSearch(e.target.value)}
+                    className="input-style py-1 pl-6 pr-2.5 text-xs w-full font-bold"
+                  />
+                  {surahSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setSurahSearch('')}
+                      className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[9px] font-bold transition-colors cursor-pointer"
+                      title="مسح البحث"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
                 {studentCompletedSurahs.length > 0 && (
                   <button
                     type="button"

@@ -18,64 +18,117 @@ const UnevaluatedStudentsWarningModal: React.FC<UnevaluatedStudentsWarningModalP
   onConfirmLogout,
   onCancel,
 }) => {
+  const totalCount = quranStudentNames.length + mutoonStudentNames.length + sardStudentNames.length;
+
   return (
     <Modal
-      title="تنبيه: ملاحظات على تقييم الطلاب"
-      onClose={onCancel} 
-      hideDefaultCloseButton={true} 
+      title="⚠️ تنبيه: طلاب لم يتم تقييمهم"
+      onClose={onCancel}
+      hideDefaultCloseButton={true}
     >
       <div className="space-y-4 text-gray-800 dark:text-gray-200">
-        <p className="text-lg font-medium">
-          هناك بعض الملاحظات على تقييم طلابك للأسبوع <span className="font-bold text-red-600 dark:text-red-400">{weekNumber}</span>.
-          هل ترغب في العودة للمراجعة، أم تسجيل الخروج على أي حال؟
-        </p>
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl p-4 text-center">
+          <p className="text-sm sm:text-base font-bold text-amber-950 dark:text-amber-200">
+            توجد تقييمات غير مكتملة لطلابك في <span className="text-red-600 dark:text-red-400 font-black">الأسبوع ({weekNumber})</span> (إجمالي {totalCount} حالة متبقية لم تسجل تقييماً أو غياباً).
+          </p>
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
+            هل ترغب في العودة لإكمال التقييم، أم تسجيل الخروج على أي حال؟
+          </p>
+        </div>
 
-        {quranStudentNames.length > 0 && (
-          <div>
-            <p className="font-semibold text-red-700 dark:text-red-300">الطلاب الذين لم يتم تقييمهم في القرآن:</p>
-            <ul className="list-disc pr-6 space-y-1 bg-red-50 p-3 rounded-md mt-2 dark:bg-red-900/40 border border-red-200 dark:border-red-800">
-              {quranStudentNames.map((name, index) => (
-                <li key={`uneval-quran-${index}`} className="text-base text-gray-700 dark:text-gray-200">{name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {mutoonStudentNames.length > 0 && (
-          <div className="mt-4">
-            <p className="font-semibold text-orange-700 dark:text-orange-300">الطلاب الذين لم يتم تقييمهم في المتون:</p>
-            <ul className="list-disc pr-6 space-y-1 bg-orange-50 p-3 rounded-md mt-2 dark:bg-orange-900/40 border border-orange-200 dark:border-orange-800">
-              {mutoonStudentNames.map((name, index) => (
-                <li key={`uneval-mutoon-${index}`} className="text-base text-gray-700 dark:text-gray-200">{name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1 pl-1 custom-scrollbar">
+          {/* قسم القرآن الكريم */}
+          {quranStudentNames.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-3.5 shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-red-200/80 dark:border-red-900/60">
+                <div className="flex items-center gap-2 font-black text-red-800 dark:text-red-300 text-sm sm:text-base">
+                  <span>📖</span>
+                  <span>القرآن الكريم (الحفظ والمراجعة)</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-200">
+                  {quranStudentNames.length} طالب
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {quranStudentNames.map((name, index) => (
+                  <span
+                    key={`uneval-quran-${index}`}
+                    className="inline-flex items-center px-3 py-1 rounded-xl text-xs sm:text-sm font-bold bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-red-200 dark:border-red-800/60 shadow-xs"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {sardStudentNames.length > 0 && (
-          <div className="mt-4">
-            <p className="font-semibold text-emerald-700 dark:text-emerald-300">الطلاب الذين لم يتم تقييمهم في السرد:</p>
-            <ul className="list-disc pr-6 space-y-1 bg-emerald-50 p-3 rounded-md mt-2 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-              {sardStudentNames.map((name, index) => (
-                <li key={`uneval-sard-${index}`} className="text-base text-gray-700 dark:text-gray-200">{name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <button
-          onClick={onCancel}
-          className="px-6 py-3 text-lg font-semibold text-green-700 bg-green-100 rounded-lg hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-300 transition-colors duration-300 flex-1 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
-        >
-          العودة لصفحة التقييم
-        </button>
-        <button
-          onClick={onConfirmLogout}
-          className="px-6 py-3 text-lg font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-300 flex-1"
-        >
-          تسجيل الخروج على أي حال
-        </button>
+          {/* قسم المتون */}
+          {mutoonStudentNames.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-3.5 shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-amber-200/80 dark:border-amber-900/60">
+                <div className="flex items-center gap-2 font-black text-amber-800 dark:text-amber-300 text-sm sm:text-base">
+                  <span>📜</span>
+                  <span>المتون العلمية (طلاب الأمين)</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">
+                  {mutoonStudentNames.length} طالب
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {mutoonStudentNames.map((name, index) => (
+                  <span
+                    key={`uneval-mutoon-${index}`}
+                    className="inline-flex items-center px-3 py-1 rounded-xl text-xs sm:text-sm font-bold bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-amber-200 dark:border-amber-800/60 shadow-xs"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* قسم السرد */}
+          {sardStudentNames.length > 0 && (
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-3.5 shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-emerald-200/80 dark:border-emerald-900/60">
+                <div className="flex items-center gap-2 font-black text-emerald-800 dark:text-emerald-300 text-sm sm:text-base">
+                  <span>🛡️</span>
+                  <span>حلقات السرد القرآني</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-200 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-200">
+                  {sardStudentNames.length} طالب
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sardStudentNames.map((name, index) => (
+                  <span
+                    key={`uneval-sard-${index}`}
+                    className="inline-flex items-center px-3 py-1 rounded-xl text-xs sm:text-sm font-bold bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 border border-emerald-200 dark:border-emerald-800/60 shadow-xs"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-5 py-3 text-sm sm:text-base font-extrabold text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/60 rounded-xl hover:bg-emerald-200 dark:hover:bg-emerald-800/80 transition-all flex-1 shadow-sm active:scale-95 text-center"
+          >
+            العودة لصفحة التقييم
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmLogout}
+            className="px-5 py-3 text-sm sm:text-base font-extrabold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-all flex-1 shadow-md active:scale-95 text-center"
+          >
+            تسجيل الخروج على أي حال
+          </button>
+        </div>
       </div>
     </Modal>
   );

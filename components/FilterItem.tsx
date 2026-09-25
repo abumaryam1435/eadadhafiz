@@ -34,6 +34,13 @@ export const FilterItem: React.FC<FilterItemProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
 
+  // تفريغ نص البحث تلقائياً عند فتح القائمة المنسدلة
+  useEffect(() => {
+    if (isOpen) {
+      setSearch('');
+    }
+  }, [isOpen, setSearch]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -76,7 +83,16 @@ export const FilterItem: React.FC<FilterItemProps> = ({
   return (
     <div className="relative w-full" ref={containerRef}>
       <label className="text-[10px] mb-1 block font-bold text-gray-500 dark:text-gray-400">{title}:</label>
-      <button onClick={() => setOpenDropdown(isOpen ? null : id)} className="dropdown-button py-2 text-xs h-10 w-full flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 rounded-lg border-gray-200 dark:border-gray-600 dark:text-gray-200 px-3">
+      <button 
+        type="button"
+        onClick={() => {
+          if (!isOpen) {
+            setSearch('');
+          }
+          setOpenDropdown(isOpen ? null : id);
+        }} 
+        className="dropdown-button py-2 text-xs h-10 w-full flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 rounded-lg border-gray-200 dark:border-gray-600 dark:text-gray-200 px-3 cursor-pointer"
+      >
         <div className="flex items-center gap-2 truncate">
           {selectedValues.length === 1 && colorMap && colorMap[String(selectedValues[0])] ? (
             <span className="w-3 h-3 rounded-full inline-block shrink-0 shadow-xs ring-1 ring-black/10" style={{ backgroundColor: colorMap[String(selectedValues[0])] }} />
@@ -108,17 +124,35 @@ export const FilterItem: React.FC<FilterItemProps> = ({
       </button>
       {isOpen && (
         <div className="absolute z-50 mt-1 w-full bg-white shadow-2xl border rounded-xl dark:bg-gray-800 p-2 animate-fade-in ring-1 ring-black/5 dark:ring-white/10 dark:border-gray-700">
-          <div className="relative mb-2">
+          <div className="relative mb-2 flex items-center">
             <input 
               ref={searchInputRef}
               type="text" 
               placeholder="بحث..." 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
-              className="w-full p-2 pr-8 text-[10px] rounded-lg border-gray-200 dark:bg-gray-700 dark:border-gray-600 focus:ring-green-500 dark:text-gray-200" 
+              className="w-full p-2 pr-7 pl-7 text-[10px] rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600 focus:ring-green-500 dark:text-gray-200 outline-none" 
               onFocus={handleInputFocus}
+              autoFocus
             />
-            <svg className="absolute left-2 top-2.5 h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <svg className="absolute right-2 top-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {search && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSearch('');
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                title="مسح البحث"
+                aria-label="مسح البحث"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <div className="flex gap-2 mb-2 px-1">
               <button onClick={handleSelectAll} className="text-[10px] text-blue-600 font-bold hover:underline">تحديد الكل</button>

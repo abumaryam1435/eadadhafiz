@@ -652,13 +652,25 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
                                 <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
                                   اختر السور لتحديد صفحاتها تلقائياً:
                                 </span>
-                                <input
-                                  type="text"
-                                  value={surahSearch}
-                                  onChange={(e) => setSurahSearch(e.target.value)}
-                                  placeholder="🔍 ابحث عن سورة بالاسم أو الرقم..."
-                                  className="w-full sm:w-56 px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-emerald-500 touch-manipulation"
-                                />
+                                <div className="relative flex items-center w-full sm:w-56">
+                                  <input
+                                    type="text"
+                                    value={surahSearch}
+                                    onChange={(e) => setSurahSearch(e.target.value)}
+                                    placeholder="🔍 ابحث عن سورة بالاسم أو الرقم..."
+                                    className="w-full px-2.5 pl-7 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-emerald-500 touch-manipulation"
+                                  />
+                                  {surahSearch && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSurahSearch('')}
+                                      className="absolute left-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                      title="مسح البحث"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
                               </div>
 
                               {/* شبكة السور المتجاوبة مع الهواتف */}

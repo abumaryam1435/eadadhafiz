@@ -350,6 +350,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFirebase, setIsLoadingFirebase] = useState(false);
   const [unevaluatedStudentsModalOpen, setUnevaluatedStudentsModalOpen] = useState(false);
+  const [unevaluatedCheckedWeek, setUnevaluatedCheckedWeek] = useState<number>(1);
   const [unevaluatedQuranStudents, setUnevaluatedQuranStudents] = useState<string[]>([]);
   const [unevaluatedMutoonStudents, setUnevaluatedMutoonStudents] = useState<string[]>([]);
   const [unevaluatedSardStudents, setUnevaluatedSardStudents] = useState<string[]>([]);
@@ -927,32 +928,77 @@ const App: React.FC = () => {
   };
 
   const initiateLogoutCheck = () => {
-    if (currentUser?.role === UserRole.TEACHER && lastUsedWeek && !isTestActiveState) {
+    if (currentUser?.role === UserRole.TEACHER) {
+      let targetWeek = Number(lastUsedWeek);
+      if (!targetWeek || isNaN(targetWeek) || targetWeek <= 0) {
+        try {
+          const stored = localStorage.getItem('lastUsedWeek');
+          if (stored && Number(stored) > 0) {
+            targetWeek = Number(stored);
+          }
+        } catch (e) {}
+      }
+      
+      if (!targetWeek || isNaN(targetWeek) || targetWeek <= 0) {
+        const maxEvalWeek = Math.max(
+          0,
+          ...(data.evaluations || []).map(e => Number(e.weekNumber) || 0),
+          ...(data.sardEvaluations || []).map(se => Number(se.weekNumber) || 0)
+        );
+        targetWeek = maxEvalWeek > 0 ? maxEvalWeek : 1;
+      }
+
+      setUnevaluatedCheckedWeek(targetWeek);
+
+      // 1. فحص طلاب حلقات المعلم في القرآن الكريم
       const teacherHalaqaIds = (data.halaqas || []).filter(h => h.teacherId === currentUser.id).map(h => h.id);
       const teacherStudents = (data.students || []).filter(s => teacherHalaqaIds.includes(s.halaqaId));
-      const hasActiveMatns = (data.matns || []).some(m => m.isActive !== false);
       
-      const quranEvaluatedIds = new Set((data.evaluations || []).filter(e => e.weekNumber === lastUsedWeek && e.subject !== 'mutoon').map(e => e.studentId));
-      const mutoonEvaluatedIds = new Set((data.evaluations || []).filter(e => e.weekNumber === lastUsedWeek && e.subject === 'mutoon').map(e => e.studentId));
-      
-      const missingQuranStudents = teacherStudents.filter(s => !quranEvaluatedIds.has(s.id)).map(s => s.name);
-      const missingMutoonStudents = hasActiveMatns ? teacherStudents.filter(s => s.isAlAmeen && !mutoonEvaluatedIds.has(s.id)).map(s => s.name) : [];
+      const quranEvaluatedIds = new Set(
+        (data.evaluations || [])
+          .filter(e => Number(e.weekNumber) === targetWeek && e.subject !== 'mutoon')
+          .map(e => e.studentId)
+      );
+      const missingQuranStudents = teacherStudents
+        .filter(s => !quranEvaluatedIds.has(s.id))
+        .map(s => s.name);
 
-      // فحص طلاب السرد التابعين لحلقات السرد الخاصة بالمعلم
+      // 2. فحص طلاب المتون إذا كانت مفعلة وللطلاب المتاح لهم المتون (طلاب الأمين)
+      const hasActiveMatns = (data.matns || []).some(m => m.isActive !== false);
+      const mutoonEvaluatedIds = new Set(
+        (data.evaluations || [])
+          .filter(e => Number(e.weekNumber) === targetWeek && e.subject === 'mutoon')
+          .map(e => e.studentId)
+      );
+      const missingMutoonStudents = hasActiveMatns
+        ? teacherStudents
+            .filter(s => !!s.isAlAmeen && !mutoonEvaluatedIds.has(s.id))
+            .map(s => s.name)
+        : [];
+
+      // 3. فحص طلاب السرد التابعين لحلقات السرد الخاصة بالمعلم
       const teacherSardHalaqaIds = (data.sardHalaqas || []).filter(sh => sh.teacherId === currentUser.id).map(sh => sh.id);
       const teacherSardStudents = (data.students || []).filter(s => s.sardHalaqaId && teacherSardHalaqaIds.includes(s.sardHalaqaId));
-      const sardEvaluatedIds = new Set((data.sardEvaluations || []).filter(se => se.weekNumber === lastUsedWeek).map(se => se.studentId));
-      const missingSardStudents = teacherSardStudents.filter(s => !sardEvaluatedIds.has(s.id)).map(s => s.name);
+      const sardEvaluatedIds = new Set(
+        (data.sardEvaluations || [])
+          .filter(se => Number(se.weekNumber) === targetWeek)
+          .map(se => se.studentId)
+      );
+      const missingSardStudents = teacherSardStudents
+        .filter(s => !sardEvaluatedIds.has(s.id))
+        .map(s => s.name);
       
       if (missingQuranStudents.length > 0 || missingMutoonStudents.length > 0 || missingSardStudents.length > 0) { 
-          setUnevaluatedQuranStudents(missingQuranStudents); 
-          setUnevaluatedMutoonStudents(missingMutoonStudents);
-          setUnevaluatedSardStudents(missingSardStudents);
-          setUnevaluatedStudentsModalOpen(true); 
+        setUnevaluatedQuranStudents(missingQuranStudents); 
+        setUnevaluatedMutoonStudents(missingMutoonStudents);
+        setUnevaluatedSardStudents(missingSardStudents);
+        setUnevaluatedStudentsModalOpen(true); 
       } else {
-          handleLogout();
+        handleLogout();
       }
-    } else handleLogout();
+    } else {
+      handleLogout();
+    }
   };
   
   const handleLogin = (user: User) => { 
@@ -1196,7 +1242,7 @@ const App: React.FC = () => {
               quranStudentNames={unevaluatedQuranStudents} 
               mutoonStudentNames={unevaluatedMutoonStudents} 
               sardStudentNames={unevaluatedSardStudents}
-              weekNumber={lastUsedWeek || 1} 
+              weekNumber={unevaluatedCheckedWeek} 
               onConfirmLogout={handleLogout} 
               onCancel={() => setUnevaluatedStudentsModalOpen(false)} 
             />

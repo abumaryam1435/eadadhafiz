@@ -341,11 +341,14 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
       const isGuestEvaluation = student ? Number(e.halaqaId) !== Number(student.halaqaId) : false;
       const getAyahRangeDisplay = (from?: string | number, to?: string | number) => (from && to) ? (from === to ? toArabicDigits(from) : formatRtlRange(`${from} - ${to}`)) : (from ? toArabicDigits(from) : '—');
       
-      // المنطق الجديد: البحث عن الحلقة التي يشرف عليها المعلم (المقيم)
+      // المنطق: البحث عن الحلقة التي جرى فيها التقييم أو التي يشرف عليها المعلم (المقيم)
+      const evalHalaqa = halaqas.find(h => Number(h.id) === Number(e.halaqaId));
       const evaluatorOwnedHalaqa = halaqas.find(h => Number(h.teacherId) === Number(e.teacherId));
       
       let displayHalaqaName = "معلم متنقل";
-      if (evaluatorOwnedHalaqa) {
+      if (evalHalaqa) {
+          displayHalaqaName = evalHalaqa.name;
+      } else if (evaluatorOwnedHalaqa) {
           displayHalaqaName = evaluatorOwnedHalaqa.name;
       }
 

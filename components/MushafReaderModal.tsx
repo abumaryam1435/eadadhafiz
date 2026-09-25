@@ -1217,14 +1217,24 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
                       {/* Search in students without autoFocus */}
                       {sardGroupStudents.length > 5 && (
-                        <div className="p-2.5 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+                        <div className="p-2.5 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 relative flex items-center">
                           <input
                             type="text"
                             value={studentSearchTerm}
                             onChange={(e) => setStudentSearchTerm(e.target.value)}
                             placeholder="بحث عن اسم الطالب..."
-                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-right"
+                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl pr-3 pl-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-right"
                           />
+                          {studentSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => setStudentSearchTerm('')}
+                              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                              title="مسح البحث"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -1318,14 +1328,24 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
                       {/* Search in pages without autoFocus */}
                       {targetPages.length > 5 && (
-                        <div className="p-2.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+                        <div className="p-2.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 relative flex items-center">
                           <input
                             type="text"
                             value={pageSearchTerm}
                             onChange={(e) => setPageSearchTerm(e.target.value)}
                             placeholder="بحث برقم الصفحة أو اسم السورة..."
-                            className="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-500 text-right"
+                            className="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl pr-3 pl-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-500 text-right"
                           />
+                          {pageSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => setPageSearchTerm('')}
+                              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                              title="مسح البحث"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       )}
 

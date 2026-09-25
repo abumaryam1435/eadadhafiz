@@ -1177,6 +1177,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           id: Date.now() + Math.random(),
           studentId: selectedStudent!,
           studentName: students.find(s => s.id === selectedStudent)?.name || '',
+          halaqaId: selectedHalaqa || (students.find(s => s.id === selectedStudent)?.halaqaId ?? 0),
+          teacherId,
           subject: 'mutoon',
           weekNumber: selectedWeek,
           attendance: attendance!,
@@ -1224,6 +1226,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             id: Date.now() + Math.random() + idx,
             studentId: selectedStudent!,
             studentName: students.find(s => s.id === selectedStudent)?.name || '',
+            halaqaId: selectedHalaqa || (students.find(s => s.id === selectedStudent)?.halaqaId ?? 0),
+            teacherId,
             subject: 'mutoon',
             weekNumber: selectedWeek,
             attendance: attendance!,
@@ -2317,8 +2321,21 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   </button>
                   {isSurahOpen && (
                     <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in-up">
-                      <div className="p-3 border-b border-gray-100 dark:border-gray-700">
-                        <input type="text" placeholder={subject === 'mutoon' ? 'ابحث عن اسم المتن...' : 'ابحث عن اسم السورة...'} value={surahSearch} onChange={e => setSurahSearch(e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" onClick={e => e.stopPropagation()} />
+                      <div className="p-3 border-b border-gray-100 dark:border-gray-700 relative flex items-center">
+                        <input type="text" placeholder={subject === 'mutoon' ? 'ابحث عن اسم المتن...' : 'ابحث عن اسم السورة...'} value={surahSearch} onChange={e => setSurahSearch(e.target.value)} className="w-full px-4 pl-8 py-2.5 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500" onClick={e => e.stopPropagation()} />
+                        {surahSearch && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSurahSearch('');
+                            }}
+                            className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                            title="مسح البحث"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                       <div className="max-h-60 overflow-y-auto p-2 grid grid-cols-2 gap-1.5" onClick={e => e.stopPropagation()}>
                         {filteredSurahs.map(s => {
@@ -2937,13 +2954,25 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     {studentCompletedSurahs.length > 0 ? (
                       <>
                         <div className="flex flex-col sm:flex-row gap-2 justify-between sm:items-center text-xs">
-                          <input
-                            type="text"
-                            placeholder="🔍 ابحث عن سورة محفوظة..."
-                            value={sardSurahSearch}
-                            onChange={e => setSardSurahSearch(e.target.value)}
-                            className="input-style py-1 px-2.5 text-xs w-full sm:w-48 font-bold"
-                          />
+                          <div className="relative flex items-center w-full sm:w-48">
+                            <input
+                              type="text"
+                              placeholder="🔍 ابحث عن سورة محفوظة..."
+                              value={sardSurahSearch}
+                              onChange={e => setSardSurahSearch(e.target.value)}
+                              className="input-style py-1 pl-7 pr-2.5 text-xs w-full font-bold"
+                            />
+                            {sardSurahSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setSardSurahSearch('')}
+                                className="absolute left-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                title="مسح البحث"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
                           <div className="flex gap-3 justify-end items-center px-1">
                             <button
                               type="button"
@@ -3947,14 +3976,26 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       {isCrossHalaqaModalOpen && (
         <Modal title="إضافة طلاب من حلقات أخرى" onClose={() => setIsCrossHalaqaModalOpen(false)}>
           <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="ابحث عن اسم طالب أو اسم حلقة..."
-              value={guestSearch}
-              onChange={e => setGuestSearch(e.target.value)}
-              className="input-style font-bold text-sm"
-              onFocus={handleInputFocus}
-            />
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="ابحث عن اسم طالب أو اسم حلقة..."
+                value={guestSearch}
+                onChange={e => setGuestSearch(e.target.value)}
+                className="input-style font-bold text-sm w-full pl-8"
+                onFocus={handleInputFocus}
+              />
+              {guestSearch && (
+                <button
+                  type="button"
+                  onClick={() => setGuestSearch('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                  title="مسح البحث"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <div className="max-h-[50vh] overflow-y-auto space-y-4 custom-scrollbar pr-1">
               {sardHalaqas.filter(h => h.id !== activeSardHalaqaId).map(h => {
                 const hStudents = students

@@ -467,16 +467,26 @@ export const SardManagement: React.FC = () => {
                 <Modal title={`نقل الطالب في السرد: ${transferringStudent.name}`} onClose={() => setTransferringStudent(null)} hideDefaultCloseButton>
                     <div className="space-y-4">
                         <p className="text-sm font-bold text-gray-500 dark:text-gray-300">اختر حلقة السرد الجديدة التي ترغب في نقل الطالب إليها:</p>
-                        <div className="relative">
+                        <div className="relative flex items-center">
                             <input 
                                 type="text" 
                                 placeholder="ابحث عن حلقة سرد..." 
                                 value={transferSearchQuery}
                                 onChange={(e) => setTransferSearchQuery(e.target.value)}
-                                className="input-style w-full pl-10"
+                                className="input-style w-full pl-10 pr-4"
                                 autoFocus
                             />
-                            <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            {transferSearchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTransferSearchQuery('')}
+                                    className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                    title="مسح البحث"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                         <div className="max-h-60 overflow-y-auto border-2 rounded-2xl p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700">
                             {sortedSardHalaqas
@@ -515,15 +525,25 @@ export const SardManagement: React.FC = () => {
 
                         {/* Search + Level Filter Row */}
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <div className="relative flex-grow">
+                            <div className="relative flex-grow flex items-center">
                                 <input 
                                     type="text" 
                                     placeholder="ابحث باسم الطالب..." 
                                     value={existingStudentSearch}
                                     onChange={(e) => setExistingStudentSearch(e.target.value)}
-                                    className="input-style w-full pl-10"
+                                    className="input-style w-full pl-10 pr-4"
                                 />
-                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                {existingStudentSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setExistingStudentSearch('')}
+                                        className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                        title="مسح البحث"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
                             </div>
 
                             <div className="sm:w-52">
@@ -828,15 +848,25 @@ export const SardManagement: React.FC = () => {
                             <span className="font-bold text-gray-700 dark:text-gray-200">حلقات السرد المتاحة:</span>
                             <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 px-3 py-1 rounded-full text-xs font-black">{sortedSardHalaqas.length}</span>
                         </div>
-                        <div className="relative w-full sm:w-72">
+                        <div className="relative w-full sm:w-72 flex items-center">
                             <input 
                                 type="text" 
                                 placeholder="بحث في حلقات السرد..." 
                                 value={halaqaSearchTerm} 
                                 onChange={(e) => setHalaqaSearchTerm(e.target.value)} 
-                                className="input-style w-full pl-10 py-2 text-sm"
+                                className="input-style w-full pl-10 pr-4 py-2 text-sm"
                             />
-                            <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            {halaqaSearchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setHalaqaSearchTerm('')}
+                                    className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                    title="مسح البحث"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -951,13 +981,25 @@ export const SardManagement: React.FC = () => {
                                                             طلاب حلقة السرد ({halaqaStudents.length})
                                                         </h5>
                                                         {halaqaStudents.length > 5 && (
-                                                            <input 
-                                                                type="text" 
-                                                                placeholder="بحث بين طلاب الحلقة..." 
-                                                                value={studentSearchTerm}
-                                                                onChange={(e) => setStudentSearchTerm(e.target.value)}
-                                                                className="input-style py-1 px-3 text-xs w-full sm:w-48"
-                                                            />
+                                                            <div className="relative flex items-center w-full sm:w-48">
+                                                                <input 
+                                                                    type="text" 
+                                                                    placeholder="بحث بين طلاب الحلقة..." 
+                                                                    value={studentSearchTerm}
+                                                                    onChange={(e) => setStudentSearchTerm(e.target.value)}
+                                                                    className="input-style py-1 pl-7 pr-3 text-xs w-full"
+                                                                />
+                                                                {studentSearchTerm && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setStudentSearchTerm('')}
+                                                                        className="absolute left-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                                        title="مسح البحث"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
 

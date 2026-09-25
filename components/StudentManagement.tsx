@@ -415,16 +415,26 @@ const StudentManagement: React.FC = () => {
                 <Modal title={`نقل الطالب: ${transferringStudent.name}`} onClose={() => setTransferringStudent(null)} hideDefaultCloseButton>
                     <div className="space-y-4">
                         <p className="text-sm font-bold text-gray-500">اختر الحلقة الجديدة التي ترغب في نقل الطالب إليها:</p>
-                        <div className="relative">
+                        <div className="relative flex items-center">
                             <input 
                                 type="text" 
                                 placeholder="ابحث عن حلقة..." 
                                 value={transferSearchQuery}
                                 onChange={(e) => setTransferSearchQuery(e.target.value)}
-                                className="input-style w-full pl-10"
+                                className="input-style w-full pl-10 pr-4"
                                 autoFocus
                             />
-                            <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            {transferSearchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTransferSearchQuery('')}
+                                    className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                    title="مسح البحث"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                         <div className="max-h-60 overflow-y-auto border-2 rounded-2xl p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700">
                             {sortedHalaqas
@@ -629,9 +639,19 @@ const StudentManagement: React.FC = () => {
 
                     {showTeachers && (
                         <div className="p-6 bg-white dark:bg-gray-800 border-t dark:border-gray-700 animate-fade-in">
-                            <div className="relative mb-6">
-                                <input type="text" placeholder="بحث عن معلم..." value={teacherSearchTerm} onChange={(e) => setTeacherSearchTerm(e.target.value)} className="input-style w-full pl-10" />
-                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <div className="relative mb-6 flex items-center">
+                                <input type="text" placeholder="بحث عن معلم..." value={teacherSearchTerm} onChange={(e) => setTeacherSearchTerm(e.target.value)} className="input-style w-full pl-10 pr-4" />
+                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                {teacherSearchTerm && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setTeacherSearchTerm('')}
+                                        className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                        title="مسح البحث"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filteredTeachers.map(teacher => {
@@ -725,9 +745,19 @@ const StudentManagement: React.FC = () => {
 
                     {showHalaqas && (
                         <div className="p-6 bg-white dark:bg-gray-800 border-t dark:border-gray-700 animate-fade-in">
-                            <div className="relative mb-6">
-                                <input type="text" placeholder="بحث عن حلقة..." value={halaqaSearchTerm} onChange={(e) => setHalaqaSearchTerm(e.target.value)} className="input-style w-full pl-10" />
-                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <div className="relative mb-6 flex items-center">
+                                <input type="text" placeholder="بحث عن حلقة..." value={halaqaSearchTerm} onChange={(e) => setHalaqaSearchTerm(e.target.value)} className="input-style w-full pl-10 pr-4" />
+                                <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                {halaqaSearchTerm && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setHalaqaSearchTerm('')}
+                                        className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                        title="مسح البحث"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
                             </div>
 
                             <div className="space-y-4">
@@ -858,17 +888,27 @@ const StudentManagement: React.FC = () => {
                                                                                 </div>
 
                                                                                 {/* خانة البحث - بدون تركيز تلقائي (autoFocus) بحيث لا يتم التركيز عليها إلا بعد النقر عليها */}
-                                                                                <div className="relative mb-2.5">
+                                                                                <div className="relative mb-2.5 flex items-center">
                                                                                     <input
                                                                                         type="text"
                                                                                         placeholder="ابحث في أسماء الطلاب غير المحددين..."
                                                                                         value={unassignedSearchTerm}
                                                                                         onChange={(e) => setUnassignedSearchTerm(e.target.value)}
-                                                                                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold dark:text-white"
+                                                                                        className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold dark:text-white"
                                                                                     />
-                                                                                    <svg className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                    <svg className="absolute right-2.5 top-2 h-3.5 w-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                                                     </svg>
+                                                                                    {unassignedSearchTerm && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => setUnassignedSearchTerm('')}
+                                                                                            className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                                                            title="مسح البحث"
+                                                                                        >
+                                                                                            ✕
+                                                                                        </button>
+                                                                                    )}
                                                                                 </div>
 
                                                                                 {/* قائمة الطلاب غير المحددين */}
@@ -947,7 +987,19 @@ const StudentManagement: React.FC = () => {
                                                     <div className="space-y-2">
                                                         <div className="flex justify-between items-center px-1 mb-2">
                                                             <h6 className="text-sm font-bold text-gray-700 dark:text-gray-300">قائمة طلاب الحلقة ({halaqaStudents.length})</h6>
-                                                            <input type="text" placeholder="بحث في طلاب الحلقة..." className="text-[10px] p-1.5 border-2 rounded-lg dark:bg-slate-700 dark:border-slate-600" value={studentSearchTerm} onChange={(e) => setStudentSearchTerm(e.target.value)} />
+                                                            <div className="relative flex items-center">
+                                                                <input type="text" placeholder="بحث في طلاب الحلقة..." className="text-[10px] p-1.5 pr-3 pl-6 border-2 rounded-lg dark:bg-slate-700 dark:border-slate-600 outline-none" value={studentSearchTerm} onChange={(e) => setStudentSearchTerm(e.target.value)} />
+                                                                {studentSearchTerm && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setStudentSearchTerm('')}
+                                                                        className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[9px] font-bold transition-colors cursor-pointer"
+                                                                        title="مسح البحث"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

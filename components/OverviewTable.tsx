@@ -1115,23 +1115,33 @@ export const OverviewTable: React.FC = () => {
             >
               بحث شامل (اسم الطالب، الحلقة، المعلم)
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 id="search-overview"
                 type="text"
                 placeholder="ابحث عن طالب، حلقة، أو معلم..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-style w-full pl-10"
+                className="input-style w-full pl-10 pr-4"
               />
               <svg
-                className="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
+                className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
                 <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                  title="مسح البحث"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2 rtl:space-x-reverse self-end">

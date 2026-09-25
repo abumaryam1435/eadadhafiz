@@ -142,17 +142,27 @@ export const SupervisorSuggestionsView: React.FC<Props> = ({ isTeacher = false }
       <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Search bar */}
-          <div className="sm:col-span-2 lg:col-span-2 relative">
+          <div className="sm:col-span-2 lg:col-span-2 relative flex items-center">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="ابحث باسم المعلم أو بمحتوى الاقتراح..."
-              className="w-full pl-4 pr-10 py-3 rounded-2xl border-2 border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-gray-900 dark:text-white text-sm outline-none focus:border-green-600 transition-all font-bold"
+              className="w-full pl-8 pr-10 py-3 rounded-2xl border-2 border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-gray-900 dark:text-white text-sm outline-none focus:border-green-600 transition-all font-bold"
             />
-            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                title="مسح البحث"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Type Selector */}
@@ -475,17 +485,27 @@ export const SupervisorSuggestionsView: React.FC<Props> = ({ isTeacher = false }
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="sm:col-span-2 relative">
+              <div className="sm:col-span-2 relative flex items-center">
                 <input
                   type="text"
                   value={behaviorSearchTerm}
                   onChange={(e) => setBehaviorSearchTerm(e.target.value)}
                   placeholder="ابحث باسم المعلم، الطالب، أو محتوى السلوك..."
-                  className="w-full pl-4 pr-10 py-3 rounded-2xl border-2 border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-gray-900 dark:text-white text-sm outline-none focus:border-green-600 transition-all font-bold"
+                  className="w-full pl-8 pr-10 py-3 rounded-2xl border-2 border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-gray-900 dark:text-white text-sm outline-none focus:border-green-600 transition-all font-bold"
                 />
-                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
+                {behaviorSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setBehaviorSearchTerm('')}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                    title="مسح البحث"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
               <div>
                 <select
@@ -646,17 +666,27 @@ export const SupervisorSuggestionsView: React.FC<Props> = ({ isTeacher = false }
               </p>
               
 
-              <div className="relative mb-4">
+              <div className="relative mb-4 flex items-center">
                 <input
                   type="text"
                   value={teacherPermissionsSearchTerm}
                   onChange={(e) => setTeacherPermissionsSearchTerm(e.target.value)}
                   placeholder="ابحث عن معلم..."
-                  className="w-full pl-4 pr-10 py-2.5 rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm outline-none focus:border-indigo-500 transition-all font-bold"
+                  className="w-full pl-8 pr-10 py-2.5 rounded-xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm outline-none focus:border-indigo-500 transition-all font-bold"
                 />
-                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
+                {teacherPermissionsSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setTeacherPermissionsSearchTerm('')}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                    title="مسح البحث"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
               {teachers.filter(t => t.name.toLowerCase().includes(teacherPermissionsSearchTerm.toLowerCase())).map(teacher => (
