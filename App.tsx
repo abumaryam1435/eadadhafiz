@@ -24,6 +24,12 @@ interface Toast {
   id: number;
 }
 
+export interface TeacherSessionState {
+  activeView: 'menu' | 'evaluate' | 'test' | 'newStudentTest' | 'behaviors';
+  step: string;
+  selectedWeek: number | null;
+}
+
 interface AppContextType {
   users: User[];
   students: Student[];
@@ -142,6 +148,8 @@ interface AppContextType {
   setTestsSummaryFilteredData: (data: any[]) => void;
   syncSettingsToCloud: () => void;
   resetCloudSettings: () => void;
+  teacherSessionState?: TeacherSessionState;
+  setTeacherSessionState?: React.Dispatch<React.SetStateAction<TeacherSessionState>>;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -354,6 +362,11 @@ const App: React.FC = () => {
   const [unevaluatedQuranStudents, setUnevaluatedQuranStudents] = useState<string[]>([]);
   const [unevaluatedMutoonStudents, setUnevaluatedMutoonStudents] = useState<string[]>([]);
   const [unevaluatedSardStudents, setUnevaluatedSardStudents] = useState<string[]>([]);
+  const [teacherSessionState, setTeacherSessionState] = useState<TeacherSessionState>({
+    activeView: 'evaluate',
+    step: 'selectHalaqa',
+    selectedWeek: null,
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -925,27 +938,38 @@ const App: React.FC = () => {
       setUnevaluatedQuranStudents([]);
       setUnevaluatedMutoonStudents([]);
       setUnevaluatedSardStudents([]);
+      setTeacherSessionState({
+        activeView: 'evaluate',
+        step: 'selectHalaqa',
+        selectedWeek: null,
+      });
   };
 
   const initiateLogoutCheck = () => {
     if (currentUser?.role === UserRole.TEACHER) {
-      let targetWeek = Number(lastUsedWeek);
-      if (!targetWeek || isNaN(targetWeek) || targetWeek <= 0) {
-        try {
-          const stored = localStorage.getItem('lastUsedWeek');
-          if (stored && Number(stored) > 0) {
-            targetWeek = Number(stored);
-          }
-        } catch (e) {}
+      const { activeView, step, selectedWeek } = teacherSessionState;
+
+      // 1. إذا كان المعلم في القائمة الرئيسية (menu) أو شاشة السلوكيات (behaviors) أو اختبار طالب جديد -> تسجيل خروج فوري
+      if (activeView === 'menu' || activeView === 'behaviors' || activeView === 'newStudentTest') {
+        handleLogout();
+        return;
       }
-      
-      if (!targetWeek || isNaN(targetWeek) || targetWeek <= 0) {
-        const maxEvalWeek = Math.max(
-          0,
-          ...(data.evaluations || []).map(e => Number(e.weekNumber) || 0),
-          ...(data.sardEvaluations || []).map(se => Number(se.weekNumber) || 0)
-        );
-        targetWeek = maxEvalWeek > 0 ? maxEvalWeek : 1;
+
+      // 2. إذا كان في شاشة التقييم الأسبوعي (evaluate):
+      // تفعيل الرسالة فقط عندما يكون قد سجل رقم الأسبوع وانتقل للصفحة التالية بعد صفحة رقم الأسبوع
+      // أما إذا لم يسجل رقم الأسبوع، أو كان في صفحة تسجيل رقم الأسبوع (selectWeek) أو الصفحة السابقة لها (selectHalaqa) فلا داعي لإظهار الرسالة التنبيهية
+      if (activeView === 'evaluate') {
+        if (!selectedWeek || selectedWeek <= 0 || step === 'selectHalaqa' || step === 'selectWeek') {
+          handleLogout();
+          return;
+        }
+      }
+
+      // 3. تحديد الأسبوع المستهدف للتحقق
+      const targetWeek = Number(selectedWeek) > 0 ? Number(selectedWeek) : Number(lastUsedWeek);
+      if (!targetWeek || targetWeek <= 0) {
+        handleLogout();
+        return;
       }
 
       setUnevaluatedCheckedWeek(targetWeek);
@@ -1180,7 +1204,9 @@ const App: React.FC = () => {
     cardConfig, setCardConfig,
     testsSummaryFilteredData, setTestsSummaryFilteredData,
     syncSettingsToCloud,
-    resetCloudSettings
+    resetCloudSettings,
+    teacherSessionState,
+    setTeacherSessionState
   }), [
     data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa, addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
@@ -1199,7 +1225,8 @@ const App: React.FC = () => {
     manualRanks, setManualRanks, certificateConfig, setCertificateConfig,
     cardConfig, setCardConfig,
     testsSummaryFilteredData, setTestsSummaryFilteredData,
-    syncSettingsToCloud, resetCloudSettings
+    syncSettingsToCloud, resetCloudSettings,
+    teacherSessionState, setTeacherSessionState
   ]);
 
   return (

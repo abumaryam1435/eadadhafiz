@@ -10,6 +10,7 @@ import { exportToExcel as exportToExcelFile } from '../utils/exportExcel';
 import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
+import { FilterItem } from './FilterItem';
 
 interface ColumnDef {
   key: string;
@@ -79,10 +80,29 @@ export const NewStudentsTestsTable: React.FC = () => {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudentNames, setSelectedStudentNames] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
   const [passFilter, setPassFilter] = useState<'all' | 'passed' | 'failed'>('all');
   const [alAmeenFilter, setAlAmeenFilter] = useState<'all' | 'yes' | 'no' | 'na'>('all');
   const [ibriFilter, setIbriFilter] = useState<'all' | 'yes' | 'no' | 'na'>('all');
+
+  // Student filter options from tests list
+  const studentOptions = useMemo(() => {
+    const uniqueNames = new Set<string>();
+    const list: { id: string; name: string }[] = [];
+
+    newStudentTests.forEach(test => {
+      const name = (test.studentName || '').trim();
+      if (name && !uniqueNames.has(name)) {
+        uniqueNames.add(name);
+        list.push({ id: name, name });
+      }
+    });
+
+    return list.sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+  }, [newStudentTests]);
 
   // Modals
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -244,6 +264,14 @@ export const NewStudentsTestsTable: React.FC = () => {
         }
       }
 
+      // Student filter (FilterItem)
+      if (selectedStudentNames.length > 0 && !selectedStudentNames.includes('all') && !selectedStudentNames.includes('ALL')) {
+        const sName = (test.studentName || '').trim();
+        if (!selectedStudentNames.includes(sName)) {
+          return false;
+        }
+      }
+
       // Status filter
       if (statusFilter !== 'all') {
         const st = test.status || 'pending';
@@ -278,7 +306,7 @@ export const NewStudentsTestsTable: React.FC = () => {
 
       return true;
     });
-  }, [newStudentTests, searchTerm, statusFilter, passFilter, alAmeenFilter, ibriFilter, students]);
+  }, [newStudentTests, searchTerm, selectedStudentNames, statusFilter, passFilter, alAmeenFilter, ibriFilter, students]);
 
   // Confirmation of acceptance
   const confirmAcceptStudent = () => {
@@ -539,186 +567,231 @@ export const NewStudentsTestsTable: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative w-full md:w-80">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            placeholder="بحث بالاسم، الصف، الهاتف، أو المعلم..."
-            className="w-full pl-4 pr-10 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-indigo-500"
-          />
-          <span className="absolute right-3.5 top-3 text-gray-400">🔍</span>
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute left-3 top-2.5 text-xs text-gray-400 hover:text-gray-600"
+      <div className="bg-white dark:bg-gray-800 rounded-3xl p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Search & Student Filter dropdown */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1 max-w-2xl">
+            {/* Search */}
+            <div className="relative w-full sm:w-80">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="بحث بالاسم، الصف، الهاتف، أو المعلم..."
+                className="w-full pl-4 pr-10 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-indigo-500"
+              />
+              <span className="absolute right-3.5 top-3 text-gray-400">🔍</span>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute left-3 top-2.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Student Filter dropdown */}
+            <div className="w-full sm:w-56">
+              <FilterItem
+                id="newStudent"
+                title="الطالب"
+                selectedValues={selectedStudentNames}
+                options={studentOptions}
+                onSelect={setSelectedStudentNames}
+                search={studentSearch}
+                setSearch={setStudentSearch}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+              />
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
+            {/* Status Filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  statusFilter === 'all'
+                    ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                الكل ({stats.total})
+              </button>
+              <button
+                onClick={() => setStatusFilter('pending')}
+                className={`px-3 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  statusFilter === 'pending'
+                    ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                قيد الانتظار ({stats.pending})
+              </button>
+              <button
+                onClick={() => setStatusFilter('accepted')}
+                className={`px-3 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  statusFilter === 'accepted'
+                    ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                المقبولون ({stats.accepted})
+              </button>
+              <button
+                onClick={() => setStatusFilter('rejected')}
+                className={`px-3 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  statusFilter === 'rejected'
+                    ? 'bg-white dark:bg-gray-800 text-red-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                غير المقبولين ({stats.rejected})
+              </button>
+            </div>
+
+            {/* Al-Ameen Filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
+              <span className="text-[11px] font-black text-gray-600 dark:text-gray-300 px-2 whitespace-nowrap">
+                من الأمين؟:
+              </span>
+              <button
+                type="button"
+                onClick={() => setAlAmeenFilter('all')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  alAmeenFilter === 'all'
+                    ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                الكل
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlAmeenFilter('yes')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  alAmeenFilter === 'yes'
+                    ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                نعم
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlAmeenFilter('no')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  alAmeenFilter === 'no'
+                    ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                لا
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlAmeenFilter('na')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  alAmeenFilter === 'na'
+                    ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                لا ينطبق
+              </button>
+            </div>
+
+            {/* Ibri Mosque Filter */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
+              <span className="text-[11px] font-black text-gray-600 dark:text-gray-300 px-2 whitespace-nowrap">
+                من جامع عبري؟:
+              </span>
+              <button
+                type="button"
+                onClick={() => setIbriFilter('all')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  ibriFilter === 'all'
+                    ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                الكل
+              </button>
+              <button
+                type="button"
+                onClick={() => setIbriFilter('yes')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  ibriFilter === 'yes'
+                    ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                نعم
+              </button>
+              <button
+                type="button"
+                onClick={() => setIbriFilter('no')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  ibriFilter === 'no'
+                    ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                لا
+              </button>
+              <button
+                type="button"
+                onClick={() => setIbriFilter('na')}
+                className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
+                  ibriFilter === 'na'
+                    ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                }`}
+              >
+                لا ينطبق
+              </button>
+            </div>
+
+            {/* Pass/Fail Filter */}
+            <select
+              value={passFilter}
+              onChange={e => setPassFilter(e.target.value as any)}
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 outline-none cursor-pointer"
             >
-              ✕
-            </button>
-          )}
+              <option value="all">جميع النتائج</option>
+              <option value="passed">محقق لنسبة القبول ({newStudentPassingRate}%+)</option>
+              <option value="failed">دون نسبة القبول (&lt;{newStudentPassingRate}%)</option>
+            </select>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-end">
-          {/* Status Filter */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
+        {/* Clear all filters bar if active */}
+        {((selectedStudentNames.length > 0 && !selectedStudentNames.includes('all') && !selectedStudentNames.includes('ALL')) || statusFilter !== 'all' || passFilter !== 'all' || alAmeenFilter !== 'all' || ibriFilter !== 'all' || searchTerm.trim() !== '') && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/60 text-xs">
+            <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-bold">
+              <span>🎯</span>
+              <span>تم تصفية {filteredTests.length} من أصل {newStudentTests.length} طالب</span>
+            </div>
             <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 font-black rounded-lg transition-all ${
-                statusFilter === 'all'
-                  ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
+              type="button"
+              onClick={() => {
+                setSelectedStudentNames([]);
+                setSearchTerm('');
+                setStatusFilter('all');
+                setPassFilter('all');
+                setAlAmeenFilter('all');
+                setIbriFilter('all');
+              }}
+              className="text-red-500 hover:text-red-700 dark:hover:text-red-400 font-bold hover:underline cursor-pointer flex items-center gap-1 text-[11px]"
             >
-              الكل ({stats.total})
-            </button>
-            <button
-              onClick={() => setStatusFilter('pending')}
-              className={`px-3 py-1.5 font-black rounded-lg transition-all ${
-                statusFilter === 'pending'
-                  ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              قيد الانتظار ({stats.pending})
-            </button>
-            <button
-              onClick={() => setStatusFilter('accepted')}
-              className={`px-3 py-1.5 font-black rounded-lg transition-all ${
-                statusFilter === 'accepted'
-                  ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              المقبولون ({stats.accepted})
-            </button>
-            <button
-              onClick={() => setStatusFilter('rejected')}
-              className={`px-3 py-1.5 font-black rounded-lg transition-all ${
-                statusFilter === 'rejected'
-                  ? 'bg-white dark:bg-gray-800 text-red-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              غير المقبولين ({stats.rejected})
+              <span>✕</span>
+              <span>إلغاء التصفية وإظهار الكل</span>
             </button>
           </div>
-
-          {/* Al-Ameen Filter */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
-            <span className="text-[11px] font-black text-gray-600 dark:text-gray-300 px-2 whitespace-nowrap">
-              من الأمين؟:
-            </span>
-            <button
-              type="button"
-              onClick={() => setAlAmeenFilter('all')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                alAmeenFilter === 'all'
-                  ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              الكل
-            </button>
-            <button
-              type="button"
-              onClick={() => setAlAmeenFilter('yes')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                alAmeenFilter === 'yes'
-                  ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              نعم
-            </button>
-            <button
-              type="button"
-              onClick={() => setAlAmeenFilter('no')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                alAmeenFilter === 'no'
-                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              لا
-            </button>
-            <button
-              type="button"
-              onClick={() => setAlAmeenFilter('na')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                alAmeenFilter === 'na'
-                  ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              لا ينطبق
-            </button>
-          </div>
-
-          {/* Ibri Mosque Filter */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs">
-            <span className="text-[11px] font-black text-gray-600 dark:text-gray-300 px-2 whitespace-nowrap">
-              من جامع عبري؟:
-            </span>
-            <button
-              type="button"
-              onClick={() => setIbriFilter('all')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                ibriFilter === 'all'
-                  ? 'bg-white dark:bg-gray-800 text-indigo-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              الكل
-            </button>
-            <button
-              type="button"
-              onClick={() => setIbriFilter('yes')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                ibriFilter === 'yes'
-                  ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              نعم
-            </button>
-            <button
-              type="button"
-              onClick={() => setIbriFilter('no')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                ibriFilter === 'no'
-                  ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              لا
-            </button>
-            <button
-              type="button"
-              onClick={() => setIbriFilter('na')}
-              className={`px-2.5 py-1.5 font-black rounded-lg transition-all cursor-pointer ${
-                ibriFilter === 'na'
-                  ? 'bg-white dark:bg-gray-800 text-amber-600 shadow-2xs'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-              }`}
-            >
-              لا ينطبق
-            </button>
-          </div>
-
-          {/* Pass/Fail Filter */}
-          <select
-            value={passFilter}
-            onChange={e => setPassFilter(e.target.value as any)}
-            className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 outline-none"
-          >
-            <option value="all">جميع النتائج</option>
-            <option value="passed">محقق لنسبة القبول ({newStudentPassingRate}%+)</option>
-            <option value="failed">دون نسبة القبول (&lt;{newStudentPassingRate}%)</option>
-          </select>
-        </div>
+        )}
       </div>
 
       {/* Export Action Buttons & Total Records Counter */}

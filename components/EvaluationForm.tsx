@@ -137,11 +137,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       onStepChange(currentStep);
     }
   }, [currentStep, onStepChange]);
+
   const [uiMode, setUiMode] = useState<'new' | 'summary' | 'edit'>('new');
   const [selectedHalaqa, setSelectedHalaqa] = useState<number | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [subject, setSubject] = useState<'quran' | 'mutoon' | 'sard'>('quran');
+
+  useEffect(() => {
+    if (context?.setTeacherSessionState) {
+      context.setTeacherSessionState({
+        activeView: 'evaluate',
+        step: currentStep,
+        selectedWeek: selectedWeek,
+      });
+    }
+  }, [currentStep, selectedWeek, context?.setTeacherSessionState]);
   
   const [sardEvalMode, setSardEvalMode] = useState<'individual' | 'group'>('group');
   const [selectedSardGroupIds, setSelectedSardGroupIds] = useState<number[]>([]);

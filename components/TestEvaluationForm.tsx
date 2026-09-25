@@ -46,6 +46,16 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
   const [selectedWeek, setSelectedWeek] = useState<number | null>(1);
   const [activeStudent, setActiveStudent] = useState<Student | null>(null);
 
+  useEffect(() => {
+    if (context?.setTeacherSessionState) {
+      context.setTeacherSessionState({
+        activeView: 'test',
+        step: currentStep,
+        selectedWeek: selectedWeek,
+      });
+    }
+  }, [currentStep, selectedWeek, context?.setTeacherSessionState]);
+
   const [testFath, setTestFath] = useState(0);
   const [testTashkeel, setTestTashkeel] = useState(0);
   const [testTajweed, setTestTajweed] = useState(0);

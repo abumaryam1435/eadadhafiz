@@ -125,6 +125,7 @@ export const FilterItem: React.FC<FilterItemProps> = ({
       {isOpen && (
         <div className="absolute z-50 mt-1 w-full bg-white shadow-2xl border rounded-xl dark:bg-gray-800 p-2 animate-fade-in ring-1 ring-black/5 dark:ring-white/10 dark:border-gray-700">
           <div className="relative mb-2 flex items-center">
+            {/* خانة البحث - بدون تركيز تلقائي (autoFocus) بحيث لا يتم التركيز عليها إلا بعد النقر عليها من قبل المستخدم */}
             <input 
               ref={searchInputRef}
               type="text" 
@@ -133,7 +134,6 @@ export const FilterItem: React.FC<FilterItemProps> = ({
               onChange={e => setSearch(e.target.value)} 
               className="w-full p-2 pr-7 pl-7 text-[10px] rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600 focus:ring-green-500 dark:text-gray-200 outline-none" 
               onFocus={handleInputFocus}
-              autoFocus
             />
             <svg className="absolute right-2 top-2.5 h-3.5 w-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

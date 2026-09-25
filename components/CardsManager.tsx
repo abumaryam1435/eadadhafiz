@@ -106,6 +106,13 @@ export interface UnifiedHalaqaCardItem {
     color: string;
 }
 
+export interface CardTargetItem {
+    id: number | string;
+    name: string;
+    stage: string | null;
+    stageIndex: number | string;
+}
+
 export interface CustomHalaqaType {
     id: string;
     name: string;
@@ -431,6 +438,7 @@ export const CardsManager: React.FC = () => {
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [excelData, setExcelData] = useState<{id: string, name: string}[]>([]);
+    const [customSingleCardNumber, setCustomSingleCardNumber] = useState<string>('');
     
     const [stageColors, setStageColors] = useState<Record<string, string>>({});
     const [hasSavedColors, setHasSavedColors] = useState(false);
@@ -1297,7 +1305,7 @@ export const CardsManager: React.FC = () => {
         if (setCardConfig) setCardConfig(config);
     }, [config, setCardConfig]);
 
-    const options = useMemo(() => {
+    const options = useMemo<CardTargetItem[]>(() => {
         if (activeTab === 'students') {
             let result = [...students];
             const isAllStages = !selectedStage || selectedStage.length === 0 || selectedStage.includes('all') || selectedStage.includes('ALL') || (stages.length > 0 && selectedStage.length === stages.length);
@@ -1337,7 +1345,7 @@ export const CardsManager: React.FC = () => {
                     currentStage = stage;
                     currentStageIndex = 1;
                 }
-                const res = { id: s.id, name: s.name, stage, stageIndex: currentStageIndex };
+                const res: CardTargetItem = { id: s.id, name: s.name, stage, stageIndex: currentStageIndex };
                 currentStageIndex++;
                 return res;
             });
@@ -1345,19 +1353,26 @@ export const CardsManager: React.FC = () => {
             return users
                 .filter(u => u.role === UserRole.TEACHER)
                 .sort((a, b) => (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true }))
-                .map((t, idx) => ({ id: t.id, name: t.name, stage: null, stageIndex: idx + 1 }));
+                .map((t, idx): CardTargetItem => ({ id: t.id, name: t.name, stage: null, stageIndex: idx + 1 }));
         } else {
-            return excelData.map((e, idx) => ({...e, stage: null, stageIndex: idx + 1}));
+            return excelData.map((e, idx): CardTargetItem => ({...e, stage: null, stageIndex: idx + 1}));
         }
     }, [activeTab, students, users, excelData, selectedStage, stages.length]);
 
-    const activeTargets = useMemo(() => {
+    const activeTargets = useMemo<CardTargetItem[]>(() => {
         const hasSpecificSelection = selectedIds && selectedIds.length > 0 && !selectedIds.includes('ALL') && !selectedIds.includes('all');
+        let list: CardTargetItem[] = options;
         if (hasSpecificSelection) {
-            return options.filter(o => selectedIds.includes(String(o.id)));
+            list = options.filter(o => selectedIds.includes(String(o.id)));
         }
-        return options;
-    }, [options, selectedIds]);
+        if (list.length === 1 && customSingleCardNumber.trim() !== '') {
+            return [{
+                ...list[0],
+                stageIndex: customSingleCardNumber.trim()
+            }];
+        }
+        return list;
+    }, [options, selectedIds, customSingleCardNumber]);
 
     const totalCardsCount = useMemo(() => {
         return activeTargets.length;
@@ -1396,10 +1411,12 @@ export const CardsManager: React.FC = () => {
         setTargetSearch('');
         setStageSearch('');
         setPreviewIndex(0);
+        setCustomSingleCardNumber('');
     }, [activeTab, selectedStage]);
 
     useEffect(() => {
         setPreviewIndex(0);
+        setCustomSingleCardNumber('');
     }, [selectedIds]);
 
     useEffect(() => {
@@ -1578,17 +1595,19 @@ export const CardsManager: React.FC = () => {
             ctx.strokeStyle = '#D4AF37'; // Golden border
             ctx.stroke();
 
-            ctx.font = `bold ${radius * 0.9}px Arial, sans-serif`;
+            const numStr = currentTarget.stageIndex.toString();
+            const fontScale = numStr.length > 3 ? 0.55 : numStr.length > 2 ? 0.72 : 0.9;
+            ctx.font = `bold ${radius * fontScale}px Arial, sans-serif`;
             const idCardBaseColor = (stage && effectiveStageColors[stage]) || config.nameColor || '#059669';
             ctx.fillStyle = getDarkToneFromBaseColor(idCardBaseColor);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(currentTarget.stageIndex.toString(), x, y + radius * 0.08);
+            ctx.fillText(numStr, x, y + radius * 0.08);
             ctx.restore();
         }
         
         setDynamicPreviewUrl(canvas.toDataURL('image/jpeg', 0.9));
-    }, [config.templateImage, config.width, config.height, activeTargets, safePreviewIndex, stageColors, effectiveStageColors, appLogo, awqafLogo, config.showAwqafLogo, config.awqafLogoCorner, config.awqafLogoBadge, config.awqafLogoSize]);
+    }, [config.templateImage, config.width, config.height, activeTargets, safePreviewIndex, stageColors, effectiveStageColors, appLogo, awqafLogo, config.showAwqafLogo, config.awqafLogoCorner, config.awqafLogoBadge, config.awqafLogoSize, customSingleCardNumber]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -1957,12 +1976,14 @@ export const CardsManager: React.FC = () => {
                         ctx.strokeStyle = '#D4AF37'; // Golden border
                         ctx.stroke();
 
-                        ctx.font = `bold ${radius * 0.9}px Arial, sans-serif`;
+                        const numStr = target.stageIndex.toString();
+                        const fontScale = numStr.length > 3 ? 0.55 : numStr.length > 2 ? 0.72 : 0.9;
+                        ctx.font = `bold ${radius * fontScale}px Arial, sans-serif`;
                         const idCardBaseColor = (target.stage && effectiveStageColors[target.stage]) || config.nameColor || '#059669';
                         ctx.fillStyle = getDarkToneFromBaseColor(idCardBaseColor);
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(target.stageIndex.toString(), x, y + radius * 0.08);
+                        ctx.fillText(numStr, x, y + radius * 0.08);
                         ctx.restore();
                     }
 
@@ -2193,6 +2214,51 @@ export const CardsManager: React.FC = () => {
                                 >
                                     إلغاء التصفية
                                 </button>
+                            </div>
+                        )}
+
+                        {/* خيار كتابة رقم البطاقة يدوياً عند التصفية لطالب واحد فقط */}
+                        {activeTargets.length === 1 && (
+                            <div className="mt-3 p-3.5 bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700/60 rounded-xl space-y-2.5 animate-fade-in shadow-xs">
+                                <div className="flex items-center justify-between gap-1">
+                                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-950 dark:text-amber-200">
+                                        <Hash className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                        <span>رقم البطاقة (تخصيص يدوي):</span>
+                                    </div>
+                                    {customSingleCardNumber.trim() !== '' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCustomSingleCardNumber('')}
+                                            className="text-[11px] text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 hover:underline font-bold shrink-0 flex items-center gap-0.5 cursor-pointer"
+                                            title="الرجوع للرقم التلقائي"
+                                        >
+                                            <RotateCcw className="w-3 h-3 inline" />
+                                            <span>تلقائي ({options.find(o => String(o.id) === String(activeTargets[0]?.id))?.stageIndex || 1})</span>
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="text"
+                                        value={customSingleCardNumber}
+                                        onChange={(e) => setCustomSingleCardNumber(e.target.value)}
+                                        placeholder={`الرقم التلقائي: ${options.find(o => String(o.id) === String(activeTargets[0]?.id))?.stageIndex || 1}`}
+                                        className="w-full px-3 py-2 text-sm font-black text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border-2 border-amber-400 dark:border-amber-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-center placeholder:text-gray-400"
+                                    />
+                                    {customSingleCardNumber && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCustomSingleCardNumber('')}
+                                            className="absolute left-2.5 text-gray-400 hover:text-red-500 p-0.5 rounded-full cursor-pointer"
+                                            title="مسح التخصيص"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+                                <p className="text-[10.5px] font-bold text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                                    💡 سيظهر هذا الرقم المخصص في زاوية البطاقة المطبوعة، وهو مناسب جداً عند طباعة بطاقة لطالب جديد بديل لطالب محذوف.
+                                </p>
                             </div>
                         )}
 
@@ -2809,6 +2875,11 @@ export const CardsManager: React.FC = () => {
                             </button>
                             <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                                 معاينة: {activeTargets.length > 0 ? safePreviewIndex + 1 : 0} / {activeTargets.length}
+                                {activeTargets.length === 1 && activeTargets[0]?.stageIndex !== undefined && (
+                                    <span className="text-xs text-amber-700 dark:text-amber-300 font-black mr-2 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-700">
+                                        (رقم البطاقة: {activeTargets[0].stageIndex})
+                                    </span>
+                                )}
                             </span>
                             <button 
                                 onClick={() => setPreviewIndex(p => Math.min(activeTargets.length - 1, p + 1))}

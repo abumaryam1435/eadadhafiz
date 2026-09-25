@@ -48,6 +48,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
     }
   };
 
+  // مزامنة حالة العرض مع السياق العام لتحديد حالة التحقق عند تسجيل الخروج
+  useEffect(() => {
+    if (context?.setTeacherSessionState) {
+      if (activeView !== 'evaluate') {
+        context.setTeacherSessionState({
+          activeView,
+          step: 'selectHalaqa',
+          selectedWeek: null,
+        });
+      }
+    }
+  }, [activeView, context?.setTeacherSessionState]);
+
   // معالج الرجوع للقائمة الرئيسية عند التواجد في شاشة السلوكيات
   useEffect(() => {
     if (hasSpecialFeatures && activeView === 'behaviors') {
