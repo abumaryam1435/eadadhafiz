@@ -1,6 +1,7 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { AppContext } from '../App';
 import { NewStudentTest } from '../types';
+import { parseSafeNumber, safeInputNumber } from '../utils/juzUtils';
 import MushafReaderModal from './MushafReaderModal';
 import { registerBackHandler } from '../utils/navigationHistory';
 
@@ -293,9 +294,9 @@ export const NewStudentTestForm: React.FC<NewStudentTestFormProps> = ({
               onClick={e => e.stopPropagation()}
               type="number"
               min="0"
-              value={value === 0 ? '' : value}
+              value={safeInputNumber(value)}
               placeholder="0"
-              onChange={e => onChange(Math.max(0, Number(e.target.value)))}
+              onChange={e => onChange(Math.max(0, parseSafeNumber(e.target.value)))}
               onFocus={e => e.target.select()}
               className={`w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent ${currentConfig.input} focus:opacity-90 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none z-10`}
             />

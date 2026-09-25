@@ -12,6 +12,46 @@ export const toEnglishDigits = (val: any): string => {
 };
 
 /**
+ * تحويل وقراءة أي قيمة رقمية بأمان دون إرجاع NaN نهائياً
+ * تدعم الأرقام العربية والمشرقية والمدخلات الفارغة
+ */
+export const parseSafeNumber = (val: any, fallback = 0): number => {
+  if (val === undefined || val === null || val === '') return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  const str = String(val).trim();
+  if (str === '') return fallback;
+  const english = str.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+  const parsed = parseFloat(english);
+  return isNaN(parsed) ? fallback : parsed;
+};
+
+/**
+ * دالة لتمرير القيمة لعنصر input بامان تام بدون إرجاع NaN إلى خاصية value
+ * إذا كانت القيمة 0 أو فارغة أو NaN ترجع '' ليظهر الـ placeholder
+ */
+export const safeInputNumber = (val: any): string | number => {
+  if (val === undefined || val === null || val === '' || val === 0) return '';
+  if (typeof val === 'number') return isNaN(val) || val === 0 ? '' : val;
+  const parsed = parseSafeNumber(val, NaN);
+  if (isNaN(parsed) || parsed === 0) return '';
+  return parsed;
+};
+
+/**
+ * إرجاع قيمة رقمية آمنة لعنصر input، تضمن عدم تمرير NaN إلى DOM مطلقاً
+ * إذا كانت القيمة NaN أو غير معرفة ترجع القيمة الافتراضية
+ */
+export const safeNumberVal = (val: any, fallback: string | number = ''): string | number => {
+  if (val === undefined || val === null) return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  const str = String(val).trim();
+  if (str === '' || str === 'NaN') return fallback;
+  const english = str.replace(/[٠-٩]/g, (d) => (d.charCodeAt(0) - 1632).toString());
+  const num = parseFloat(english);
+  return isNaN(num) ? fallback : val;
+};
+
+/**
  * دالة لتنسيق نطاقات الأرقام والأرقام المفردة باتجاه اليمين إلى اليسار (RTL)
  * تضمن ظهور البداية في اليمين والنهاية في اليسار (مثل: 1 - 2 أو 100 - 107)
  * حتى وإن لم يسبقها نص عربي، وتستخدم الأرقام العربية 1 2 3

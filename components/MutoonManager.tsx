@@ -5,7 +5,7 @@ import Modal from './Modal';
 import { MatnVersesModal } from './MatnVersesModal';
 import { PoeticVerseRow } from './PoeticVerseRow';
 import { formatPoemVerses, standardizeVerseWithSymbol } from '../utils/poetryUtils';
-import { toArabicDigits } from '../utils/juzUtils';
+import { toArabicDigits, parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
 
 export const MutoonManager: React.FC = () => {
     const context = useContext(AppContext);
@@ -202,8 +202,11 @@ export const MutoonManager: React.FC = () => {
                                 <input 
                                     type="number" 
                                     min="1" 
-                                    value={linesInput} 
-                                    onChange={e => setLinesInput(e.target.value === '' ? '' : Number(e.target.value))} 
+                                    value={safeNumberVal(linesInput, '')} 
+                                    onChange={e => {
+                                        const val = parseSafeNumber(e.target.value, NaN);
+                                        setLinesInput(isNaN(val) ? '' : val);
+                                    }} 
                                     className="w-full px-4 py-2.5 text-sm font-bold bg-gray-50 border border-gray-200 focus:border-green-600 focus:bg-white rounded-xl dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 transition-all outline-none" 
                                     placeholder="مثال: 77" 
                                 />

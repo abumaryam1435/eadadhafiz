@@ -3,7 +3,7 @@ import { surahNames, pageSurahsMap, juzPagesMap } from '../utils/quranData';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { isPagePreloaded, preloadMushafPages, preloadSurroundingPages } from '../utils/mushafPreload';
 import { SuggestedTestPassage } from '../utils/testPassageGenerator';
-import { toArabicDigits } from '../utils/juzUtils';
+import { toArabicDigits, parseSafeNumber, safeInputNumber } from '../utils/juzUtils';
 import { preloadVerseLinesForPages } from '../utils/mushafVerseHighlightService';
 import { MushafImagePage } from './MushafImagePage';
 import { Check, RotateCw } from 'lucide-react';
@@ -932,10 +932,10 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
                       min="0" 
-                      value={sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.fath === 0 || !sardGroupErrors[selectedGroupStudentId] ? '' : sardGroupErrors[selectedGroupStudentId].fath) : (evalFath === 0 ? '' : evalFath)} 
+                      value={safeInputNumber(sardGroupMode && selectedGroupStudentId ? sardGroupErrors[selectedGroupStudentId]?.fath : evalFath)} 
                       placeholder="0"
                       onChange={e => {
-                        const val = Math.max(0, Number(e.target.value));
+                        const val = Math.max(0, parseSafeNumber(e.target.value));
                         if (sardGroupMode && selectedGroupStudentId && setSardGroupErrors) {
                           setSardGroupErrors(prev => ({
                             ...prev,
@@ -968,7 +968,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       }
                     }));
                   } else if (setEvalTashkeel) {
-                    setEvalTashkeel(prev => (typeof prev === 'number' ? prev + 1 : evalTashkeel + 1));
+                    setEvalTashkeel(prev => (typeof prev === 'number' ? prev + 1 : (evalTashkeel || 0) + 1));
                   }
                 }}
               >
@@ -984,10 +984,10 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
                       min="0" 
-                      value={sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.tashkeel === 0 || !sardGroupErrors[selectedGroupStudentId] ? '' : sardGroupErrors[selectedGroupStudentId].tashkeel) : (evalTashkeel === 0 ? '' : evalTashkeel)} 
+                      value={safeInputNumber(sardGroupMode && selectedGroupStudentId ? sardGroupErrors[selectedGroupStudentId]?.tashkeel : evalTashkeel)} 
                       placeholder="0"
                       onChange={e => {
-                        const val = Math.max(0, Number(e.target.value));
+                        const val = Math.max(0, parseSafeNumber(e.target.value));
                         if (sardGroupMode && selectedGroupStudentId && setSardGroupErrors) {
                           setSardGroupErrors(prev => ({
                             ...prev,
@@ -1020,7 +1020,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       }
                     }));
                   } else if (setEvalTajweed) {
-                    setEvalTajweed(prev => (typeof prev === 'number' ? prev + 1 : evalTajweed + 1));
+                    setEvalTajweed(prev => (typeof prev === 'number' ? prev + 1 : (evalTajweed || 0) + 1));
                   }
                 }}
               >
@@ -1036,10 +1036,10 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
                       min="0" 
-                      value={sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.tajweed === 0 || !sardGroupErrors[selectedGroupStudentId] ? '' : sardGroupErrors[selectedGroupStudentId].tajweed) : (evalTajweed === 0 ? '' : evalTajweed)} 
+                      value={safeInputNumber(sardGroupMode && selectedGroupStudentId ? sardGroupErrors[selectedGroupStudentId]?.tajweed : evalTajweed)} 
                       placeholder="0"
                       onChange={e => {
-                        const val = Math.max(0, Number(e.target.value));
+                        const val = Math.max(0, parseSafeNumber(e.target.value));
                         if (sardGroupMode && selectedGroupStudentId && setSardGroupErrors) {
                           setSardGroupErrors(prev => ({
                             ...prev,
@@ -1065,7 +1065,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                   className="flex items-stretch bg-purple-50/95 hover:bg-purple-100/90 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 rounded-xl border-2 border-purple-300 dark:border-purple-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-12"
                   onClick={() => {
                     if (setEvalPassageChanges) {
-                      setEvalPassageChanges(prev => (typeof prev === 'number' ? prev + 1 : evalPassageChanges + 1));
+                      setEvalPassageChanges(prev => (typeof prev === 'number' ? prev + 1 : (evalPassageChanges || 0) + 1));
                     }
                   }}
                 >
@@ -1081,10 +1081,10 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                         onClick={(e) => e.stopPropagation()} 
                         type="number" 
                         min="0" 
-                        value={evalPassageChanges === 0 ? '' : evalPassageChanges} 
+                        value={safeInputNumber(evalPassageChanges)} 
                         placeholder="0"
                         onChange={e => {
-                          const val = Math.max(0, Number(e.target.value));
+                          const val = Math.max(0, parseSafeNumber(e.target.value));
                           if (setEvalPassageChanges) {
                             setEvalPassageChanges(val);
                           }

@@ -403,13 +403,13 @@ export const SupervisorDashboard: React.FC = () => {
         </div>
 
         <div className={reportsSubTab === 'quran' ? 'block' : 'hidden'}>
-          <ReportsTable subjectFilter="quran" />
+          <ReportsTable key="reports-table-quran" subjectFilter="quran" />
         </div>
         <div className={reportsSubTab === 'mutoon' ? 'block' : 'hidden'}>
-          <ReportsTable subjectFilter="mutoon" />
+          <ReportsTable key="reports-table-mutoon" subjectFilter="mutoon" />
         </div>
         <div className={reportsSubTab === 'sard' ? 'block' : 'hidden'}>
-          <SardReportsTable />
+          <SardReportsTable key="reports-table-sard" />
         </div>
       </div>
 

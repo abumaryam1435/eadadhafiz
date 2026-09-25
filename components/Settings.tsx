@@ -3,7 +3,7 @@ import { AppContext } from "../App";
 import { exportSheetTemplate } from "../utils/exportSheetTemplate";
 import { exportMainHalaqasTemplate, exportSardHalaqasTemplate } from "../utils/halaqaExcelUtils";
 import { exportFullBackup, importFullBackup, exportFullBackupJson, importFullBackupJson } from "../utils/fullBackup";
-import { parseJuzsToNumbers } from "../utils/juzUtils";
+import { parseJuzsToNumbers, parseSafeNumber, safeNumberVal } from "../utils/juzUtils";
 import { FullBackupData, UserRole } from "../types";
 import Modal from "./Modal";
 import {
@@ -1097,10 +1097,10 @@ export const Settings: React.FC = () => {
                       </label>
                       <input
                         type="number"
-                        value={testScoreInput}
+                        value={safeNumberVal(testScoreInput, 0)}
                         onFocus={(e) => e.target.select()}
                         onChange={(e) =>
-                          setTestScoreInput(Number(e.target.value))
+                          setTestScoreInput(parseSafeNumber(e.target.value, 0))
                         }
                         className="input-style py-2 text-sm font-bold"
                         min="0"
@@ -1111,19 +1111,19 @@ export const Settings: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end mt-3">
                     <div>
                       <label className="block text-xs font-bold text-gray-500 mb-1">خصم الفتح</label>
-                      <input type="number" step="0.25" min="0" value={testDeductionsInput.fath} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, fath: Number(e.target.value) })} className="input-style py-2 text-sm font-bold" />
+                      <input type="number" step="0.25" min="0" value={safeNumberVal(testDeductionsInput.fath, 0)} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, fath: parseSafeNumber(e.target.value, 0) })} className="input-style py-2 text-sm font-bold" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-500 mb-1">خصم التشكيل</label>
-                      <input type="number" step="0.25" min="0" value={testDeductionsInput.tashkeel} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, tashkeel: Number(e.target.value) })} className="input-style py-2 text-sm font-bold" />
+                      <input type="number" step="0.25" min="0" value={safeNumberVal(testDeductionsInput.tashkeel, 0)} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, tashkeel: parseSafeNumber(e.target.value, 0) })} className="input-style py-2 text-sm font-bold" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-500 mb-1">خصم التجويد</label>
-                      <input type="number" step="0.25" min="0" value={testDeductionsInput.tajweed} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, tajweed: Number(e.target.value) })} className="input-style py-2 text-sm font-bold" />
+                      <input type="number" step="0.25" min="0" value={safeNumberVal(testDeductionsInput.tajweed, 0)} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, tajweed: parseSafeNumber(e.target.value, 0) })} className="input-style py-2 text-sm font-bold" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">خصم تغيير المقطع</label>
-                      <input type="number" step="0.25" min="0" value={testDeductionsInput.passageChange ?? 2} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, passageChange: Number(e.target.value) })} className="input-style py-2 text-sm font-bold border-amber-300 focus:border-amber-500" />
+                      <input type="number" step="0.25" min="0" value={safeNumberVal(testDeductionsInput.passageChange, 2)} onFocus={(e) => e.target.select()} onChange={(e) => setTestDeductionsInput({ ...testDeductionsInput, passageChange: parseSafeNumber(e.target.value, 0) })} className="input-style py-2 text-sm font-bold border-amber-300 focus:border-amber-500" />
                     </div>
                   </div>
                   <div className="mt-3 flex justify-end">
@@ -1201,9 +1201,9 @@ export const Settings: React.FC = () => {
                   </label>
                   <input
                     type="number"
-                    value={newStudentScoreInput}
+                    value={safeNumberVal(newStudentScoreInput, 100)}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setNewStudentScoreInput(Number(e.target.value))}
+                    onChange={(e) => setNewStudentScoreInput(parseSafeNumber(e.target.value, 0))}
                     className="input-style py-2 text-sm font-bold"
                     min="10"
                     step="1"
@@ -1215,9 +1215,9 @@ export const Settings: React.FC = () => {
                   </label>
                   <input
                     type="number"
-                    value={newStudentPassingRateInput}
+                    value={safeNumberVal(newStudentPassingRateInput, 70)}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setNewStudentPassingRateInput(Number(e.target.value))}
+                    onChange={(e) => setNewStudentPassingRateInput(parseSafeNumber(e.target.value, 0))}
                     className="input-style py-2 text-sm font-bold"
                     min="1"
                     max="100"
@@ -1233,9 +1233,9 @@ export const Settings: React.FC = () => {
                     type="number"
                     step="0.25"
                     min="0"
-                    value={newStudentDeductionsInput.fath}
+                    value={safeNumberVal(newStudentDeductionsInput.fath, 0)}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setNewStudentDeductionsInput({ ...newStudentDeductionsInput, fath: Number(e.target.value) })}
+                    onChange={(e) => setNewStudentDeductionsInput({ ...newStudentDeductionsInput, fath: parseSafeNumber(e.target.value, 0) })}
                     className="input-style py-2 text-sm font-bold text-center"
                   />
                 </div>
@@ -1245,9 +1245,9 @@ export const Settings: React.FC = () => {
                     type="number"
                     step="0.25"
                     min="0"
-                    value={newStudentDeductionsInput.tashkeel}
+                    value={safeNumberVal(newStudentDeductionsInput.tashkeel, 0)}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setNewStudentDeductionsInput({ ...newStudentDeductionsInput, tashkeel: Number(e.target.value) })}
+                    onChange={(e) => setNewStudentDeductionsInput({ ...newStudentDeductionsInput, tashkeel: parseSafeNumber(e.target.value, 0) })}
                     className="input-style py-2 text-sm font-bold text-center"
                   />
                 </div>
@@ -1257,9 +1257,9 @@ export const Settings: React.FC = () => {
                     type="number"
                     step="0.25"
                     min="0"
-                    value={newStudentDeductionsInput.tajweed}
+                    value={safeNumberVal(newStudentDeductionsInput.tajweed, 0)}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setNewStudentDeductionsInput({ ...newStudentDeductionsInput, tajweed: Number(e.target.value) })}
+                    onChange={(e) => setNewStudentDeductionsInput({ ...newStudentDeductionsInput, tajweed: parseSafeNumber(e.target.value, 0) })}
                     className="input-style py-2 text-sm font-bold text-center"
                   />
                 </div>

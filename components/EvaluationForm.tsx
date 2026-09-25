@@ -6,7 +6,7 @@ import { Student, AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLe
 import { BookOpen, ScrollText, Sparkles } from "lucide-react";
 import Modal from './Modal';
 import { translationMap, toArabicDigits, formatRtlRange } from '../utils/exportWord';
-import { toEnglishDigits } from '../utils/juzUtils';
+import { toEnglishDigits, parseSafeNumber, safeInputNumber, safeNumberVal } from '../utils/juzUtils';
 import EvaluationSummaryModal from './EvaluationSummaryModal';
 import EvaluationEditForm from './EvaluationEditForm';
 import MushafReaderModal from './MushafReaderModal';
@@ -38,6 +38,7 @@ interface EvaluationFormProps {
   teacherId: number;
   onFormSubmit: (action: 'add' | 'update' | 'delete') => void;
   onBackToMenu?: () => void;
+  onStepChange?: (step: FormStep) => void;
 }
 
 const mapOldPerformanceToNew = (oldPerf?: string): PerformanceLevel | undefined => {
@@ -93,7 +94,7 @@ const FormNav: React.FC<NavProps> = ({ back, next, sub, onEdit, isSticky = true 
   </div>
 );
 
-export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFormSubmit, onBackToMenu }) => {
+export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFormSubmit, onBackToMenu, onStepChange }) => {
   const context = useContext(AppContext);
 
   const students = context?.students || [];
@@ -130,6 +131,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const teacherSardHalaqas = useMemo(() => (sardHalaqas || []).filter(sh => sh.teacherId === teacherId).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [sardHalaqas, teacherId]);
 
   const [currentStep, setCurrentStep] = useState<FormStep>('selectHalaqa');
+
+  useEffect(() => {
+    if (onStepChange) {
+      onStepChange(currentStep);
+    }
+  }, [currentStep, onStepChange]);
   const [uiMode, setUiMode] = useState<'new' | 'summary' | 'edit'>('new');
   const [selectedHalaqa, setSelectedHalaqa] = useState<number | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
@@ -1439,8 +1446,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             <input 
               type="number" 
               min="1" 
-              value={selectedWeek || ''} 
-              onChange={e => { setSelectedWeek(e.target.value === '' ? null : parseInt(e.target.value)); setHighlightWeekInput(false); }} 
+              value={safeNumberVal(selectedWeek, '')} 
+              onChange={e => { 
+                const val = parseSafeNumber(e.target.value, NaN); 
+                setSelectedWeek(isNaN(val) || val <= 0 ? null : val); 
+                setHighlightWeekInput(false); 
+              }} 
               className={`input-style text-center text-4xl font-bold h-24 ${highlightWeekInput ? 'ring-4 ring-red-400 animate-pulse' : ''}`} 
               placeholder="0" 
               onFocus={(e) => {
@@ -2086,7 +2097,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                 عدد الأبيات لهذا الأسبوع
                               </label>
                               <select
-                                value={mEval.lines}
+                                value={mEval.lines === '' || mEval.lines === undefined || mEval.lines === null || Number.isNaN(mEval.lines) ? '' : mEval.lines}
                                 onChange={e => {
                                   const val = e.target.value;
                                   const parsedLines = val === 'not_ready' ? 'not_ready' : (val === '' ? '' : Number(val));
@@ -2207,10 +2218,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                     onClick={(e) => e.stopPropagation()} 
                                     type="number" 
                                     min="0" 
-                                    value={mEval.errors === 0 ? '' : mEval.errors} 
+                                    value={safeInputNumber(mEval.errors)} 
                                     placeholder="0" 
                                     onChange={e => {
-                                      updateMatnEval(m.name, { errors: Math.max(0, Number(e.target.value)) });
+                                      updateMatnEval(m.name, { errors: Math.max(0, parseSafeNumber(e.target.value)) });
                                     }} 
                                     onFocus={e => e.target.select()} 
                                     className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-rose-600 dark:text-rose-400 focus:text-rose-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 dark:placeholder:text-rose-900/40 z-10" 
@@ -2285,7 +2296,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             {subject === 'mutoon' ? (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-xs font-bold mb-1 block">عدد الأبيات</label><input type="number" min="0" step="0.1" value={pages} onChange={e => { setPages(e.target.value === '' ? '' : parseFloat(e.target.value)); setHighlightPagesInput(false); }} className={`input-style text-center font-bold ${highlightPagesInput ? 'ring-4 ring-red-400 animate-pulse' : ''}`} onFocus={handleInputFocus}/></div>
+                  <div><label className="text-xs font-bold mb-1 block">عدد الأبيات</label><input type="number" min="0" step="0.1" value={pages === '' || isNaN(Number(pages)) ? '' : pages} onChange={e => { const v = parseSafeNumber(e.target.value, NaN); setPages(isNaN(v) ? '' : v); setHighlightPagesInput(false); }} className={`input-style text-center font-bold ${highlightPagesInput ? 'ring-4 ring-red-400 animate-pulse' : ''}`} onFocus={handleInputFocus}/></div>
                   <div><label className="text-xs font-bold mb-1 block">اسم المتن والأبيات</label><input type="text" value={ayahRange} onChange={e => setAyahRange(e.target.value)} className="input-style text-center" onFocus={handleInputFocus}/></div>
                 </div>
                 <div className="relative space-y-1.5">
@@ -2360,7 +2371,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                 <div>
                   <p className="font-bold text-xs text-center text-gray-600 dark:text-gray-300 mb-2">اختر الجزء لعرض وتحديد صفحاته أو سوره:</p>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 custom-scrollbar">
+                    <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-gray-50/90 dark:bg-gray-800/60 rounded-2xl border border-gray-200/80 dark:border-gray-700">
                       {Array.from({length: 30}, (_, i) => i + 1).map(juz => {
                         const juzPages = juzPagesMap[juz] || [];
                         const selectedInJuz = juzPages.filter(p => selectionState.allActivePages.includes(p)).length;
@@ -2372,24 +2383,24 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         const isNewEvalsJuz = studentQuranHistory.newEvalsFullJuzs.has(juz);
                         const isOldJuz = studentQuranHistory.oldFullJuzs.has(juz);
 
-                        let juzStyle = 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 dark:bg-gray-700 dark:text-indigo-300 dark:border-gray-600';
+                        let juzStyle = 'bg-white text-indigo-700 border border-indigo-200/80 hover:bg-indigo-50/80 dark:bg-gray-700/80 dark:text-indigo-200 dark:border-gray-600 shadow-2xs';
                         let badgeText = null;
 
                         if (isFullySelected) {
-                          juzStyle = 'bg-emerald-600 text-white border-2 border-emerald-700 shadow-md ring-2 ring-emerald-300 font-bold';
-                          badgeText = `محدد بالكامل (${toArabicDigits(juzPages.length)} ص) ✓`;
+                          juzStyle = 'bg-emerald-600 text-white border border-emerald-700 shadow-md ring-2 ring-emerald-300 dark:ring-emerald-600 font-bold';
+                          badgeText = `كامل (${toArabicDigits(juzPages.length)}) ✓`;
                         } else if (isPartiallySelected) {
-                          juzStyle = 'bg-indigo-100 text-indigo-900 border-2 border-dashed border-indigo-600 font-bold dark:bg-indigo-950 dark:text-indigo-200';
-                          badgeText = `محدد (${toArabicDigits(selectedInJuz)}/${toArabicDigits(juzPages.length)} ص)`;
+                          juzStyle = 'bg-indigo-100 text-indigo-950 border-2 border-dashed border-indigo-500 font-bold dark:bg-indigo-950 dark:text-indigo-200';
+                          badgeText = `(${toArabicDigits(selectedInJuz)}/${toArabicDigits(juzPages.length)})`;
                         } else if (evalType === EvaluationType.REVIEW) {
                           if (isSelected) {
-                            juzStyle = 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 font-bold';
+                            juzStyle = 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 dark:ring-indigo-500 font-bold';
                           } else if (isNewEvalsJuz) {
                             juzStyle = 'bg-amber-100/90 text-amber-950 border-2 border-[#8B4513]/70 hover:bg-amber-200 font-bold dark:bg-amber-950/60 dark:text-amber-200';
-                            badgeText = 'محفوظ جديد 🟤';
+                            badgeText = 'جديد 🟤';
                           } else if (isOldJuz) {
                             juzStyle = 'bg-emerald-100/90 text-emerald-950 border-2 border-emerald-700/70 hover:bg-emerald-200 font-bold dark:bg-emerald-950/60 dark:text-emerald-200';
-                            badgeText = 'محفوظ قديم 🟢';
+                            badgeText = 'قديم 🟢';
                           }
                         } else {
                           // وضع الحفظ
@@ -2398,9 +2409,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             badgeText = 'مكتمل ✓';
                           } else if (isNowCompleted) {
                             juzStyle = 'bg-emerald-600 text-white border border-emerald-700 shadow-sm ring-2 ring-emerald-400 font-bold';
-                            badgeText = 'مكتمل بالتحديد ✓';
+                            badgeText = 'مكتمل الآن ✓';
                           } else if (isSelected) {
-                            juzStyle = 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300';
+                            juzStyle = 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 dark:ring-indigo-500 font-bold';
                           }
                         }
 
@@ -2417,11 +2428,15 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               }
                             }}
                             title={isDisabled ? `جزء ${juz} (مكتمل الحفظ بالكامل مسبقاً)` : `جزء ${juz}`}
-                            className={`p-2 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${juzStyle}`}
+                            className={`p-1.5 sm:p-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center min-h-[46px] sm:min-h-[50px] active:scale-95 cursor-pointer ${juzStyle}`}
                           >
-                            <span className={isDisabled ? 'line-through decoration-white/70' : ''}>جزء {toArabicDigits(juz)}</span>
+                            <span className={`text-[11px] sm:text-xs font-black leading-tight ${isDisabled ? 'line-through decoration-white/70' : ''}`}>
+                              جزء {toArabicDigits(juz)}
+                            </span>
                             {badgeText && (
-                              <span className="text-[9px] font-normal opacity-95 no-underline">{badgeText}</span>
+                              <span className="text-[8px] sm:text-[9px] font-bold opacity-95 no-underline leading-tight whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                                {badgeText}
+                              </span>
                             )}
                           </button>
                         );
@@ -3032,8 +3047,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   min="1"
                                   max="604"
                                   placeholder="مثلاً: 1"
-                                  value={range.fromPage}
-                                  onChange={e => updateSardPageRange(idx, 'fromPage', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                                  value={safeNumberVal(range.fromPage, '')}
+                                  onChange={e => {
+                                    const v = parseSafeNumber(e.target.value, NaN);
+                                    updateSardPageRange(idx, 'fromPage', isNaN(v) ? '' : v);
+                                  }}
                                   className="input-style text-center font-black text-base py-1.5"
                                   onFocus={handleInputFocus}
                                 />
@@ -3047,8 +3065,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   min="1"
                                   max="604"
                                   placeholder="مثلاً: 20"
-                                  value={range.toPage}
-                                  onChange={e => updateSardPageRange(idx, 'toPage', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                                  value={safeNumberVal(range.toPage, '')}
+                                  onChange={e => {
+                                    const v = parseSafeNumber(e.target.value, NaN);
+                                    updateSardPageRange(idx, 'toPage', isNaN(v) ? '' : v);
+                                  }}
                                   className="input-style text-center font-black text-base py-1.5"
                                   onFocus={handleInputFocus}
                                 />
@@ -3238,9 +3259,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   onClick={(e) => e.stopPropagation()} 
                                   type="number" 
                                   min="0" 
-                                  value={errs.fath === 0 ? '' : errs.fath} 
+                                  value={safeInputNumber(errs.fath)} 
                                   placeholder="0" 
-                                  onChange={e => setErrs('fath', Math.max(0, Number(e.target.value)))} 
+                                  onChange={e => setErrs('fath', Math.max(0, parseSafeNumber(e.target.value)))} 
                                   onFocus={e => e.target.select()} 
                                   className="w-full h-full text-center text-lg sm:text-xl font-black bg-transparent text-rose-600 dark:text-rose-400 focus:text-rose-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 dark:placeholder:text-rose-900/40 z-10" 
                                 />
@@ -3250,7 +3271,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                           {/* أخطاء التشكيل (+1) */}
                           <div 
-                            onClick={() => setErrs('tashkeel', errs.tashkeel + 1)}
+                            onClick={() => setErrs('tashkeel', (errs.tashkeel || 0) + 1)}
                             className="flex items-stretch bg-gradient-to-r from-amber-50/90 to-orange-50/70 dark:from-amber-950/40 dark:to-orange-950/30 rounded-xl sm:rounded-2xl border-2 border-amber-200 dark:border-amber-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 active:scale-[0.99] transition-all h-13 sm:h-14"
                           >
                             <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -3268,9 +3289,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   onClick={(e) => e.stopPropagation()} 
                                   type="number" 
                                   min="0" 
-                                  value={errs.tashkeel === 0 ? '' : errs.tashkeel} 
+                                  value={safeInputNumber(errs.tashkeel)} 
                                   placeholder="0" 
-                                  onChange={e => setErrs('tashkeel', Math.max(0, Number(e.target.value)))} 
+                                  onChange={e => setErrs('tashkeel', Math.max(0, parseSafeNumber(e.target.value)))} 
                                   onFocus={e => e.target.select()} 
                                   className="w-full h-full text-center text-lg sm:text-xl font-black bg-transparent text-amber-600 dark:text-amber-400 focus:text-amber-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-200 dark:placeholder:text-amber-900/40 z-10" 
                                 />
@@ -3280,7 +3301,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                           {/* أخطاء التجويد (+0.5) */}
                           <div 
-                            onClick={() => setErrs('tajweed', errs.tajweed + 1)}
+                            onClick={() => setErrs('tajweed', (errs.tajweed || 0) + 1)}
                             className="flex items-stretch bg-gradient-to-r from-teal-50/90 to-emerald-50/70 dark:from-teal-950/40 dark:to-emerald-950/30 rounded-xl sm:rounded-2xl border-2 border-teal-200 dark:border-teal-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-teal-400 dark:hover:border-teal-600 active:scale-[0.99] transition-all h-13 sm:h-14"
                           >
                             <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -3298,9 +3319,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   onClick={(e) => e.stopPropagation()} 
                                   type="number" 
                                   min="0" 
-                                  value={errs.tajweed === 0 ? '' : errs.tajweed} 
+                                  value={safeInputNumber(errs.tajweed)} 
                                   placeholder="0" 
-                                  onChange={e => setErrs('tajweed', Math.max(0, Number(e.target.value)))} 
+                                  onChange={e => setErrs('tajweed', Math.max(0, parseSafeNumber(e.target.value)))} 
                                   onFocus={e => e.target.select()} 
                                   className="w-full h-full text-center text-lg sm:text-xl font-black bg-transparent text-teal-600 dark:text-teal-400 focus:text-teal-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-teal-200 dark:placeholder:text-teal-900/40 z-10" 
                                 />
@@ -3358,9 +3379,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         onClick={(e) => e.stopPropagation()} 
                         type="number" 
                         min="0" 
-                        value={sardFathErrors === 0 ? '' : sardFathErrors} 
+                        value={safeInputNumber(sardFathErrors)} 
                         placeholder="0" 
-                        onChange={e => setSardFathErrors(Math.max(0, Number(e.target.value)))} 
+                        onChange={e => setSardFathErrors(Math.max(0, parseSafeNumber(e.target.value)))} 
                         onFocus={e => e.target.select()} 
                         className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-rose-600 dark:text-rose-400 focus:text-rose-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 dark:placeholder:text-rose-900/40 z-10" 
                       />
@@ -3370,7 +3391,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                 {/* أخطاء التشكيل (+1) */}
                 <div 
-                  onClick={() => setSardTashkeelErrors(prev => prev + 1)}
+                  onClick={() => setSardTashkeelErrors(prev => (prev || 0) + 1)}
                   className="flex items-stretch bg-gradient-to-r from-amber-50/90 to-orange-50/70 dark:from-amber-950/40 dark:to-orange-950/30 rounded-2xl border-2 border-amber-200 dark:border-amber-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 active:scale-[0.99] transition-all h-14 sm:h-16"
                 >
                   <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -3388,9 +3409,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         onClick={(e) => e.stopPropagation()} 
                         type="number" 
                         min="0" 
-                        value={sardTashkeelErrors === 0 ? '' : sardTashkeelErrors} 
+                        value={safeInputNumber(sardTashkeelErrors)} 
                         placeholder="0" 
-                        onChange={e => setSardTashkeelErrors(Math.max(0, Number(e.target.value)))} 
+                        onChange={e => setSardTashkeelErrors(Math.max(0, parseSafeNumber(e.target.value)))} 
                         onFocus={e => e.target.select()} 
                         className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-amber-600 dark:text-amber-400 focus:text-amber-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-200 dark:placeholder:text-amber-900/40 z-10" 
                       />
@@ -3400,7 +3421,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                 {/* أخطاء التجويد (+0.5) */}
                 <div 
-                  onClick={() => setSardTajweedErrors(prev => prev + 1)}
+                  onClick={() => setSardTajweedErrors(prev => (prev || 0) + 1)}
                   className="flex items-stretch bg-gradient-to-r from-teal-50/90 to-emerald-50/70 dark:from-teal-950/40 dark:to-emerald-950/30 rounded-2xl border-2 border-teal-200 dark:border-teal-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-teal-400 dark:hover:border-teal-600 active:scale-[0.99] transition-all h-14 sm:h-16"
                 >
                   <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -3418,9 +3439,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         onClick={(e) => e.stopPropagation()} 
                         type="number" 
                         min="0" 
-                        value={sardTajweedErrors === 0 ? '' : sardTajweedErrors} 
+                        value={safeInputNumber(sardTajweedErrors)} 
                         placeholder="0" 
-                        onChange={e => setSardTajweedErrors(Math.max(0, Number(e.target.value)))} 
+                        onChange={e => setSardTajweedErrors(Math.max(0, parseSafeNumber(e.target.value)))} 
                         onFocus={e => e.target.select()} 
                         className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-teal-600 dark:text-teal-400 focus:text-teal-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-teal-200 dark:placeholder:text-teal-900/40 z-10" 
                       />
@@ -3509,9 +3530,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   onClick={(e) => e.stopPropagation()} 
                                   type="number" 
                                   min="0" 
-                                  value={evalFath === 0 ? '' : evalFath} 
+                                  value={safeInputNumber(evalFath)} 
                                   placeholder="0" 
-                                  onChange={e => setEvalFath(Math.max(0, Number(e.target.value)))} 
+                                  onChange={e => setEvalFath(Math.max(0, parseSafeNumber(e.target.value)))} 
                                   onFocus={e => e.target.select()} 
                                   className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-rose-600 dark:text-rose-400 focus:text-rose-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 dark:placeholder:text-rose-900/40 z-10" 
                               />
@@ -3521,7 +3542,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                   {/* أخطاء التشكيل */}
                   <div 
-                      onClick={() => setEvalTashkeel(prev => prev + 1)}
+                      onClick={() => setEvalTashkeel(prev => (prev || 0) + 1)}
                       className="flex items-stretch bg-gradient-to-r from-amber-50/90 to-orange-50/70 dark:from-amber-950/40 dark:to-orange-950/30 rounded-2xl border-2 border-amber-200 dark:border-amber-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 active:scale-[0.99] transition-all h-14 sm:h-16"
                   >
                       <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -3543,9 +3564,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   onClick={(e) => e.stopPropagation()} 
                                   type="number" 
                                   min="0" 
-                                  value={evalTashkeel === 0 ? '' : evalTashkeel} 
+                                  value={safeInputNumber(evalTashkeel)} 
                                   placeholder="0" 
-                                  onChange={e => setEvalTashkeel(Math.max(0, Number(e.target.value)))} 
+                                  onChange={e => setEvalTashkeel(Math.max(0, parseSafeNumber(e.target.value)))} 
                                   onFocus={e => e.target.select()} 
                                   className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-amber-600 dark:text-amber-400 focus:text-amber-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-200 dark:placeholder:text-amber-900/40 z-10" 
                               />
@@ -3555,7 +3576,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
                   {/* أخطاء التجويد */}
                   <div 
-                      onClick={() => setEvalTajweed(prev => prev + 1)}
+                      onClick={() => setEvalTajweed(prev => (prev || 0) + 1)}
                       className="flex items-stretch bg-gradient-to-r from-teal-50/90 to-emerald-50/70 dark:from-teal-950/40 dark:to-emerald-950/30 rounded-2xl border-2 border-teal-200 dark:border-teal-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-teal-400 dark:hover:border-teal-600 active:scale-[0.99] transition-all h-14 sm:h-16"
                   >
                       <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -3577,9 +3598,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   onClick={(e) => e.stopPropagation()} 
                                   type="number" 
                                   min="0" 
-                                  value={evalTajweed === 0 ? '' : evalTajweed} 
+                                  value={safeInputNumber(evalTajweed)} 
                                   placeholder="0" 
-                                  onChange={e => setEvalTajweed(Math.max(0, Number(e.target.value)))} 
+                                  onChange={e => setEvalTajweed(Math.max(0, parseSafeNumber(e.target.value)))} 
                                   onFocus={e => e.target.select()} 
                                   className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-teal-600 dark:text-teal-400 focus:text-teal-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-teal-200 dark:placeholder:text-teal-900/40 z-10" 
                               />

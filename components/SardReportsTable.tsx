@@ -593,11 +593,21 @@ export const SardReportsTable: React.FC = () => {
     setEditingEvaluation(item);
   };
 
-  const handleDraftUpdate = (id: number, key: keyof SardEvaluation, value: any) => {
-    const finalValue = (key === 'sardHalaqaId' || key === 'teacherId') ? Number(value) : value;
+  const handleDraftUpdate = (id: string | number, key: keyof SardEvaluation, value: any) => {
+    let finalValue = (key === 'sardHalaqaId' || key === 'teacherId') ? Number(value) : value;
+    
+    if (key === 'weekNumber') {
+      if (value === '' || value === null || value === undefined) {
+        finalValue = '';
+      } else {
+        const str = String(value).trim().replace(/[٠-٩]/g, d => (d.charCodeAt(0) - 1632).toString());
+        const parsed = parseInt(str, 10);
+        finalValue = isNaN(parsed) ? '' : parsed;
+      }
+    }
     
     setDraftEdits(prev => {
-      const newDraft = { ...(prev[id] || {}), [key]: finalValue };
+      const newDraft = { ...(prev[id as any] || {}), [key]: finalValue };
       
       if (key === 'sardHalaqaId') {
         const targetHalaqa = sardHalaqas.find(h => Number(h.id) === Number(finalValue));
@@ -606,21 +616,35 @@ export const SardReportsTable: React.FC = () => {
         }
       }
       
-      return { ...prev, [id]: newDraft };
+      return { ...prev, [id as any]: newDraft };
     });
   };
 
   const handleFinishQuickEdit = () => {
-    const editIds = Object.keys(draftEdits).map(Number);
-    if (editIds.length > 0) {
-      editIds.forEach(id => {
-        const original = sardEvaluations.find(e => e.id === id);
-        const draft = draftEdits[id];
-        if (original && draft) {
-          updateSardEvaluation({ ...original, ...draft, updatedAt: Date.now() });
+    const editKeys = Object.keys(draftEdits);
+    if (editKeys.length > 0) {
+      let savedCount = 0;
+      editKeys.forEach(idKey => {
+        const original = sardEvaluations.find(e => String(e.id) === String(idKey));
+        const draft = draftEdits[idKey as any];
+        if (!original || !draft) return;
+
+        const cleanDraft: Partial<SardEvaluation> = { ...draft };
+
+        if (cleanDraft.weekNumber !== undefined) {
+          const str = String(cleanDraft.weekNumber).trim().replace(/[٠-٩]/g, d => (d.charCodeAt(0) - 1632).toString());
+          const targetWeek = parseInt(str, 10);
+          if (isNaN(targetWeek) || targetWeek <= 0) {
+            delete cleanDraft.weekNumber;
+          } else {
+            cleanDraft.weekNumber = targetWeek;
+          }
         }
+
+        updateSardEvaluation({ ...original, ...cleanDraft, updatedAt: Date.now() });
+        savedCount++;
       });
-      showToast(`✅ تم حفظ تعديلات ${editIds.length} سجل بنجاح.`);
+      showToast(`✅ تم حفظ تعديلات ${savedCount} سجل بنجاح.`);
     }
     setDraftEdits({});
     setIsQuickEditActive(false);
@@ -951,7 +975,29 @@ export const SardReportsTable: React.FC = () => {
                     }
 
                     if (isEditable && h.key === 'weekNumber') {
-                      cellContent = <input type="number" value={draft.weekNumber ?? item.weekNumber} onChange={(e) => handleDraftUpdate(item.id, 'weekNumber', parseInt(e.target.value))} className="w-16 p-1 text-[10px] text-center border-amber-300 rounded-lg font-bold" />;
+                      const rawVal = draft.weekNumber !== undefined ? draft.weekNumber : item.weekNumber;
+                      const safeVal = rawVal === null || rawVal === undefined || isNaN(rawVal) ? '' : rawVal;
+                      cellContent = (
+                        <input 
+                          type="number" 
+                          min="1"
+                          max="100"
+                          value={safeVal} 
+                          onFocus={(e) => e.target.select()}
+                          onClick={(e) => e.currentTarget.select()}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              handleDraftUpdate(item.id, 'weekNumber', '');
+                            } else {
+                              const parsed = parseInt(val, 10);
+                              handleDraftUpdate(item.id, 'weekNumber', isNaN(parsed) ? '' : parsed);
+                            }
+                          }} 
+                          className="w-16 p-1.5 text-xs text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-xs selection:bg-amber-300 selection:text-amber-950" 
+                          title="تعديل رقم الأسبوع"
+                        />
+                      );
                     } else if (isEditable && h.key === 'studentOriginalHalaqaName') {
                       const currentHalaqaId = draft.sardHalaqaId ?? (item.sardHalaqaId || 0);
                       cellContent = (

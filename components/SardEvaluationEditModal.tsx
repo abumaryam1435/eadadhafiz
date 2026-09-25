@@ -6,6 +6,7 @@ import { AppContext } from '../App';
 import { getMemorizedPagesData, getCompletedJuzs, countQuranPages } from '../utils/pageUtils';
 import { surahNames, surahPagesMap, juzPagesMap } from '../utils/quranData';
 import { toArabicDigits } from '../utils/exportWord';
+import { parseSafeNumber, safeInputNumber, safeNumberVal } from '../utils/juzUtils';
 import { isSmartMatch } from '../utils/searchUtils';
 import { StudentProgressInfo } from './StudentProgressInfo';
 import { MushafReaderModal } from './MushafReaderModal';
@@ -624,8 +625,8 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
                             type="number" 
                             min="1" 
                             max="604"
-                            value={range.fromPage} 
-                            onChange={(e) => updatePageRange(idx, 'fromPage', e.target.value === '' ? '' : parseInt(e.target.value) || '')} 
+                            value={safeNumberVal(range.fromPage, '')} 
+                            onChange={(e) => updatePageRange(idx, 'fromPage', e.target.value === '' ? '' : (parseSafeNumber(e.target.value, 0) || ''))} 
                             className="input-style w-full font-bold text-center text-base py-1.5"
                             placeholder="1"
                           />
@@ -638,8 +639,8 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
                             type="number" 
                             min="1" 
                             max="604"
-                            value={range.toPage} 
-                            onChange={(e) => updatePageRange(idx, 'toPage', e.target.value === '' ? '' : parseInt(e.target.value) || '')} 
+                            value={safeNumberVal(range.toPage, '')} 
+                            onChange={(e) => updatePageRange(idx, 'toPage', e.target.value === '' ? '' : (parseSafeNumber(e.target.value, 0) || ''))} 
                             className="input-style w-full font-bold text-center text-base py-1.5"
                             placeholder="20"
                           />
@@ -732,9 +733,9 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
                       min="0" 
-                      value={fathErrors === 0 ? '' : fathErrors} 
+                      value={safeInputNumber(fathErrors)} 
                       placeholder="0" 
-                      onChange={e => setFathErrors(Math.max(0, Number(e.target.value)))} 
+                      onChange={e => setFathErrors(Math.max(0, parseSafeNumber(e.target.value)))} 
                       onFocus={e => e.target.select()} 
                       className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-rose-600 dark:text-rose-400 focus:text-rose-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 dark:placeholder:text-rose-900/40 z-10" 
                     />
@@ -744,7 +745,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
 
               {/* أخطاء التشكيل (+1) */}
               <div 
-                onClick={() => setHesitationErrors(prev => prev + 1)}
+                onClick={() => setHesitationErrors(prev => (prev || 0) + 1)}
                 className="flex items-stretch bg-gradient-to-r from-amber-50/90 to-orange-50/70 dark:from-amber-950/40 dark:to-orange-950/30 rounded-2xl border-2 border-amber-200 dark:border-amber-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 active:scale-[0.99] transition-all h-14 sm:h-16"
               >
                 <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -762,9 +763,9 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
                       min="0" 
-                      value={hesitationErrors === 0 ? '' : hesitationErrors} 
+                      value={safeInputNumber(hesitationErrors)} 
                       placeholder="0" 
-                      onChange={e => setHesitationErrors(Math.max(0, Number(e.target.value)))} 
+                      onChange={e => setHesitationErrors(Math.max(0, parseSafeNumber(e.target.value)))} 
                       onFocus={e => e.target.select()} 
                       className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-amber-600 dark:text-amber-400 focus:text-amber-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-200 dark:placeholder:text-amber-900/40 z-10" 
                     />
@@ -774,7 +775,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
 
               {/* أخطاء التجويد (+0.5) */}
               <div 
-                onClick={() => setTajweedErrors(prev => prev + 1)}
+                onClick={() => setTajweedErrors(prev => (prev || 0) + 1)}
                 className="flex items-stretch bg-gradient-to-r from-blue-50/90 to-cyan-50/70 dark:from-blue-950/40 dark:to-cyan-950/30 rounded-2xl border-2 border-blue-200 dark:border-blue-800/70 shadow-xs overflow-hidden group cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 active:scale-[0.99] transition-all h-14 sm:h-16"
               >
                 <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
@@ -792,9 +793,9 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
                       min="0" 
-                      value={tajweedErrors === 0 ? '' : tajweedErrors} 
+                      value={safeInputNumber(tajweedErrors)} 
                       placeholder="0" 
-                      onChange={e => setTajweedErrors(Math.max(0, Number(e.target.value)))} 
+                      onChange={e => setTajweedErrors(Math.max(0, parseSafeNumber(e.target.value)))} 
                       onFocus={e => e.target.select()} 
                       className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-blue-600 dark:text-blue-400 focus:text-blue-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-blue-200 dark:placeholder:text-blue-900/40 z-10" 
                     />

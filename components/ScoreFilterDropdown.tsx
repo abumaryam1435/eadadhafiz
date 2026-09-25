@@ -143,10 +143,10 @@ export const ScoreFilterDropdown: React.FC<ScoreFilterDropdownProps> = ({
   // Local draft state when editing within dropdown
   const [localMode, setLocalMode] = useState<ScoreFilterMode>(config.mode || 'all');
   const [localVal1, setLocalVal1] = useState<string>(
-    config.val1 !== undefined && config.val1 !== null ? String(config.val1) : ''
+    config.val1 !== undefined && config.val1 !== null && !isNaN(Number(config.val1)) ? String(config.val1) : ''
   );
   const [localVal2, setLocalVal2] = useState<string>(
-    config.val2 !== undefined && config.val2 !== null ? String(config.val2) : ''
+    config.val2 !== undefined && config.val2 !== null && !isNaN(Number(config.val2)) ? String(config.val2) : ''
   );
   const [localTargetTest, setLocalTargetTest] = useState<string>(config.targetTest || 'auto');
 
@@ -390,7 +390,7 @@ export const ScoreFilterDropdown: React.FC<ScoreFilterDropdownProps> = ({
                     min="0"
                     max="1000"
                     placeholder="مثال: 85 أو 70 أو 95..."
-                    value={localVal1}
+                    value={localVal1 === 'NaN' || localVal1 === undefined || localVal1 === null ? '' : localVal1}
                     onChange={e => setLocalVal1(e.target.value)}
                     className="w-full text-xs font-bold p-2.5 bg-white dark:bg-gray-900 border border-amber-300 dark:border-amber-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
                   />
@@ -423,7 +423,7 @@ export const ScoreFilterDropdown: React.FC<ScoreFilterDropdownProps> = ({
                       min="0"
                       max="1000"
                       placeholder="مثال: 80"
-                      value={localVal1}
+                      value={localVal1 === 'NaN' || localVal1 === undefined || localVal1 === null ? '' : localVal1}
                       onChange={e => setLocalVal1(e.target.value)}
                       className="w-full text-xs font-bold p-2 bg-white dark:bg-gray-900 border border-amber-300 dark:border-amber-700 rounded-lg text-gray-900 dark:text-white"
                     />
@@ -438,7 +438,7 @@ export const ScoreFilterDropdown: React.FC<ScoreFilterDropdownProps> = ({
                       min="0"
                       max="1000"
                       placeholder="مثال: 95"
-                      value={localVal2}
+                      value={localVal2 === 'NaN' || localVal2 === undefined || localVal2 === null ? '' : localVal2}
                       onChange={e => setLocalVal2(e.target.value)}
                       className="w-full text-xs font-bold p-2 bg-white dark:bg-gray-900 border border-amber-300 dark:border-amber-700 rounded-lg text-gray-900 dark:text-white"
                     />

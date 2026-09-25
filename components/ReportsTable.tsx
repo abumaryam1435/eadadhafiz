@@ -695,43 +695,21 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
       setEditingEvaluation(item);
   };
 
-  const handleDraftUpdate = (id: number, key: keyof Evaluation, value: any) => {
+  const handleDraftUpdate = (id: string | number, key: keyof Evaluation, value: any) => {
       let finalValue = (key === 'halaqaId' || key === 'teacherId') ? Number(value) : value;
       
       if (key === 'weekNumber') {
-          const newWeek = Number(value);
-          if (!isNaN(newWeek)) {
-              const currentEval = evaluations.find(e => e.id === id);
-              if (currentEval) {
-                  // تحقق صارم: هل الطالب لديه تقييم في الأسبوع الجديد (باستثناء السجل الحالي)
-                  const exists = evaluations.some(e => 
-                      e.studentId === currentEval.studentId && 
-                      e.weekNumber === newWeek && 
-                      e.id !== id
-                  );
-                  
-                  if (exists) {
-                      showToast(`⛔ لا يمكن النقل! هذا الطالب لديه تقييم بالفعل في الأسبوع ${newWeek}.`, 'error');
-                      // إجبار واجهة المستخدم على العودة للقيمة الأصلية فوراً عن طريق حذف التعديل من الحالة
-                      setDraftEdits(prev => {
-                          const newDraft = { ...prev };
-                          // إذا كان هناك تعديل لهذا العنصر، نحذف حقل الأسبوع ليعود للقيمة الأصلية
-                          if (newDraft[id]) {
-                              const itemDraft = { ...newDraft[id] };
-                              delete itemDraft.weekNumber;
-                              newDraft[id] = itemDraft;
-                          }
-                          return newDraft;
-                      });
-                      return; // إيقاف التنفيذ لمنع حفظ القيمة الخاطئة
-                  }
-              }
+          if (value === '' || value === null || value === undefined) {
+              finalValue = '';
+          } else {
+              const str = String(value).trim().replace(/[٠-٩]/g, d => (d.charCodeAt(0) - 1632).toString());
+              const parsed = parseInt(str, 10);
+              finalValue = isNaN(parsed) ? '' : parsed;
           }
-          finalValue = newWeek;
       }
 
       setDraftEdits(prev => {
-          const newDraft = { ...(prev[id] || {}), [key]: finalValue };
+          const newDraft = { ...(prev[id as any] || {}), [key]: finalValue };
           
           if (key === 'halaqaId') {
               const targetHalaqa = halaqas.find(h => Number(h.id) === Number(finalValue));
@@ -742,33 +720,51 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
               }
           }
           
-          return { ...prev, [id]: newDraft };
+          return { ...prev, [id as any]: newDraft };
       });
   };
 
   const handleFinishQuickEdit = () => {
-      const editIds = Object.keys(draftEdits).map(Number);
-      if (editIds.length > 0) {
-          editIds.forEach(id => {
-              const original = evaluations.find(e => e.id === id);
-              const draft = draftEdits[id];
-              
-              // تحقق نهائي قبل الحفظ لمنع التكرار
-              if (original && draft && draft.weekNumber) {
-                  const exists = evaluations.some(e => 
-                      e.studentId === original.studentId && 
-                      e.weekNumber === draft.weekNumber && 
-                      e.id !== id
-                  );
-                  if (exists) {
-                      showToast(`⚠️ تم تجاهل حفظ ${original.id} لوجود تكرار في الأسبوع.`, 'error');
-                      return;
+      const editKeys = Object.keys(draftEdits);
+      if (editKeys.length > 0) {
+          let savedCount = 0;
+
+          editKeys.forEach(idKey => {
+              // بحث مرن عن التقييم الأصلي سواء كان المعرف نصاً أو رقماً
+              const original = evaluations.find(e => String(e.id) === String(idKey));
+              const draft = draftEdits[idKey as any];
+              if (!original || !draft) {
+                  console.warn(`Evaluation not found for ID: ${idKey}`);
+                  return;
+              }
+
+              const cleanDraft: Partial<Evaluation> = { ...draft };
+
+              // معالجة رقم الأسبوع: حفظ الرقم الذي حدده المشرف مباشرة وبدقة لجميع الطلاب
+              if (cleanDraft.weekNumber !== undefined) {
+                  const str = String(cleanDraft.weekNumber).trim().replace(/[٠-٩]/g, d => (d.charCodeAt(0) - 1632).toString());
+                  const targetWeek = parseInt(str, 10);
+                  if (isNaN(targetWeek) || targetWeek <= 0) {
+                      delete cleanDraft.weekNumber; // إبقاء الأسبوع الأصلي في حال تفريغ الحقل تماماً
+                  } else {
+                      cleanDraft.weekNumber = targetWeek;
                   }
               }
 
-              if (original) updateEvaluation({ ...original, ...draft, updatedAt: Date.now() });
+              if (cleanDraft.pages !== undefined) {
+                  const str = String(cleanDraft.pages).trim().replace(/[٠-٩]/g, d => (d.charCodeAt(0) - 1632).toString());
+                  const p = parseFloat(str);
+                  if (isNaN(p)) {
+                      delete cleanDraft.pages;
+                  } else {
+                      cleanDraft.pages = p;
+                  }
+              }
+
+              updateEvaluation({ ...original, ...cleanDraft, updatedAt: Date.now() });
+              savedCount++;
           });
-          showToast(`✅ تم حفظ تعديلات ${editIds.length} سجل بنجاح.`);
+          showToast(`✅ تم حفظ تعديلات ${savedCount} سجل بنجاح.`);
       }
       setDraftEdits({});
       setIsQuickEditActive(false);
@@ -1122,21 +1118,108 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
                     }
 
                     if (isEditable && h.key === 'weekNumber') {
-                      cellContent = <input type="number" value={draft.weekNumber ?? item.weekNumber} onChange={(e) => handleDraftUpdate(item.id, 'weekNumber', parseInt(e.target.value))} className="w-16 p-1 text-[10px] text-center border-amber-300 rounded-lg font-bold" />;
+                      const rawVal = draft.weekNumber !== undefined ? draft.weekNumber : item.weekNumber;
+                      const safeVal = rawVal === null || rawVal === undefined || isNaN(rawVal) ? '' : rawVal;
+                      cellContent = (
+                        <input 
+                          type="number" 
+                          min="1"
+                          max="100"
+                          value={safeVal} 
+                          onFocus={(e) => e.target.select()}
+                          onClick={(e) => e.currentTarget.select()}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              handleDraftUpdate(item.id, 'weekNumber', '');
+                            } else {
+                              const parsed = parseInt(val, 10);
+                              handleDraftUpdate(item.id, 'weekNumber', isNaN(parsed) ? '' : parsed);
+                            }
+                          }} 
+                          className="w-16 p-1.5 text-xs text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-xs selection:bg-amber-300 selection:text-amber-950" 
+                          title="تعديل رقم الأسبوع"
+                        />
+                      );
                     } else if (isEditable && h.key === 'halaqaName') {
                       const currentHalaqaId = draft.halaqaId ?? (item.evaluatorOwnedHalaqaId || item.halaqaId || 0);
-                      cellContent = <select value={currentHalaqaId} onChange={(e) => handleDraftUpdate(item.id, 'halaqaId', e.target.value)} className="p-1 text-[10px] border-amber-300 rounded-lg font-bold"><option value="0">معلم متنقل</option>{[...halaqas].sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select>;
+                      cellContent = <select value={currentHalaqaId} onChange={(e) => handleDraftUpdate(item.id, 'halaqaId', e.target.value)} className="p-1 text-[10px] border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold"><option value="0">معلم متنقل</option>{[...halaqas].sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select>;
                     } else if (isEditable && h.key === 'evaluatorName') {
                       const currentTeacherId = draft.teacherId !== undefined ? draft.teacherId : item.teacherId;
                       cellContent = (
                         <select 
                           value={currentTeacherId} 
                           onChange={(e) => handleDraftUpdate(item.id, 'teacherId', parseInt(e.target.value))}
-                          className="p-1 text-[10px] border-amber-300 rounded-lg bg-amber-50 focus:ring-amber-500 max-w-[120px] font-bold"
+                          className="p-1 text-[10px] border-2 border-amber-400 rounded-lg bg-amber-50 dark:bg-gray-700 dark:border-amber-500 focus:ring-amber-500 max-w-[120px] font-bold"
                         >
                           <option value="0">---</option>
                           {users.filter(u => u.role === UserRole.TEACHER).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
+                      );
+                    } else if (isEditable && h.key === 'attendance') {
+                      const currentVal = draft.attendance !== undefined ? draft.attendance : item.attendance;
+                      cellContent = (
+                        <select
+                          value={currentVal || AttendanceStatus.PRESENT}
+                          onChange={(e) => handleDraftUpdate(item.id, 'attendance', e.target.value)}
+                          className="p-1 text-[10px] border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value={AttendanceStatus.PRESENT}>حاضر</option>
+                          <option value={AttendanceStatus.LATE}>متأخر</option>
+                          <option value={AttendanceStatus.ABSENT}>غائب</option>
+                        </select>
+                      );
+                    } else if (isEditable && h.key === 'performance') {
+                      const currentVal = draft.performance !== undefined ? draft.performance : item.performance;
+                      cellContent = (
+                        <select
+                          value={currentVal || ''}
+                          onChange={(e) => handleDraftUpdate(item.id, 'performance', e.target.value as any)}
+                          className="p-1 text-[10px] border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">—</option>
+                          {performanceOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+                        </select>
+                      );
+                    } else if (isEditable && h.key === 'periodicReview') {
+                      const currentVal = draft.periodicReview !== undefined ? draft.periodicReview : item.periodicReview;
+                      cellContent = (
+                        <select
+                          value={currentVal || ''}
+                          onChange={(e) => handleDraftUpdate(item.id, 'periodicReview', e.target.value as any)}
+                          className="p-1 text-[10px] border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="">—</option>
+                          {periodicReviewOptions.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
+                        </select>
+                      );
+                    } else if (isEditable && h.key === 'pages') {
+                      const rawVal = draft.pages !== undefined ? draft.pages : item.pages;
+                      const safeVal = rawVal === null || rawVal === undefined || isNaN(rawVal) ? '' : rawVal;
+                      cellContent = (
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={safeVal}
+                          onFocus={(e) => e.target.select()}
+                          onClick={(e) => e.currentTarget.select()}
+                          onChange={(e) => handleDraftUpdate(item.id, 'pages', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                          className="w-16 p-1 text-[10px] text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 selection:bg-amber-300 selection:text-amber-950"
+                        />
+                      );
+                    } else if (isEditable && h.key === 'notes') {
+                      const currentVal = draft.notes !== undefined ? draft.notes : (item.notes || '');
+                      cellContent = (
+                        <input
+                          type="text"
+                          value={currentVal}
+                          onFocus={(e) => e.target.select()}
+                          onClick={(e) => e.currentTarget.select()}
+                          onChange={(e) => handleDraftUpdate(item.id, 'notes', e.target.value)}
+                          placeholder="ملاحظات..."
+                          className="w-32 sm:w-44 p-1 text-[10px] border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 selection:bg-amber-300 selection:text-amber-950"
+                        />
                       );
                     } else if (h.key === 'evaluationDate') {
                       cellContent = (

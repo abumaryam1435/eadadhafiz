@@ -5,6 +5,7 @@ import { UserRole } from '../types';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from 'react-colorful';
+import { parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
 import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers, Hash, Eye, EyeOff } from 'lucide-react';
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
@@ -2443,8 +2444,8 @@ export const CardsManager: React.FC = () => {
                                                 type="number"
                                                 min="1"
                                                 step="0.1"
-                                                value={customPaperWidth}
-                                                onChange={e => setCustomPaperWidth(Math.max(1, Number(e.target.value)))}
+                                                value={safeNumberVal(customPaperWidth, '')}
+                                                onChange={e => setCustomPaperWidth(Math.max(1, parseSafeNumber(e.target.value, 1)))}
                                                 onFocus={e => e.target.select()}
                                                 className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
                                             />
@@ -2457,8 +2458,8 @@ export const CardsManager: React.FC = () => {
                                                 type="number"
                                                 min="1"
                                                 step="0.1"
-                                                value={customPaperHeight}
-                                                onChange={e => setCustomPaperHeight(Math.max(1, Number(e.target.value)))}
+                                                value={safeNumberVal(customPaperHeight, '')}
+                                                onChange={e => setCustomPaperHeight(Math.max(1, parseSafeNumber(e.target.value, 1)))}
                                                 onFocus={e => e.target.select()}
                                                 className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
                                             />
@@ -2605,11 +2606,11 @@ export const CardsManager: React.FC = () => {
                             <div className="flex items-center gap-1.5 sm:gap-4">
                                 <div className="flex items-center gap-1 sm:gap-2">
                                     <label className="text-[10px] sm:text-xs font-bold text-gray-600 dark:text-gray-400">العرض:</label>
-                                    <input type="number" value={config.width} onChange={e => setConfig(p => ({...p, width: Number(e.target.value)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                    <input type="number" value={safeNumberVal(config.width, 8.5)} onChange={e => setConfig(p => ({...p, width: parseSafeNumber(e.target.value, 8.5)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
                                     <label className="text-[10px] sm:text-xs font-bold text-gray-600 dark:text-gray-400">الطول:</label>
-                                    <input type="number" value={config.height} onChange={e => setConfig(p => ({...p, height: Number(e.target.value)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                    <input type="number" value={safeNumberVal(config.height, 5.5)} onChange={e => setConfig(p => ({...p, height: parseSafeNumber(e.target.value, 5.5)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
                                     <label className="text-[10px] sm:text-xs font-bold text-gray-600 dark:text-gray-400">الوحدة:</label>
@@ -2639,7 +2640,7 @@ export const CardsManager: React.FC = () => {
 
                             <div className="flex items-center gap-2 border-r pr-4 dark:border-gray-600">
                                 <label className="text-xs font-bold text-gray-500 dark:text-gray-400">الحجم:</label>
-                                <input type="number" value={config.nameFontSize} onChange={e => setConfig(p => ({...p, nameFontSize: Number(e.target.value)}))} onFocus={e => e.target.select()} className="w-14 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                <input type="number" value={safeNumberVal(config.nameFontSize, 18)} onChange={e => setConfig(p => ({...p, nameFontSize: parseSafeNumber(e.target.value, 18)}))} onFocus={e => e.target.select()} className="w-14 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                             </div>
 
                             <div className="flex items-center gap-2 border-r pr-4 dark:border-gray-600">
@@ -3350,8 +3351,8 @@ export const CardsManager: React.FC = () => {
                                                         type="number"
                                                         min="1"
                                                         step="0.1"
-                                                        value={customPaperWidth}
-                                                        onChange={e => setCustomPaperWidth(Math.max(1, Number(e.target.value)))}
+                                                        value={safeNumberVal(customPaperWidth, '')}
+                                                        onChange={e => setCustomPaperWidth(Math.max(1, parseSafeNumber(e.target.value, 1)))}
                                                         onFocus={e => e.target.select()}
                                                         className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
                                                     />
@@ -3364,8 +3365,8 @@ export const CardsManager: React.FC = () => {
                                                         type="number"
                                                         min="1"
                                                         step="0.1"
-                                                        value={customPaperHeight}
-                                                        onChange={e => setCustomPaperHeight(Math.max(1, Number(e.target.value)))}
+                                                        value={safeNumberVal(customPaperHeight, '')}
+                                                        onChange={e => setCustomPaperHeight(Math.max(1, parseSafeNumber(e.target.value, 1)))}
                                                         onFocus={e => e.target.select()}
                                                         className="w-full p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold"
                                                     />
@@ -3556,8 +3557,8 @@ export const CardsManager: React.FC = () => {
                                                 <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">العرض:</label>
                                                 <input
                                                     type="number"
-                                                    value={halaqaConfig.width}
-                                                    onChange={e => setHalaqaConfig(p => ({ ...p, width: Number(e.target.value) }))}
+                                                    value={safeNumberVal(halaqaConfig.width, 8.5)}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, width: parseSafeNumber(e.target.value, 8.5) }))}
                                                     onFocus={e => e.target.select()}
                                                     className="w-16 sm:w-20 p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
                                                 />
@@ -3566,8 +3567,8 @@ export const CardsManager: React.FC = () => {
                                                 <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الارتفاع:</label>
                                                 <input
                                                     type="number"
-                                                    value={halaqaConfig.height}
-                                                    onChange={e => setHalaqaConfig(p => ({ ...p, height: Number(e.target.value) }))}
+                                                    value={safeNumberVal(halaqaConfig.height, 5.5)}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, height: parseSafeNumber(e.target.value, 5.5) }))}
                                                     onFocus={e => e.target.select()}
                                                     className="w-16 sm:w-20 p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
                                                 />

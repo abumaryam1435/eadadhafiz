@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from "react-colorful";
+import { parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
 
 interface CertificateConfig {
     templateImage: string | null;
@@ -416,8 +417,8 @@ export const CertificatesManager: React.FC = () => {
                                     <label className="text-xs font-bold text-gray-600 dark:text-gray-400">حجم الخط:</label>
                                     <input 
                                         type="number" 
-                                        value={config.nameFontSize} 
-                                        onChange={e => setConfig(p => ({...p, nameFontSize: Number(e.target.value)}))}
+                                        value={safeNumberVal(config.nameFontSize, 24)} 
+                                        onChange={e => setConfig(p => ({...p, nameFontSize: parseSafeNumber(e.target.value, 24)}))}
                                         onFocus={e => e.target.select()}
                                         className="w-16 p-1 text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     />

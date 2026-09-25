@@ -80,8 +80,11 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({ onBack, 
                         <h2 className="text-xl font-bold">تحديد الأسبوع الدراسي</h2>
                         <input
                             type="number"
-                            value={weekNumber}
-                            onChange={e => setWeekNumber(e.target.value === '' ? '' : parseInt(e.target.value))}
+                            value={weekNumber === '' || isNaN(Number(weekNumber)) ? '' : weekNumber}
+                            onChange={e => {
+                              const p = parseInt(e.target.value, 10);
+                              setWeekNumber(isNaN(p) || p <= 0 ? '' : p);
+                            }}
                             className="input-style text-center text-4xl font-bold h-24 w-40"
                             placeholder="0"
                         />

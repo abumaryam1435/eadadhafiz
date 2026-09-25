@@ -2,6 +2,7 @@ import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import { AppContext } from '../App';
 import { NewStudentTest, Halaqa } from '../types';
 import { isSmartMatch, formatWhatsAppNumber } from '../utils/searchUtils';
+import { parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
 import NewStudentTestForm from './NewStudentTestForm';
 import * as XLSX from 'xlsx';
 import { exportToWord } from '../utils/exportWord';
@@ -1557,8 +1558,8 @@ export const NewStudentsTestsTable: React.FC = () => {
                   <input
                     type="number"
                     min="10"
-                    value={settingsScore}
-                    onChange={e => setSettingsScore(Number(e.target.value))}
+                    value={safeNumberVal(settingsScore, 100)}
+                    onChange={e => setSettingsScore(parseSafeNumber(e.target.value, 100))}
                     className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -1571,8 +1572,8 @@ export const NewStudentsTestsTable: React.FC = () => {
                     type="number"
                     min="1"
                     max="100"
-                    value={settingsRate}
-                    onChange={e => setSettingsRate(Number(e.target.value))}
+                    value={safeNumberVal(settingsRate, 70)}
+                    onChange={e => setSettingsRate(parseSafeNumber(e.target.value, 70))}
                     className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -1592,9 +1593,9 @@ export const NewStudentsTestsTable: React.FC = () => {
                       type="number"
                       step="0.25"
                       min="0"
-                      value={settingsDeductions.fath}
+                      value={safeNumberVal(settingsDeductions.fath, 0)}
                       onChange={e =>
-                        setSettingsDeductions({ ...settingsDeductions, fath: Number(e.target.value) })
+                        setSettingsDeductions({ ...settingsDeductions, fath: parseSafeNumber(e.target.value, 0) })
                       }
                       className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-center"
                     />
@@ -1608,9 +1609,9 @@ export const NewStudentsTestsTable: React.FC = () => {
                       type="number"
                       step="0.25"
                       min="0"
-                      value={settingsDeductions.tashkeel}
+                      value={safeNumberVal(settingsDeductions.tashkeel, 0)}
                       onChange={e =>
-                        setSettingsDeductions({ ...settingsDeductions, tashkeel: Number(e.target.value) })
+                        setSettingsDeductions({ ...settingsDeductions, tashkeel: parseSafeNumber(e.target.value, 0) })
                       }
                       className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-center"
                     />
@@ -1624,9 +1625,9 @@ export const NewStudentsTestsTable: React.FC = () => {
                       type="number"
                       step="0.25"
                       min="0"
-                      value={settingsDeductions.tajweed}
+                      value={safeNumberVal(settingsDeductions.tajweed, 0)}
                       onChange={e =>
-                        setSettingsDeductions({ ...settingsDeductions, tajweed: Number(e.target.value) })
+                        setSettingsDeductions({ ...settingsDeductions, tajweed: parseSafeNumber(e.target.value, 0) })
                       }
                       className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-center"
                     />

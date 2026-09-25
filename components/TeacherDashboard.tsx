@@ -30,6 +30,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
   const [activeView, setActiveView] = useState<'menu' | 'evaluate' | 'test' | 'newStudentTest' | 'behaviors'>(
     () => (hasSpecialFeatures ? 'menu' : 'evaluate')
   );
+  const [evaluationStep, setEvaluationStep] = useState<string>('selectHalaqa');
 
   const handleFormSubmit = (action: 'add' | 'update' | 'delete') => {
     const messages = {
@@ -43,6 +44,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
   const handleReturnToMenu = () => {
     if (hasSpecialFeatures) {
       setActiveView('menu');
+      setEvaluationStep('selectHalaqa');
     }
   };
 
@@ -164,8 +166,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
         </div>
       )}
 
-      {/* زر العودة للقائمة الرئيسية عند الانتقال لأي قسم (إذا كانت الميزات مفعلة) */}
-      {hasSpecialFeatures && activeView !== 'menu' && (
+      {/* زر العودة للقائمة الرئيسية عند الانتقال لأي قسم (إذا كانت الميزات مفعلة، ويختفي في صفحة تحديد الطالب وما بعدها في استمارة التقييم) */}
+      {hasSpecialFeatures && activeView !== 'menu' && (activeView !== 'evaluate' || ['selectHalaqa', 'selectWeek'].includes(evaluationStep)) && (
         <div className="flex justify-between items-center max-w-4xl mx-auto px-1">
           <button
             type="button"
@@ -217,6 +219,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
             teacherId={teacherId} 
             onFormSubmit={handleFormSubmit}
             onBackToMenu={hasSpecialFeatures ? handleReturnToMenu : undefined}
+            onStepChange={setEvaluationStep}
           />
         </ErrorBoundary>
       )}

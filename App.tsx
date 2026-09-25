@@ -831,18 +831,25 @@ const App: React.FC = () => {
   }, [writeData]);
 
   const setNewStudentTestScore = useCallback((score: number) => {
-    setNewStudentTestScoreState(score);
-    writeData('config/newStudentTestScore', score);
+    const safe = isNaN(score) ? 100 : score;
+    setNewStudentTestScoreState(safe);
+    writeData('config/newStudentTestScore', safe);
   }, [writeData]);
 
   const setNewStudentPassingRate = useCallback((rate: number) => {
-    setNewStudentPassingRateState(rate);
-    writeData('config/newStudentPassingRate', rate);
+    const safe = isNaN(rate) ? 70 : rate;
+    setNewStudentPassingRateState(safe);
+    writeData('config/newStudentPassingRate', safe);
   }, [writeData]);
 
   const setNewStudentTestDeductions = useCallback((deductions: { fath: number; tashkeel: number; tajweed: number }) => {
-    setNewStudentTestDeductionsState(deductions);
-    writeData('config/newStudentTestDeductions', deductions);
+    const safe = {
+      fath: isNaN(deductions?.fath) ? 1 : deductions.fath,
+      tashkeel: isNaN(deductions?.tashkeel) ? 1 : deductions.tashkeel,
+      tajweed: isNaN(deductions?.tajweed) ? 0.5 : deductions.tajweed,
+    };
+    setNewStudentTestDeductionsState(safe);
+    writeData('config/newStudentTestDeductions', safe);
   }, [writeData]);
 
   const addNewStudentTest = useCallback((test: Omit<NewStudentTest, 'id' | 'updatedAt'>) => {
@@ -1009,9 +1016,18 @@ const App: React.FC = () => {
   const setMaghribPassword = useCallback((p: string) => { setMaghribPasswordState(p); writeData('config/maghribPassword', p); }, []);
   const setLastUsedWeek = useCallback((w: number | null) => { setLastUsedWeekState(w); writeData('config/lastUsedWeek', w); }, []);
   const setIsTestActive = useCallback((a: boolean) => { setIsTestActiveState(a); writeData('config/isTestActive', a); }, []);
-  const setTestScore = useCallback((s: number) => { setTestScoreState(s); writeData('config/testScore', s); }, []);
-  const setTestName = useCallback((s: string) => { setTestNameState(s); writeData('config/testName', s); }, []);
-  const setTestDeductions = useCallback((d: { fath: number; tashkeel: number; tajweed: number; passageChange?: number }) => { setTestDeductionsState(d); writeData('config/testDeductions', d); }, []);
+  const setTestScore = useCallback((s: number) => { const safe = isNaN(s) ? 100 : s; setTestScoreState(safe); writeData('config/testScore', safe); }, [writeData]);
+  const setTestName = useCallback((s: string) => { setTestNameState(s); writeData('config/testName', s); }, [writeData]);
+  const setTestDeductions = useCallback((d: { fath: number; tashkeel: number; tajweed: number; passageChange?: number }) => {
+    const safe = {
+      fath: isNaN(d?.fath) ? 1 : d.fath,
+      tashkeel: isNaN(d?.tashkeel) ? 1 : d.tashkeel,
+      tajweed: isNaN(d?.tajweed) ? 0.5 : d.tajweed,
+      passageChange: isNaN(d?.passageChange as number) ? 2 : (d.passageChange ?? 2),
+    };
+    setTestDeductionsState(safe);
+    writeData('config/testDeductions', safe);
+  }, [writeData]);
   const toggleDarkMode = useCallback(() => setDarkMode(prev => !prev), []);
   const setColorMap = useCallback((map: Record<string, string>) => { setColorMapState(map); localStorage.setItem('testReportColorMap', JSON.stringify(map)); }, []);
   const setSaveColors = useCallback((save: boolean) => { setSaveColorsState(save); localStorage.setItem('testReportSaveColors', JSON.stringify(save)); }, []);

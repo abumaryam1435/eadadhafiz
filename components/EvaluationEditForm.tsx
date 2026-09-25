@@ -5,7 +5,7 @@ import { AppContext } from '../App';
 import { QURAN_SURAHS } from '../constants';
 import { AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, Student, Halaqa } from '../types';
 import { translationMap, toArabicDigits, formatRtlRange } from '../utils/exportWord';
-import { toEnglishDigits } from '../utils/juzUtils';
+import { toEnglishDigits, parseSafeNumber, safeInputNumber } from '../utils/juzUtils';
 import MushafReaderModal from './MushafReaderModal';
 import { MatnVersesModal } from './MatnVersesModal';
 import { 
@@ -82,9 +82,6 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     return [];
   });
   const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>('pages');
-  const [topQuranTab, setTopQuranTab] = useState<'juzs' | 'surahs'>('juzs');
-  const [allSurahSearch, setAllSurahSearch] = useState('');
-  const [allSurahFilter, setAllSurahFilter] = useState<'all' | 'available' | 'completed' | 'selected'>('all');
   const [viewingVersesModal, setViewingVersesModal] = useState<{
     isOpen: boolean;
     matnName: string;
@@ -111,33 +108,6 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     if (studentQuranHistory.priorPartialPages.has(page)) return 'PRIOR_PARTIAL';
     return 'NONE';
   };
-
-  const filteredAllSurahs = useMemo(() => {
-    return Array.from({ length: 114 }, (_, i) => i + 1).filter(sId => {
-      const name = surahNames[sId];
-      const hist = getSurahHistory(sId);
-      const isCompleted = hist === 'PREV_WEEK_FULL' || hist === 'PRIOR_FULL';
-      const isSelected = selectedSurahIds.includes(sId) || selectionState.derivedSurahs.has(sId);
-
-      if (allSurahFilter === 'available' && isCompleted) return false;
-      if (allSurahFilter === 'completed' && !isCompleted) return false;
-      if (allSurahFilter === 'selected' && !isSelected) return false;
-
-      if (!allSurahSearch.trim()) return true;
-
-      const term = allSurahSearch.trim();
-      if (isSmartMatch(name, term)) return true;
-      if (sId.toString() === toEnglishDigits(term)) return true;
-      
-      const juzList = surahJuzMap[sId] || [];
-      if (juzList.some(j => j.toString() === toEnglishDigits(term) || `جزء ${j}`.includes(term))) return true;
-
-      const pList = surahPagesMap[sId] || [];
-      if (pList.some(p => p.toString() === toEnglishDigits(term) || `ص ${p}`.includes(term))) return true;
-
-      return false;
-    });
-  }, [allSurahSearch, allSurahFilter, selectedSurahIds, selectionState, studentQuranHistory]);
 
   const [isMushafModalOpen, setIsMushafModalOpen] = useState(false);
   const [ayahRange, setAyahRange] = useState<string>(() => {
@@ -602,7 +572,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             </div>
                             <div className="px-2 flex items-center justify-center">
                                 <div className="w-12 h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-rose-400 dark:border-rose-500 shadow-xs flex items-center justify-center overflow-hidden">
-                                    <input type="number" min="0" value={testFath} onChange={e => setTestFath(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full h-full text-center text-sm font-black bg-transparent text-rose-600 dark:text-rose-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    <input type="number" min="0" value={safeInputNumber(testFath)} onChange={e => setTestFath(Math.max(0, parseSafeNumber(e.target.value)))} onFocus={e => e.target.select()} className="w-full h-full text-center text-sm font-black bg-transparent text-rose-600 dark:text-rose-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                 </div>
                             </div>
                         </div>
@@ -615,7 +585,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             </div>
                             <div className="px-2 flex items-center justify-center">
                                 <div className="w-12 h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-amber-400 dark:border-amber-500 shadow-xs flex items-center justify-center overflow-hidden">
-                                    <input type="number" min="0" value={testTashkeel} onChange={e => setTestTashkeel(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full h-full text-center text-sm font-black bg-transparent text-amber-600 dark:text-amber-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    <input type="number" min="0" value={safeInputNumber(testTashkeel)} onChange={e => setTestTashkeel(Math.max(0, parseSafeNumber(e.target.value)))} onFocus={e => e.target.select()} className="w-full h-full text-center text-sm font-black bg-transparent text-amber-600 dark:text-amber-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                 </div>
                             </div>
                         </div>
@@ -628,7 +598,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             </div>
                             <div className="px-2 flex items-center justify-center">
                                 <div className="w-12 h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-teal-400 dark:border-teal-500 shadow-xs flex items-center justify-center overflow-hidden">
-                                    <input type="number" min="0" value={testTajweed} onChange={e => setTestTajweed(Number(e.target.value))} onFocus={e => e.target.select()} className="w-full h-full text-center text-sm font-black bg-transparent text-teal-600 dark:text-teal-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    <input type="number" min="0" value={safeInputNumber(testTajweed)} onChange={e => setTestTajweed(Math.max(0, parseSafeNumber(e.target.value)))} onFocus={e => e.target.select()} className="w-full h-full text-center text-sm font-black bg-transparent text-teal-600 dark:text-teal-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                 </div>
                             </div>
                         </div>
@@ -799,7 +769,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                                         عدد الأبيات المحفوظة:
                                                     </label>
                                                     <select
-                                                        value={isSelectedMatn ? mPages : ''}
+                                                        value={isSelectedMatn && mPages !== '' && mPages !== null && mPages !== undefined && !Number.isNaN(mPages) ? mPages : ''}
                                                         onChange={(e) => {
                                                             const val = e.target.value;
                                                             setSelectedSurahs([m.name]);
@@ -906,10 +876,10 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                                                     onClick={(e) => e.stopPropagation()} 
                                                                     type="number" 
                                                                     min="0" 
-                                                                    value={evalFath === 0 ? '' : evalFath} 
+                                                                    value={safeInputNumber(evalFath)} 
                                                                     placeholder="0" 
                                                                     onChange={e => {
-                                                                        setEvalFath(Math.max(0, Number(e.target.value)));
+                                                                        setEvalFath(Math.max(0, parseSafeNumber(e.target.value)));
                                                                     }} 
                                                                     onFocus={e => e.target.select()} 
                                                                     className="w-full h-full text-center text-xl sm:text-2xl font-black bg-transparent text-rose-600 dark:text-rose-400 focus:text-rose-700 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 dark:placeholder:text-rose-900/40 z-10" 
@@ -957,38 +927,12 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             <label className="text-xs font-black text-gray-700 dark:text-gray-300 block text-center mb-1">
                               {evaluationType === EvaluationType.REVIEW ? 'تحديد نطاق المراجعة بالأجزاء أو الصفحات أو السور' : 'تحديد الحفظ الجديد بالصفحات أو السور'}
                             </label>
-                            {/* تبويب الخيارات الرئيسية: حسب الأجزاء أو حسب السور */}
-                            <div className="flex bg-gray-100 dark:bg-gray-700/80 p-1 rounded-xl shadow-inner mb-3">
-                              <button
-                                type="button"
-                                onClick={() => setTopQuranTab('juzs')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                                  topQuranTab === 'juzs'
-                                    ? 'bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-800 dark:text-gray-300'
-                                }`}
-                              >
-                                <span>📖 تحديد بالأجزاء (30 جزء)</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setTopQuranTab('surahs')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                                  topQuranTab === 'surahs'
-                                    ? 'bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-800 dark:text-gray-300'
-                                }`}
-                              >
-                                <span>📜 تحديد بالسور (114 سورة)</span>
-                              </button>
-                            </div>
 
-                            {topQuranTab === 'juzs' && (
-                              <div>
-                                <label className="text-[11px] font-black text-gray-700 dark:text-gray-300 block text-center mb-2">
+                            <div>
+                              <label className="text-[11px] font-black text-gray-700 dark:text-gray-300 block text-center mb-2">
                                   {evaluationType === EvaluationType.REVIEW ? 'اختر الجزء لتحديده بالكامل أو عرض وتحديد صفحاته وسوره للمراجعة:' : 'اختر الجزء لعرض وتحديد صفحاته أو سوره:'}
                                 </label>
-                                <div className="flex flex-wrap gap-1.5 justify-center">
+                                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5 p-2 bg-gray-50/90 dark:bg-gray-800/60 rounded-2xl border border-gray-200/80 dark:border-gray-700">
                               {Array.from({ length: 30 }, (_, i) => i + 1).map(juz => {
                                 const isCompleted = completedJuzsSet.has(juz);
                                 const isSelected = selectedJuzForPages === juz;
@@ -998,22 +942,22 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                 const pagesInJuz = juzPagesMap[juz] || [];
                                 const allJuzPagesSelected = pagesInJuz.length > 0 && pagesInJuz.every(p => newMemorizedPages.includes(p));
 
-                                let juzBtnClass = 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 dark:bg-gray-700 dark:text-indigo-300 dark:border-gray-600';
+                                let juzBtnClass = 'bg-white text-indigo-700 border border-indigo-200/80 hover:bg-indigo-50/80 dark:bg-gray-700/80 dark:text-indigo-200 dark:border-gray-600 shadow-2xs';
                                 if (isReviewMode) {
                                   if (allJuzPagesSelected) {
-                                    juzBtnClass = 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300 font-black';
+                                    juzBtnClass = 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300 dark:ring-emerald-600 font-black';
                                   } else if (isNewJuz) {
-                                    juzBtnClass = 'bg-[#8B4513] text-white shadow-xs border border-[#5c2e0b] hover:opacity-90';
+                                    juzBtnClass = 'bg-amber-100/90 text-amber-950 border-2 border-[#8B4513]/70 hover:bg-amber-200 font-bold dark:bg-amber-950/60 dark:text-amber-200';
                                   } else if (isOldJuz) {
-                                    juzBtnClass = 'bg-green-800 text-white shadow-xs border border-green-900 hover:opacity-90';
+                                    juzBtnClass = 'bg-emerald-100/90 text-emerald-950 border-2 border-emerald-700/70 hover:bg-emerald-200 font-bold dark:bg-emerald-950/60 dark:text-emerald-200';
                                   } else if (isSelected) {
-                                    juzBtnClass = 'bg-indigo-600 text-white shadow-md';
+                                    juzBtnClass = 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 dark:ring-indigo-500 font-bold';
                                   }
                                 } else {
                                   if (isCompleted) {
                                     juzBtnClass = 'bg-green-800 text-white/90 border border-green-900 cursor-not-allowed opacity-80 dark:bg-green-950 dark:text-green-300 dark:border-green-800 shadow-none';
                                   } else if (isSelected) {
-                                    juzBtnClass = 'bg-indigo-600 text-white shadow-md';
+                                    juzBtnClass = 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 dark:ring-indigo-500 font-bold';
                                   }
                                 }
 
@@ -1026,20 +970,20 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                       setSelectedJuzForPages(isSelected ? null : juz);
                                     }}
                                     title={isReviewMode ? (isNewJuz ? `جزء ${juz} (حفظ جديد بجميع الأسابيع)` : isOldJuz ? `جزء ${juz} (حفظ قديم)` : `جزء ${juz}`) : (isCompleted ? `جزء ${juz} (مكتمل الحفظ بالكامل مسبقاً)` : `جزء ${juz}`)}
-                                    className={`p-2 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${juzBtnClass}`}
+                                    className={`p-1.5 sm:p-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center min-h-[46px] sm:min-h-[50px] active:scale-95 cursor-pointer ${juzBtnClass}`}
                                   >
-                                    <span className={!isReviewMode && isCompleted ? 'line-through decoration-white/70' : ''}>جزء {juz}</span>
+                                    <span className={`text-[11px] sm:text-xs font-black leading-tight ${!isReviewMode && isCompleted ? 'line-through decoration-white/70' : ''}`}>جزء {juz}</span>
                                     {isReviewMode ? (
                                       allJuzPagesSelected ? (
-                                        <span className="text-[8px] font-black bg-white/20 px-1 rounded">محدد بالكامل ✓</span>
+                                        <span className="text-[8px] sm:text-[9px] font-bold bg-white/20 px-1 rounded leading-tight">محدد ✓</span>
                                       ) : isNewJuz ? (
-                                        <span className="text-[8px] font-normal opacity-95">جديد 🟤</span>
+                                        <span className="text-[8px] sm:text-[9px] font-bold opacity-95 leading-tight">جديد 🟤</span>
                                       ) : isOldJuz ? (
-                                        <span className="text-[8px] font-normal opacity-95">قديم 🟢</span>
+                                        <span className="text-[8px] sm:text-[9px] font-bold opacity-95 leading-tight">قديم 🟢</span>
                                       ) : null
                                     ) : (
                                       isCompleted && (
-                                        <span className="text-[8px] font-normal opacity-95 no-underline">مكتمل ✓</span>
+                                        <span className="text-[8px] sm:text-[9px] font-bold opacity-95 no-underline leading-tight">مكتمل ✓</span>
                                       )
                                     )}
                                   </button>
@@ -1229,161 +1173,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                               </div>
                             )}
                             </div>
-                            )}
 
-                            {topQuranTab === 'surahs' && (
-                              <div className="space-y-3">
-                                {/* شريط البحث وتصفية السور */}
-                                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="text"
-                                      value={allSurahSearch}
-                                      onChange={e => setAllSurahSearch(e.target.value)}
-                                      placeholder="ابحث باسم السورة، رقمها، الجزء، أو رقم الصفحة..."
-                                      className="w-full pl-8 pr-3.5 py-2 bg-white dark:bg-gray-800 rounded-xl text-[10px] font-bold border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-xs"
-                                    />
-                                    {allSurahSearch && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setAllSurahSearch('')}
-                                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold"
-                                      >
-                                        ✕
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  <div className="flex bg-gray-100 dark:bg-gray-800 p-0.5 rounded-xl text-[9px] font-bold overflow-x-auto">
-                                    <button
-                                      type="button"
-                                      onClick={() => setAllSurahFilter('all')}
-                                      className={`px-2 py-1 rounded-lg transition-all ${
-                                        allSurahFilter === 'all'
-                                          ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 shadow-xs font-black'
-                                          : 'text-gray-500 dark:text-gray-400'
-                                      }`}
-                                    >
-                                      الكل
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setAllSurahFilter('available')}
-                                      className={`px-2 py-1 rounded-lg transition-all ${
-                                        allSurahFilter === 'available'
-                                          ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-300 shadow-xs font-black'
-                                          : 'text-gray-500 dark:text-gray-400'
-                                      }`}
-                                    >
-                                      المتاحة
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setAllSurahFilter('selected')}
-                                      className={`px-2 py-1 rounded-lg transition-all ${
-                                        allSurahFilter === 'selected'
-                                          ? 'bg-white dark:bg-gray-700 text-green-700 dark:text-green-300 shadow-xs font-black'
-                                          : 'text-gray-500 dark:text-gray-400'
-                                      }`}
-                                    >
-                                      المحددة
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setAllSurahFilter('completed')}
-                                      className={`px-2 py-1 rounded-lg transition-all ${
-                                        allSurahFilter === 'completed'
-                                          ? 'bg-white dark:bg-gray-700 text-amber-800 dark:text-amber-300 shadow-xs font-black'
-                                          : 'text-gray-500 dark:text-gray-400'
-                                      }`}
-                                    >
-                                      المكتملة
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* شبكة السور الـ 114 */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 pr-1.5 custom-scrollbar bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700">
-                                  {filteredAllSurahs.map(sId => {
-                                    const isReviewMode = evaluationType === EvaluationType.REVIEW;
-                                    const name = surahNames[sId];
-                                    const hist = getSurahHistory(sId);
-                                    const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
-                                    const isPriorFull = hist === 'PRIOR_FULL';
-                                    const isCompleted = isPrevWeekFull || isPriorFull;
-                                    
-                                    const isOldSurah = studentQuranHistory.oldFullSurahs?.has(sId) || isPriorFull;
-                                    const isNewSurah = studentQuranHistory.newEvalsFullSurahs?.has(sId) || isPrevWeekFull;
-
-                                    const isDirect = selectedSurahIds.includes(sId);
-                                    const isDerived = selectionState.derivedSurahs.has(sId);
-
-                                    const pList = surahPagesMap[sId] || [];
-                                    const juzList = surahJuzMap[sId] || [];
-                                    const startPage = pList[0] || 0;
-                                    const endPage = pList[pList.length - 1] || 0;
-                                    const pageCount = pList.length;
-
-                                    let cardStyle = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 text-gray-800 dark:text-gray-200';
-                                    let badge = null;
-
-                                    if (isReviewMode) {
-                                      if (isDirect) {
-                                        cardStyle = 'bg-green-600 text-white border-2 border-green-700 shadow-md ring-2 ring-green-400 scale-[1.02] font-bold';
-                                        badge = <span className="text-[8px] bg-white text-green-800 px-1 py-0.5 rounded font-black">محددة ✓</span>;
-                                      } else if (isDerived) {
-                                        cardStyle = 'bg-green-50 dark:bg-green-950/40 text-green-900 dark:text-green-200 border-2 border-dashed border-green-600';
-                                        badge = <span className="text-[8px] bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100 px-1 py-0.5 rounded font-bold">مشمولة بالصفحات</span>;
-                                      } else if (isNewSurah) {
-                                        cardStyle = 'bg-[#8B4513] text-white border border-[#5c2e0b] opacity-95 hover:opacity-100';
-                                        badge = <span className="text-[8px] bg-black/25 text-amber-100 px-1 py-0.5 rounded font-normal">جديد 🟤</span>;
-                                      } else if (isOldSurah) {
-                                        cardStyle = 'bg-green-800 text-white border border-green-900 opacity-90 hover:opacity-100 dark:bg-green-950';
-                                        badge = <span className="text-[8px] bg-black/25 text-green-200 px-1 py-0.5 rounded font-normal">قديم 🟢</span>;
-                                      }
-                                    } else {
-                                      if (isPrevWeekFull) {
-                                        cardStyle = 'bg-[#8B4513] text-white border border-[#5c2e0b] cursor-not-allowed opacity-90';
-                                        badge = <span className="text-[8px] bg-black/25 text-amber-100 px-1 py-0.5 rounded font-normal">مكتملة الأسبوع الماضي ✓</span>;
-                                      } else if (isPriorFull) {
-                                        cardStyle = 'bg-green-800 text-white border border-green-900 cursor-not-allowed opacity-85 dark:bg-green-950';
-                                        badge = <span className="text-[8px] bg-black/25 text-green-200 px-1 py-0.5 rounded font-normal">مكتملة سابقاً ✓</span>;
-                                      } else if (isDirect) {
-                                        cardStyle = 'bg-green-600 text-white border-2 border-green-700 shadow-md ring-2 ring-green-400 scale-[1.02] font-bold';
-                                        badge = <span className="text-[8px] bg-white text-green-800 px-1 py-0.5 rounded font-black">محددة ✓</span>;
-                                      } else if (isDerived) {
-                                        cardStyle = 'bg-green-50 dark:bg-green-950/40 text-green-900 dark:text-green-200 border-2 border-dashed border-green-600';
-                                        badge = <span className="text-[8px] bg-green-200 dark:bg-green-800 text-green-900 dark:text-green-100 px-1 py-0.5 rounded font-bold">مشمولة بالصفحات</span>;
-                                      }
-                                    }
-
-                                    return (
-                                      <button
-                                        key={sId}
-                                        type="button"
-                                        disabled={!isReviewMode && isCompleted}
-                                        onClick={() => toggleSurah(sId)}
-                                        className={`p-2 rounded-xl text-right transition-all flex flex-col justify-between gap-1.5 ${cardStyle}`}
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <span className="font-black text-[10px]">{sId}. {name}</span>
-                                          <span className="text-[9px] opacity-80">{surahAyahCounts[sId]} آية</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-[9px] opacity-75">
-                                          <span>جزء {juzList.join('، ')}</span>
-                                          <span>ص {startPage === endPage ? startPage : `${startPage}-${endPage}`} ({pageCount} ص)</span>
-                                        </div>
-                                        {badge && (
-                                          <div className="mt-1 pt-1 border-t border-white/20 dark:border-gray-700/50 flex justify-end">
-                                            {badge}
-                                          </div>
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
                             <div className="text-center text-[10px] font-bold mt-1 text-green-700 dark:text-green-400">
                               {evaluationType === EvaluationType.REVIEW ? (
                                 selectionState.allActivePages.length > 0 ? (
@@ -1451,9 +1241,9 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                             onClick={(e) => e.stopPropagation()} 
                                             type="number" 
                                             min="0" 
-                                            value={evalFath === 0 ? '' : evalFath} 
+                                            value={safeInputNumber(evalFath)} 
                                             placeholder="0" 
-                                            onChange={e => setEvalFath(Math.max(0, Number(e.target.value)))} 
+                                            onChange={e => setEvalFath(Math.max(0, parseSafeNumber(e.target.value)))} 
                                             onFocus={e => e.target.select()} 
                                             className="w-full h-full text-center text-base font-black bg-transparent text-rose-600 dark:text-rose-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-200 z-10" 
                                         />
@@ -1463,7 +1253,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
 
                             {/* التشكيل */}
                             <div 
-                                onClick={() => setEvalTashkeel(prev => prev + 1)}
+                                onClick={() => setEvalTashkeel(prev => (prev || 0) + 1)}
                                 className="flex items-stretch bg-gradient-to-r from-amber-50/90 to-orange-50/70 dark:from-amber-950/40 dark:to-orange-950/30 rounded-xl border-2 border-amber-200 dark:border-amber-800/70 overflow-hidden group cursor-pointer hover:border-amber-400 active:scale-[0.99] transition-all h-14 sm:h-16"
                             >
                                 <div className="flex-1 flex items-center justify-between px-3">
@@ -1478,9 +1268,9 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                             onClick={(e) => e.stopPropagation()} 
                                             type="number" 
                                             min="0" 
-                                            value={evalTashkeel === 0 ? '' : evalTashkeel} 
+                                            value={safeInputNumber(evalTashkeel)} 
                                             placeholder="0" 
-                                            onChange={e => setEvalTashkeel(Math.max(0, Number(e.target.value)))} 
+                                            onChange={e => setEvalTashkeel(Math.max(0, parseSafeNumber(e.target.value)))} 
                                             onFocus={e => e.target.select()} 
                                             className="w-full h-full text-center text-base font-black bg-transparent text-amber-600 dark:text-amber-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-200 z-10" 
                                         />
@@ -1490,7 +1280,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
 
                             {/* التجويد */}
                             <div 
-                                onClick={() => setEvalTajweed(prev => prev + 1)}
+                                onClick={() => setEvalTajweed(prev => (prev || 0) + 1)}
                                 className="flex items-stretch bg-gradient-to-r from-teal-50/90 to-emerald-50/70 dark:from-teal-950/40 dark:to-emerald-950/30 rounded-xl border-2 border-teal-200 dark:border-teal-800/70 overflow-hidden group cursor-pointer hover:border-teal-400 active:scale-[0.99] transition-all h-14 sm:h-16"
                             >
                                 <div className="flex-1 flex items-center justify-between px-3">
@@ -1505,9 +1295,9 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                             onClick={(e) => e.stopPropagation()} 
                                             type="number" 
                                             min="0" 
-                                            value={evalTajweed === 0 ? '' : evalTajweed} 
+                                            value={safeInputNumber(evalTajweed)} 
                                             placeholder="0" 
-                                            onChange={e => setEvalTajweed(Math.max(0, Number(e.target.value)))} 
+                                            onChange={e => setEvalTajweed(Math.max(0, parseSafeNumber(e.target.value)))} 
                                             onFocus={e => e.target.select()} 
                                             className="w-full h-full text-center text-base font-black bg-transparent text-teal-600 dark:text-teal-400 border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-teal-200 z-10" 
                                         />
