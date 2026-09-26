@@ -2666,7 +2666,7 @@ export const CardsManager: React.FC = () => {
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 p-3.5 sm:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-4">
                             <h4 className="font-bold text-sm sm:text-base text-gray-700 dark:text-gray-300">أبعاد الطباعة</h4>
                             <div className="flex items-center gap-1.5 sm:gap-4">
