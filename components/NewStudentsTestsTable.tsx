@@ -1058,7 +1058,7 @@ export const NewStudentsTestsTable: React.FC = () => {
           <div ref={tableScrollRef} className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="bg-gray-50/80 dark:bg-gray-750/50 border-b border-gray-200 dark:border-gray-700 text-[11px] font-black text-gray-500 dark:text-gray-400">
+                <tr className="bg-gray-50/80 dark:bg-gray-750/50 border-b border-gray-200 dark:border-gray-700 text-xs sm:text-sm font-black text-gray-700 dark:text-gray-300">
                   {visibleColumns.map(col => {
                     const isSorted = sortConfig?.key === col.key;
                     const arrow = isSorted ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : '';
@@ -1073,7 +1073,7 @@ export const NewStudentsTestsTable: React.FC = () => {
                     };
 
                     const isAction = col.key === 'actions';
-                    const baseCls = `py-3 px-3 ${isAction ? 'text-center' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 select-none transition-colors'}`;
+                    const baseCls = `py-3.5 px-3.5 ${isAction ? 'text-center' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 select-none transition-colors'}`;
 
                     switch (col.key) {
                       case 'sequence':
@@ -1109,14 +1109,14 @@ export const NewStudentsTestsTable: React.FC = () => {
                       case 'status':
                         return <th key="status" onClick={handleHeaderClick} className={`${baseCls} px-4 text-center`}>القرار والقبول{arrow}</th>;
                       case 'actions':
-                        return <th key="actions" className="py-3 px-3 text-center">إجراءات</th>;
+                        return <th key="actions" className="py-3.5 px-3.5 text-center">إجراءات</th>;
                       default:
                         return <th key={col.key} onClick={handleHeaderClick} className={baseCls}>{col.label}{arrow}</th>;
                     }
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-xs sm:text-sm">
                 {sortedTests.map((test, index) => {
                   const isAccepted = test.status === 'accepted';
                   const isRejected = test.status === 'rejected';
@@ -1133,15 +1133,15 @@ export const NewStudentsTestsTable: React.FC = () => {
                         switch (col.key) {
                           case 'sequence':
                             return (
-                              <td key="sequence" className="py-3 px-3 text-center font-bold text-gray-400">
+                              <td key="sequence" className="py-3.5 px-3.5 text-center font-bold text-gray-400">
                                 {index + 1}
                               </td>
                             );
 
                           case 'studentName':
                             return (
-                              <td key="studentName" className="py-3 px-4">
-                                <div className="font-black text-gray-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                              <td key="studentName" className="py-3.5 px-4">
+                                <div className="font-black text-xs sm:text-sm text-gray-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                                   <span>{test.studentName}</span>
                                   {isAccepted && (
                                     <span className="text-emerald-600 text-xs" title="مقبول ومدرج في التطبيق">✓</span>
@@ -1151,19 +1151,19 @@ export const NewStudentsTestsTable: React.FC = () => {
                                 {acceptedStudent && (
                                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                     {acceptedStudent.isAlAmeen && (
-                                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold leading-tight bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
+                                      <span className="text-[10px] sm:text-[11px] text-emerald-700 dark:text-emerald-300 font-bold leading-tight bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-200/80 dark:border-emerald-800">
                                         (من طلاب الأمين)
                                       </span>
                                     )}
                                     {acceptedStudent.isFromIbri !== false && (
-                                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-bold leading-tight bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200/80 dark:border-blue-800">
+                                      <span className="text-[10px] sm:text-[11px] text-blue-700 dark:text-blue-300 font-bold leading-tight bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200/80 dark:border-blue-800">
                                         (من جامع عبري)
                                       </span>
                                     )}
                                   </div>
                                 )}
                                 {test.surahs && test.surahs.length > 0 && (
-                                  <span className="text-[10px] text-gray-400 block mt-0.5">
+                                  <span className="text-[11px] sm:text-xs text-gray-500 block mt-0.5">
                                     سور: {test.surahs.join('، ')}
                                   </span>
                                 )}
@@ -1172,10 +1172,10 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'isAlAmeenStr':
                             return (
-                              <td key="isAlAmeenStr" className="py-3 px-3 text-center font-bold">
+                              <td key="isAlAmeenStr" className="py-3.5 px-3.5 text-center font-bold">
                                 {acceptedStudent ? (
                                   acceptedStudent.isAlAmeen ? (
-                                    <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-md text-[11px] border border-emerald-200 dark:border-emerald-800">
+                                    <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-md text-xs border border-emerald-200 dark:border-emerald-800">
                                       نعم
                                     </span>
                                   ) : (
@@ -1189,10 +1189,10 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'isFromIbriStr':
                             return (
-                              <td key="isFromIbriStr" className="py-3 px-3 text-center font-bold">
+                              <td key="isFromIbriStr" className="py-3.5 px-3.5 text-center font-bold">
                                 {acceptedStudent ? (
                                   acceptedStudent.isFromIbri !== false ? (
-                                    <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded-md text-[11px] border border-blue-200 dark:border-blue-800">
+                                    <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded-md text-xs border border-blue-200 dark:border-blue-800">
                                       نعم
                                     </span>
                                   ) : (
@@ -1206,9 +1206,9 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'grade':
                             return (
-                              <td key="grade" className="py-3 px-3 font-bold text-gray-600 dark:text-gray-300">
+                              <td key="grade" className="py-3.5 px-3.5 font-bold text-gray-700 dark:text-gray-300">
                                 {test.grade ? (
-                                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md text-[11px]">
+                                  <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md text-xs">
                                     {test.grade}
                                   </span>
                                 ) : (
@@ -1219,12 +1219,12 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'parentPhone':
                             return (
-                              <td key="parentPhone" className="py-3 px-3 font-bold">
+                              <td key="parentPhone" className="py-3.5 px-3.5 font-bold">
                                 {test.parentPhone ? (
                                   <div className="flex items-center gap-1.5" dir="ltr">
                                     <a
                                       href={`tel:${test.parentPhone}`}
-                                      className="text-indigo-600 dark:text-indigo-400 hover:underline font-mono text-xs"
+                                      className="text-indigo-600 dark:text-indigo-400 hover:underline font-mono text-xs sm:text-sm"
                                     >
                                       {test.parentPhone}
                                     </a>
@@ -1234,7 +1234,7 @@ export const NewStudentsTestsTable: React.FC = () => {
                                         navigator.clipboard.writeText(test.parentPhone!);
                                         showToast('📋 تم نسخ رقم الهاتف.', 'info');
                                       }}
-                                      className="text-gray-400 hover:text-gray-600 text-[10px] cursor-pointer"
+                                      className="text-gray-400 hover:text-gray-600 text-xs cursor-pointer"
                                       title="نسخ الرقم"
                                     >
                                       📋
@@ -1259,22 +1259,22 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'teacherName':
                             return (
-                              <td key="teacherName" className="py-3 px-3 font-bold text-gray-700 dark:text-gray-300">
+                              <td key="teacherName" className="py-3.5 px-3.5 font-bold text-gray-700 dark:text-gray-300">
                                 {test.teacherName || 'معلم'}
                               </td>
                             );
 
                           case 'testDate':
                             return (
-                              <td key="testDate" className="py-3 px-3 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                              <td key="testDate" className="py-3.5 px-3.5 font-mono text-xs text-gray-600 dark:text-gray-300">
                                 {test.testDate}
                               </td>
                             );
 
                           case 'fathErrors':
                             return (
-                              <td key="fathErrors" className="py-3 px-2 text-center">
-                                <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
+                              <td key="fathErrors" className="py-3.5 px-2 text-center">
+                                <span className={`inline-block font-mono font-black text-xs sm:text-sm px-2.5 py-0.5 rounded-lg ${
                                   test.fathErrors > 0 
                                     ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60' 
                                     : 'text-gray-400'
@@ -1286,8 +1286,8 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'tashkeelErrors':
                             return (
-                              <td key="tashkeelErrors" className="py-3 px-2 text-center">
-                                <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
+                              <td key="tashkeelErrors" className="py-3.5 px-2 text-center">
+                                <span className={`inline-block font-mono font-black text-xs sm:text-sm px-2.5 py-0.5 rounded-lg ${
                                   test.tashkeelErrors > 0 
                                     ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60' 
                                     : 'text-gray-400'
@@ -1299,8 +1299,8 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'tajweedErrors':
                             return (
-                              <td key="tajweedErrors" className="py-3 px-2 text-center">
-                                <span className={`inline-block font-mono font-black text-xs px-2 py-0.5 rounded-lg ${
+                              <td key="tajweedErrors" className="py-3.5 px-2 text-center">
+                                <span className={`inline-block font-mono font-black text-xs sm:text-sm px-2.5 py-0.5 rounded-lg ${
                                   test.tajweedErrors > 0 
                                     ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-900/60' 
                                     : 'text-gray-400'
@@ -1312,8 +1312,8 @@ export const NewStudentsTestsTable: React.FC = () => {
 
                           case 'score':
                             return (
-                              <td key="score" className="py-3 px-3 text-center font-black text-gray-900 dark:text-white">
-                                {test.score} <span className="text-[10px] text-gray-400">/ {test.maxScore}</span>
+                              <td key="score" className="py-3.5 px-3.5 text-center font-black text-gray-900 dark:text-white text-xs sm:text-sm">
+                                {test.score} <span className="text-[11px] text-gray-400">/ {test.maxScore}</span>
                               </td>
                             );
 

@@ -496,15 +496,19 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   };
 
   // Live error calculation
-  const currentEvalFath = sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.fath || 0) : (evalFath || 0);
-  const currentEvalTashkeel = sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.tashkeel || 0) : (evalTashkeel || 0);
-  const currentEvalTajweed = sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.tajweed || 0) : (evalTajweed || 0);
+  const currentEvalFath = Number(sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.fath ?? 0) : (evalFath ?? 0)) || 0;
+  const currentEvalTashkeel = Number(sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.tashkeel ?? 0) : (evalTashkeel ?? 0)) || 0;
+  const currentEvalTajweed = Number(sardGroupMode && selectedGroupStudentId ? (sardGroupErrors[selectedGroupStudentId]?.tajweed ?? 0) : (evalTajweed ?? 0)) || 0;
 
   const totalErrors = useMemo(() => {
+    const fath = Number(currentEvalFath) || 0;
+    const tashkeel = Number(currentEvalTashkeel) || 0;
+    const tajweed = Number(currentEvalTajweed) || 0;
     if (isSardMode) {
-      return calculateSardTotalErrors(currentEvalFath, currentEvalTashkeel, currentEvalTajweed);
+      return calculateSardTotalErrors(fath, tashkeel, tajweed);
     }
-    return Number((currentEvalFath + currentEvalTashkeel + (currentEvalTajweed * 0.5)).toFixed(1));
+    const rawSum = fath + tashkeel + (tajweed * 0.5);
+    return Number(Number(rawSum).toFixed(1));
   }, [currentEvalFath, currentEvalTashkeel, currentEvalTajweed, isSardMode]);
 
   const liveRating = useMemo(() => {
@@ -916,7 +920,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       }
                     }));
                   } else if (setEvalFath) {
-                    setEvalFath(prev => (typeof prev === 'number' ? prev + 1 : evalFath + 1));
+                    setEvalFath(prev => (Number(prev) || 0) + 1);
                   }
                 }}
               >
@@ -968,7 +972,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       }
                     }));
                   } else if (setEvalTashkeel) {
-                    setEvalTashkeel(prev => (typeof prev === 'number' ? prev + 1 : (evalTashkeel || 0) + 1));
+                    setEvalTashkeel(prev => (Number(prev) || 0) + 1);
                   }
                 }}
               >
@@ -1020,7 +1024,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       }
                     }));
                   } else if (setEvalTajweed) {
-                    setEvalTajweed(prev => (typeof prev === 'number' ? prev + 1 : (evalTajweed || 0) + 1));
+                    setEvalTajweed(prev => (Number(prev) || 0) + 1);
                   }
                 }}
               >
@@ -1065,7 +1069,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                   className="flex items-stretch bg-purple-50/95 hover:bg-purple-100/90 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 rounded-xl border-2 border-purple-300 dark:border-purple-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-12"
                   onClick={() => {
                     if (setEvalPassageChanges) {
-                      setEvalPassageChanges(prev => (typeof prev === 'number' ? prev + 1 : (evalPassageChanges || 0) + 1));
+                      setEvalPassageChanges(prev => (Number(prev) || 0) + 1);
                     }
                   }}
                 >

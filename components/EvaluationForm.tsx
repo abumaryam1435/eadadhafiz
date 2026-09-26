@@ -938,12 +938,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         setPerf(mapOldPerformanceToNew(found.performance as string));
         setPReview(found.periodicReview);
         setNotes(found.notes ?? '');
-        setEvalFath(found.evalFathErrors ?? 0);
-        setEvalTashkeel(found.evalTashkeelErrors ?? 0);
-        setEvalTajweed(found.evalTajweedErrors ?? 0);
-        setTestFath(found.testFathErrors ?? 0);
-        setTestTashkeel(found.testTashkeelErrors ?? 0);
-        setTestTajweed(found.testTajweedErrors ?? 0);
+        setEvalFath(Number(found.evalFathErrors) || 0);
+        setEvalTashkeel(Number(found.evalTashkeelErrors) || 0);
+        setEvalTajweed(Number(found.evalTajweedErrors) || 0);
+        setTestFath(Number(found.testFathErrors) || 0);
+        setTestTashkeel(Number(found.testTashkeelErrors) || 0);
+        setTestTajweed(Number(found.testTajweedErrors) || 0);
     } else {
         setCurrentEval(null);
         setUiMode('new');
@@ -4035,11 +4035,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         newPages={subject === 'sard' ? sardActivePages : (evalType === EvaluationType.REVIEW ? Array.from(studentQuranHistory.newEvalsFullPages) : selectionState.allActivePages)}
         previousWeekPages={subject === 'sard' ? undefined : (evalType === EvaluationType.REVIEW ? studentQuranHistory.oldFullPages : previousWeekPages)}
         studentName={activeStudent?.name}
-        evalFath={subject === 'sard' ? sardFathErrors : evalFath}
+        evalFath={Number(subject === 'sard' ? sardFathErrors : evalFath) || 0}
         setEvalFath={subject === 'sard' ? setSardFathErrors : setEvalFath}
-        evalTashkeel={subject === 'sard' ? sardTashkeelErrors : evalTashkeel}
+        evalTashkeel={Number(subject === 'sard' ? sardTashkeelErrors : evalTashkeel) || 0}
         setEvalTashkeel={subject === 'sard' ? setSardTashkeelErrors : setEvalTashkeel}
-        evalTajweed={subject === 'sard' ? sardTajweedErrors : evalTajweed}
+        evalTajweed={Number(subject === 'sard' ? sardTajweedErrors : evalTajweed) || 0}
         setEvalTajweed={subject === 'sard' ? setSardTajweedErrors : setEvalTajweed}
         isSardMode={subject === 'sard'}
         sardGroupMode={sardEvalMode === 'group'}

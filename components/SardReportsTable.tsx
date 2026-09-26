@@ -947,12 +947,12 @@ export const SardReportsTable: React.FC = () => {
                 <th 
                   key={h.key} 
                   onClick={() => setSortConfig({ key: h.key, direction: sortConfig?.key === h.key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' })} 
-                  className={`px-3 py-4 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase cursor-pointer whitespace-nowrap text-right ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}
+                  className={`px-3.5 py-3.5 text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 uppercase cursor-pointer whitespace-nowrap text-right ${h.key === 'sequence' ? 'w-px !px-2.5 text-center' : ''}`}
                 >
                   {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                 </th>
               ))}
-              {!topStudentsSortDesc && <th className="px-3 py-4 text-center text-[10px] font-bold text-gray-500 no-print">العمليات</th>}
+              {!topStudentsSortDesc && <th className="px-3.5 py-3.5 text-center text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 no-print">العمليات</th>}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100 dark:bg-gray-800 dark:divide-gray-700">
@@ -1005,7 +1005,7 @@ export const SardReportsTable: React.FC = () => {
                               handleDraftUpdate(item.id, 'weekNumber', isNaN(parsed) ? '' : parsed);
                             }
                           }} 
-                          className="w-16 p-1.5 text-xs text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-xs selection:bg-amber-300 selection:text-amber-950" 
+                          className="w-16 p-1.5 text-xs sm:text-sm text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-xs selection:bg-amber-300 selection:text-amber-950" 
                           title="تعديل رقم الأسبوع"
                         />
                       );
@@ -1015,7 +1015,7 @@ export const SardReportsTable: React.FC = () => {
                         <select 
                           value={currentHalaqaId} 
                           onChange={(e) => handleDraftUpdate(item.id, 'sardHalaqaId', e.target.value)} 
-                          className="p-1 text-[10px] border-amber-300 rounded-lg font-bold"
+                          className="p-1.5 text-xs sm:text-sm border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white"
                         >
                           <option value="0">---</option>
                           {[...sardHalaqas].sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
@@ -1027,7 +1027,7 @@ export const SardReportsTable: React.FC = () => {
                         <select 
                           value={currentTeacherId} 
                           onChange={(e) => handleDraftUpdate(item.id, 'teacherId', parseInt(e.target.value))}
-                          className="p-1 text-[10px] border-amber-300 rounded-lg bg-amber-50 focus:ring-amber-500 max-w-[120px] font-bold"
+                          className="p-1.5 text-xs sm:text-sm border-2 border-amber-400 rounded-lg bg-amber-50 dark:bg-gray-700 dark:border-amber-500 focus:ring-amber-500 max-w-[130px] font-bold text-gray-900 dark:text-white"
                         >
                           <option value="0">---</option>
                           {users.filter(u => u.role === UserRole.TEACHER).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -1040,19 +1040,19 @@ export const SardReportsTable: React.FC = () => {
                             const dual = getDualDate(item.evaluationDate, hijriAdjustments);
                             return dual ? (
                               <div className="flex flex-col items-center gap-0.5">
-                                <span className="font-extrabold text-emerald-700 dark:text-emerald-400 text-[11px] leading-tight">{dual.hijri}</span>
-                                <span className="text-[9px] text-gray-500 font-bold leading-tight">{dual.gregorian}</span>
+                                <span className="font-extrabold text-emerald-700 dark:text-emerald-400 text-xs sm:text-sm leading-tight">{dual.hijri}</span>
+                                <span className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-bold leading-tight">{dual.gregorian}</span>
                               </div>
-                            ) : <span className="text-[9px] text-gray-500 font-bold">{item.evaluationDate}</span>;
+                            ) : <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-bold">{item.evaluationDate}</span>;
                           })()}
                         </div>
                       );
                     } else if (h.key === 'studentName') {
                       cellContent = (
                         <div className="flex flex-col">
-                          <span className="font-bold">{item.studentName}</span>
+                          <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100">{item.studentName}</span>
                           {item.isAlAmeen && (
-                            <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
+                            <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
                               (من طلاب الأمين)
                             </span>
                           )}
@@ -1063,18 +1063,18 @@ export const SardReportsTable: React.FC = () => {
                     }
 
                     return (
-                      <td key={h.key} className={`px-3 py-3.5 whitespace-nowrap text-[10px] sm:text-xs ${item.attendance === NOT_RECORDED ? 'text-gray-600 italic' : 'text-gray-900 dark:text-gray-100'} ${isEditable ? 'bg-amber-50/30' : ''} ${h.key === 'sequence' ? 'w-px !px-2 text-center font-bold text-gray-500' : ''}`} style={{ ...rowColorStyle, ...cellStyle }}>
+                      <td key={h.key} className={`px-3.5 py-3 whitespace-nowrap text-xs sm:text-sm font-semibold ${item.attendance === NOT_RECORDED ? 'text-gray-600 italic' : 'text-gray-900 dark:text-gray-100'} ${isEditable ? 'bg-amber-50/30' : ''} ${h.key === 'sequence' ? 'w-px !px-2.5 text-center font-bold text-gray-500' : ''}`} style={{ ...rowColorStyle, ...cellStyle }}>
                         {cellContent}
                       </td>
                     );
                   })}
                   {!topStudentsSortDesc && (
-                    <td className="px-3 py-3.5 whitespace-nowrap text-center no-print">
+                    <td className="px-3.5 py-3 whitespace-nowrap text-center no-print">
                       <div className="flex justify-center gap-2">
                         <button 
                           onClick={() => handleEdit(item)} 
                           disabled={isPlaceholder || isQuickEditActive} 
-                          className={`p-1.5 rounded-lg transition-colors ${isPlaceholder || isQuickEditActive ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50 border border-blue-100'}`} 
+                          className={`p-2 rounded-lg transition-colors ${isPlaceholder || isQuickEditActive ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50 border border-blue-100 dark:border-gray-600 dark:hover:bg-blue-900/30'}`} 
                           title="تعديل"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -1082,7 +1082,7 @@ export const SardReportsTable: React.FC = () => {
                         <button 
                           onClick={() => handleDelete(item.id)} 
                           disabled={isPlaceholder || item.attendance === NOT_RECORDED || isQuickEditActive} 
-                          className={`p-1.5 rounded-lg transition-colors ${isPlaceholder || item.attendance === NOT_RECORDED || isQuickEditActive ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-red-600 hover:bg-red-50 border border-red-100'}`} 
+                          className={`p-2 rounded-lg transition-colors ${isPlaceholder || item.attendance === NOT_RECORDED || isQuickEditActive ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-red-600 hover:bg-red-50 border border-red-100 dark:border-gray-600 dark:hover:bg-red-900/30'}`} 
                           title="حذف"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>

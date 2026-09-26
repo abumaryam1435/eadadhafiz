@@ -141,12 +141,12 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   const [step, setStep] = useState<'edit' | 'summary'>('edit');
   const [draftEvaluation, setDraftEvaluation] = useState<Evaluation | null>(null);
 
-  const [testFath, setTestFath] = useState<number>(initialEvaluation.testFathErrors || 0);
-  const [testTashkeel, setTestTashkeel] = useState<number>(initialEvaluation.testTashkeelErrors || 0);
-  const [testTajweed, setTestTajweed] = useState<number>(initialEvaluation.testTajweedErrors || 0);
-  const [evalFath, setEvalFath] = useState<number>(initialEvaluation.evalFathErrors || 0);
-  const [evalTashkeel, setEvalTashkeel] = useState<number>(initialEvaluation.evalTashkeelErrors || 0);
-  const [evalTajweed, setEvalTajweed] = useState<number>(initialEvaluation.evalTajweedErrors || 0);
+  const [testFath, setTestFath] = useState<number>(Number(initialEvaluation.testFathErrors) || 0);
+  const [testTashkeel, setTestTashkeel] = useState<number>(Number(initialEvaluation.testTashkeelErrors) || 0);
+  const [testTajweed, setTestTajweed] = useState<number>(Number(initialEvaluation.testTajweedErrors) || 0);
+  const [evalFath, setEvalFath] = useState<number>(Number(initialEvaluation.evalFathErrors) || 0);
+  const [evalTashkeel, setEvalTashkeel] = useState<number>(Number(initialEvaluation.evalTashkeelErrors) || 0);
+  const [evalTajweed, setEvalTajweed] = useState<number>(Number(initialEvaluation.evalTajweedErrors) || 0);
   const matns = context?.matns || [];
 
   const MATN_CARD_THEMES = useMemo(() => [
@@ -309,7 +309,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
         else if (evalFath > 6) deducedPerf = PerformanceLevel.MORE_THAN_FIVE_ERRORS;
         else if (evalFath >= 3) deducedPerf = PerformanceLevel.ONE_ERROR;
       } else {
-        const rawTotal = evalFath + evalTashkeel + (evalTajweed * 0.5);
+        const rawTotal = (Number(evalFath) || 0) + (Number(evalTashkeel) || 0) + ((Number(evalTajweed) || 0) * 0.5);
         const totalErrors = Math.floor(rawTotal);
         if (totalErrors === 0) deducedPerf = PerformanceLevel.EXCELLENT;
         else if (totalErrors === 1) deducedPerf = PerformanceLevel.ONE_ERROR;
@@ -406,8 +406,15 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
         }
     }
 
+    const fFath = Number(evalFath) || 0;
+    const fTashkeel = Number(evalTashkeel) || 0;
+    const fTajweed = Number(evalTajweed) || 0;
     const isReview = (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.REVIEW || finalEvalType === EvaluationType.REVIEW);
-    const reviewScore = isReview ? Math.max(0, 100 - (evalFath * 1 + evalTashkeel * 1 + evalTajweed * 0.5)) : undefined;
+    const reviewScore = isReview ? Math.max(0, 100 - (fFath * 1 + fTashkeel * 1 + fTajweed * 0.5)) : undefined;
+
+    const tFath = Number(testFath) || 0;
+    const tTashkeel = Number(testTashkeel) || 0;
+    const tTajweed = Number(testTajweed) || 0;
 
     const updated: any = {
       ...initialEvaluation,
@@ -423,13 +430,13 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
       periodicReview: isReview ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? (periodicReview || null) : null),
       notes: notes || null,
       updatedAt: Date.now(),
-      evalFathErrors: !initialEvaluation.isTest ? evalFath : undefined,
-      evalTashkeelErrors: !initialEvaluation.isTest ? evalTashkeel : undefined,
-      evalTajweedErrors: !initialEvaluation.isTest ? evalTajweed : undefined,
-      testFathErrors: initialEvaluation.isTest ? testFath : undefined,
-      testTashkeelErrors: initialEvaluation.isTest ? testTashkeel : undefined,
-      testTajweedErrors: initialEvaluation.isTest ? testTajweed : undefined,
-      testTotalScore: initialEvaluation.isTest ? Math.max(0, (initialEvaluation.testMaxScore || 0) - (testFath + testTashkeel + testTajweed * 0.5)) : (isReview ? reviewScore : undefined),
+      evalFathErrors: !initialEvaluation.isTest ? fFath : undefined,
+      evalTashkeelErrors: !initialEvaluation.isTest ? fTashkeel : undefined,
+      evalTajweedErrors: !initialEvaluation.isTest ? fTajweed : undefined,
+      testFathErrors: initialEvaluation.isTest ? tFath : undefined,
+      testTashkeelErrors: initialEvaluation.isTest ? tTashkeel : undefined,
+      testTajweedErrors: initialEvaluation.isTest ? tTajweed : undefined,
+      testTotalScore: initialEvaluation.isTest ? Math.max(0, (Number(initialEvaluation.testMaxScore) || 0) - (tFath + tTashkeel + tTajweed * 0.5)) : (isReview ? reviewScore : undefined),
       testMaxScore: initialEvaluation.isTest ? initialEvaluation.testMaxScore : (isReview ? 100 : undefined),
     };
     
@@ -1289,13 +1296,13 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                     {evaluationType === EvaluationType.REVIEW ? (
                       <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl space-y-1">
                         <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 font-bold px-1">
-                          <span>إجمالي الخصم: <strong className="text-rose-600 dark:text-rose-400 text-sm">-{(evalFath * 1) + (evalTashkeel * 1) + (evalTajweed * 0.5)}</strong> درجة</span>
+                          <span>إجمالي الخصم: <strong className="text-rose-600 dark:text-rose-400 text-sm">-{(Number(evalFath) || 0) * 1 + (Number(evalTashkeel) || 0) * 1 + (Number(evalTajweed) || 0) * 0.5}</strong> درجة</span>
                           <span className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-md font-black">الدرجة من 100</span>
                         </div>
                         <div className="flex justify-between items-center font-black text-indigo-900 dark:text-indigo-200 text-sm sm:text-base pt-1">
                           <span>الدرجة النهائية للمراجعة:</span>
                           <span className="bg-white dark:bg-gray-900 px-3 py-1 rounded-xl border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 text-base font-black shadow-xs">
-                            {Math.max(0, 100 - ((evalFath * 1) + (evalTashkeel * 1) + (evalTajweed * 0.5)))} / 100
+                            {Math.max(0, 100 - (((Number(evalFath) || 0) * 1) + ((Number(evalTashkeel) || 0) * 1) + ((Number(evalTajweed) || 0) * 0.5)))} / 100
                           </span>
                         </div>
                       </div>
@@ -1439,11 +1446,11 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
         newPages={selectionState.allActivePages}
         previousWeekPages={previousWeekPages}
         studentName={student?.name}
-        evalFath={initialEvaluation.isTest ? testFath : evalFath}
+        evalFath={initialEvaluation.isTest ? (Number(testFath) || 0) : (Number(evalFath) || 0)}
         setEvalFath={initialEvaluation.isTest ? setTestFath : setEvalFath}
-        evalTashkeel={initialEvaluation.isTest ? testTashkeel : evalTashkeel}
+        evalTashkeel={initialEvaluation.isTest ? (Number(testTashkeel) || 0) : (Number(evalTashkeel) || 0)}
         setEvalTashkeel={initialEvaluation.isTest ? setTestTashkeel : setEvalTashkeel}
-        evalTajweed={initialEvaluation.isTest ? testTajweed : evalTajweed}
+        evalTajweed={initialEvaluation.isTest ? (Number(testTajweed) || 0) : (Number(evalTajweed) || 0)}
         setEvalTajweed={initialEvaluation.isTest ? setTestTajweed : setEvalTajweed}
       />
       {pendingMatnsAlert && (

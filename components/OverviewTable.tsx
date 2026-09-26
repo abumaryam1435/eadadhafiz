@@ -1448,13 +1448,13 @@ export const OverviewTable: React.FC = () => {
                       requestSort(header.key as keyof CombinedDataItem)
                     }
                     scope="col"
-                    className={`px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer dark:text-gray-200 hover:text-green-800 transition-colors whitespace-nowrap ${(header.key as string) === 'serialNumber' || (header.key as string) === 'sequence' ? 'w-px !px-2 text-center' : 'text-right'}`}
+                    className={`px-4 py-3.5 text-xs sm:text-sm font-extrabold text-gray-700 uppercase tracking-wider cursor-pointer dark:text-gray-200 hover:text-green-800 transition-colors whitespace-nowrap ${(header.key as string) === 'serialNumber' || (header.key as string) === 'sequence' ? 'w-px !px-2.5 text-center' : 'text-right'}`}
                   >
                     {header.label}
                     {getSortIndicator(header.key as keyof CombinedDataItem)}
                   </th>
                 ))}
-                <th className="px-4 py-4 text-center text-xs font-bold text-gray-500 no-print">
+                <th className="px-4 py-3.5 text-center text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 no-print">
                   العمليات
                 </th>
               </tr>
@@ -1474,14 +1474,14 @@ export const OverviewTable: React.FC = () => {
                   {getDynamicHeaders(filteredAndSortedData).map((header) => (
                     <td
                       key={header.key}
-                      className={`px-4 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200 font-bold ${(header.key as string) === 'serialNumber' || (header.key as string) === 'sequence' ? 'w-px !px-2 text-center font-bold text-gray-500' : ''}`}
+                      className={`px-4 py-3.5 whitespace-nowrap text-xs sm:text-sm text-gray-800 dark:text-gray-100 font-semibold ${(header.key as string) === 'serialNumber' || (header.key as string) === 'sequence' ? 'w-px !px-2.5 text-center font-bold text-gray-500' : ''}`}
                     >
                       {header.key === 'parentPhone' ? (
                         item.parentPhone ? (
                           <div className="flex items-center gap-1.5 justify-start" dir="ltr">
                             <a
                               href={`tel:${item.parentPhone}`}
-                              className="font-mono text-sm text-indigo-600 dark:text-indigo-400 hover:underline select-all inline-block"
+                              className="font-mono text-xs sm:text-sm text-indigo-600 dark:text-indigo-400 hover:underline select-all inline-block"
                               title="اتصال بالرقم"
                             >
                               {item.parentPhone}
@@ -1502,7 +1502,7 @@ export const OverviewTable: React.FC = () => {
                                 navigator.clipboard.writeText(item.parentPhone);
                                 showToast("📋 تم نسخ رقم الهاتف بنجاح");
                               }}
-                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors no-print text-[11px]"
+                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors no-print text-xs"
                               title="نسخ الرقم"
                             >
                               📋
@@ -1526,9 +1526,9 @@ export const OverviewTable: React.FC = () => {
                         )
                       ) : header.key === 'studentName' ? (
                         <div className="flex flex-col">
-                          <span>{item.studentName}</span>
+                          <span className="font-bold text-xs sm:text-sm">{item.studentName}</span>
                           {item.isAlAmeenStr === "نعم" && (
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal leading-tight mt-0.5">
+                            <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
                               (من طلاب الأمين)
                             </span>
                           )}

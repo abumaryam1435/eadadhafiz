@@ -378,32 +378,32 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
                     key: h.key,
                     direction: prev?.key === h.key && prev.direction === 'ascending' ? 'descending' : 'ascending'
                   }))}
-                  className={`px-4 py-3 text-xs font-bold text-gray-500 uppercase cursor-pointer hover:text-green-800 select-none transition-colors ${h.key === 'date' ? 'text-center' : 'text-right'} ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}
+                  className={`px-4 py-3.5 text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 uppercase cursor-pointer hover:text-green-800 select-none transition-colors ${h.key === 'date' ? 'text-center' : 'text-right'} ${h.key === 'sequence' ? 'w-px !px-2.5 text-center' : ''}`}
                 >
                   {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 no-print">العمليات</th>
+              <th className="px-4 py-3.5 text-center text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 no-print">العمليات</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100 dark:bg-gray-800 dark:divide-gray-700">
             {filteredAndSortedData.map((item, idx) => (
               <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50/50 dark:bg-gray-900/20"}>
                 {headers.map(h => (
-                  <td key={h.key} className={`px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-bold ${h.key === 'date' ? 'text-center' : ''} ${h.key === 'sequence' ? 'w-px !px-2 text-center text-gray-500' : ''}`}>
+                  <td key={h.key} className={`px-4 py-3.5 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-semibold ${h.key === 'date' ? 'text-center' : ''} ${h.key === 'sequence' ? 'w-px !px-2.5 text-center font-bold text-gray-500' : ''}`}>
                     {h.key === 'date' ? (
                        <div className="flex flex-col items-center justify-center w-full mx-auto">
                            {(() => {
                                const hijri = getHijriDate(item.date, hijriAdjustments);
-                               return hijri ? <span className="font-extrabold text-green-900 dark:text-green-300 text-[11px] mb-0.5">{hijri}</span> : null;
+                               return hijri ? <span className="font-extrabold text-green-900 dark:text-green-300 text-xs sm:text-sm mb-0.5">{hijri}</span> : null;
                            })()}
-                           <span className="text-[10px] text-gray-700 font-bold">{item.date ? toArabicDigits(item.date) : '—'}</span>
+                           <span className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 font-bold">{item.date ? toArabicDigits(item.date) : '—'}</span>
                        </div>
                     ) : h.key === 'studentName' ? (
                        <div className="flex flex-col">
-                           <span>{item.studentName}</span>
+                           <span className="font-bold text-xs sm:text-sm">{item.studentName}</span>
                            {item.isAlAmeen && (
-                               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
+                               <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
                                    (من طلاب الأمين)
                                </span>
                            )}
@@ -413,12 +413,12 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
                     )}
                   </td>
                 ))}
-                <td className="px-4 py-4 whitespace-nowrap text-center no-print">
+                <td className="px-4 py-3.5 whitespace-nowrap text-center no-print">
                     <div className="flex justify-center gap-2">
-                        <button onClick={() => setEditingItem(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border" title="تعديل">
+                        <button onClick={() => setEditingItem(item)} className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors border border-blue-100 dark:border-gray-600" title="تعديل">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         </button>
-                        <button onClick={() => handleDeleteClick(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border" title="حذف">
+                        <button onClick={() => handleDeleteClick(item.id)} className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors border border-red-100 dark:border-gray-600" title="حذف">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>

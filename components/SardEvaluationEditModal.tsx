@@ -74,9 +74,9 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
   };
 
   // Errors
-  const [hesitationErrors, setHesitationErrors] = useState(evaluation.hesitationErrors || 0);
-  const [fathErrors, setFathErrors] = useState(evaluation.fathErrors || 0);
-  const [tajweedErrors, setTajweedErrors] = useState(evaluation.tajweedErrors || 0);
+  const [hesitationErrors, setHesitationErrors] = useState(Number(evaluation.hesitationErrors) || 0);
+  const [fathErrors, setFathErrors] = useState(Number(evaluation.fathErrors) || 0);
+  const [tajweedErrors, setTajweedErrors] = useState(Number(evaluation.tajweedErrors) || 0);
   const [notes, setNotes] = useState(evaluation.notes || '');
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -917,11 +917,11 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
         newPages={activePages}
         previousWeekPages={new Set<number>()}
         studentName={student.name}
-        evalFath={fathErrors}
+        evalFath={Number(fathErrors) || 0}
         setEvalFath={setFathErrors}
-        evalTashkeel={hesitationErrors}
+        evalTashkeel={Number(hesitationErrors) || 0}
         setEvalTashkeel={setHesitationErrors}
-        evalTajweed={tajweedErrors}
+        evalTajweed={Number(tajweedErrors) || 0}
         setEvalTajweed={setTajweedErrors}
         isSardMode={true}
       />

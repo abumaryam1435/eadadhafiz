@@ -746,7 +746,7 @@ interface SummaryRow {
                                         key: h.key, 
                                         direction: sortConfig?.key === h.key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' 
                                     })}
-                                    className={`px-3 py-4 text-xs font-black text-indigo-900 dark:text-indigo-300 uppercase whitespace-nowrap text-right cursor-pointer ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}
+                                    className={`px-3.5 py-3.5 text-xs sm:text-sm font-black text-indigo-900 dark:text-indigo-300 uppercase whitespace-nowrap text-right cursor-pointer ${h.key === 'sequence' ? 'w-px !px-2.5 text-center' : ''}`}
                                 >
                                     {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                                 </th>
@@ -781,13 +781,13 @@ interface SummaryRow {
                                         }
 
                                         return (
-                                            <td key={h.key} style={cellStyle} className={`px-3 py-4 whitespace-nowrap text-xs font-bold ${h.key === 'studentName' ? 'text-indigo-900 dark:text-indigo-100' : h.key === 'totalScore' ? 'text-green-700 dark:text-green-400 font-black' : (cellStyle.color ? '' : 'text-gray-700 dark:text-gray-300')} ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}>
+                                            <td key={h.key} style={cellStyle} className={`px-3.5 py-3.5 whitespace-nowrap text-xs sm:text-sm font-bold ${h.key === 'studentName' ? 'text-indigo-900 dark:text-indigo-100 font-black' : h.key === 'totalScore' ? 'text-green-700 dark:text-green-400 font-black' : (cellStyle.color ? '' : 'text-gray-700 dark:text-gray-300')} ${h.key === 'sequence' ? 'w-px !px-2.5 text-center' : ''}`}>
                                                 {h.key === 'studentName' ? (
                                                     <div className="flex items-center gap-2 justify-end">
     <div className="flex flex-col text-right min-w-0">
-        <span className="truncate">{row[h.key]}</span>
+        <span className="truncate font-black text-xs sm:text-sm">{row[h.key]}</span>
         {row.isAlAmeen && (
-            <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">
+            <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">
                 (من طلاب الأمين)
             </span>
         )}
@@ -807,7 +807,7 @@ interface SummaryRow {
                     return next;
                 });
             }}
-            className="text-[10px] py-1 px-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 outline-none cursor-pointer hover:border-indigo-400 no-print transition-all font-bold focus:ring-1 focus:ring-indigo-500 w-[5rem]"
+            className="text-xs py-1 px-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 outline-none cursor-pointer hover:border-indigo-400 no-print transition-all font-bold focus:ring-1 focus:ring-indigo-500 w-[5.5rem]"
             dir="rtl"
         >
             <option value="" className="text-gray-800 dark:text-gray-200 font-bold">تلقائي</option>
@@ -822,7 +822,7 @@ interface SummaryRow {
                                                 ) : isQuickEdit && !['sequence', 'studentName', 'level', 'totalScore'].includes(h.key) ? (
                                                     <input 
                                                         type="number"
-                                                        className="w-16 px-1 py-1 text-center font-bold border border-gray-200 rounded dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        className="w-16 px-1.5 py-1 text-center font-bold text-xs sm:text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                         defaultValue={row[h.key] === '—' ? '' : row[h.key]}
                                                         onFocus={(e) => e.target.select()}
                                                         onBlur={(e) => {
@@ -1887,11 +1887,11 @@ export const TestsReportTable: React.FC = () => {
                 <thead className="bg-gray-50 dark:bg-gray-700/90 sticky top-0 z-10 backdrop-blur-sm shadow-sm">
                   <tr>
                   {dynamicHeaders.map(h => (
-                    <th key={h.key} onClick={() => setSortConfig({ key: h.key, direction: sortConfig?.key === h.key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' })} className={`px-3 py-4 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase cursor-pointer whitespace-nowrap text-right ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}>
+                    <th key={h.key} onClick={() => setSortConfig({ key: h.key, direction: sortConfig?.key === h.key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' })} className={`px-3.5 py-3.5 text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 uppercase cursor-pointer whitespace-nowrap text-right ${h.key === 'sequence' ? 'w-px !px-2.5 text-center' : ''}`}>
                       {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                     </th>
                   ))}
-                  <th className="px-3 py-4 text-center text-[10px] font-bold text-gray-500 no-print">العمليات</th>
+                  <th className="px-3.5 py-3.5 text-center text-xs sm:text-sm font-extrabold text-gray-700 dark:text-gray-200 no-print">العمليات</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100 dark:bg-gray-800 dark:divide-gray-700">
@@ -1927,9 +1927,9 @@ export const TestsReportTable: React.FC = () => {
                         if (h.key === 'studentName') {
                           cellContent = (
                             <div className="flex flex-col gap-0.5">
-                              <span className="font-black text-indigo-900 dark:text-indigo-100">{item.studentName}</span>
+                              <span className="font-black text-xs sm:text-sm text-indigo-900 dark:text-indigo-100">{item.studentName}</span>
                               {item.isAlAmeen && (
-                                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">
+                                <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight">
                                   (من طلاب الأمين)
                                 </span>
                               )}
@@ -1942,10 +1942,10 @@ export const TestsReportTable: React.FC = () => {
                                     const dual = getDualDate(item.evaluationDate, hijriAdjustments);
                                     return dual ? (
                                           <div className="flex flex-col items-center gap-0.5">
-                                              <span className="font-extrabold text-green-700 dark:text-green-400 text-[11px] leading-tight">{dual.hijri}</span>
-                                              <span className="text-[9px] text-gray-500 font-bold leading-tight">{dual.gregorian}</span>
+                                              <span className="font-extrabold text-green-700 dark:text-green-400 text-xs sm:text-sm leading-tight">{dual.hijri}</span>
+                                              <span className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-bold leading-tight">{dual.gregorian}</span>
                                           </div>
-                                    ) : <span className="text-[9px] text-gray-500 font-bold">{item.evaluationDate}</span>;
+                                    ) : <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-bold">{item.evaluationDate}</span>;
                                 })()}
                             </div>
                           );
@@ -1956,15 +1956,15 @@ export const TestsReportTable: React.FC = () => {
                         }
 
                         return (
-                          <td key={h.key} className={`px-3 py-3.5 whitespace-nowrap text-[10px] sm:text-xs ${isNotTested ? 'text-gray-600 italic' : 'text-gray-900 dark:text-gray-100'} ${h.key === 'sequence' ? 'w-px !px-2 text-center font-bold text-gray-500' : ''}`} style={{ ...rowColorStyle, ...cellStyle }}>
+                          <td key={h.key} className={`px-3.5 py-3 whitespace-nowrap text-xs sm:text-sm font-semibold ${isNotTested ? 'text-gray-600 italic' : 'text-gray-900 dark:text-gray-100'} ${h.key === 'sequence' ? 'w-px !px-2.5 text-center font-bold text-gray-500' : ''}`} style={{ ...rowColorStyle, ...cellStyle }}>
                             {cellContent}
                           </td>
                         );
                       })}
-                      <td className="px-3 py-3.5 whitespace-nowrap text-center no-print">
+                      <td className="px-3.5 py-3 whitespace-nowrap text-center no-print">
                           <div className="flex justify-center gap-2">
-                              <button onClick={() => handleEdit(item)} disabled={isNotTested} className={`p-1.5 rounded-lg transition-colors ${isNotTested ? 'text-gray-300 opacity-50' : 'text-blue-600 hover:bg-blue-50 border border-blue-100'}`} title="تعديل"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-                              <button onClick={() => handleDelete(item.id)} disabled={isNotTested} className={`p-1.5 rounded-lg transition-colors ${isNotTested ? 'text-gray-300 opacity-50' : 'text-red-600 hover:bg-red-50 border border-red-100'}`} title="حذف"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                              <button onClick={() => handleEdit(item)} disabled={isNotTested} className={`p-2 rounded-lg transition-colors ${isNotTested ? 'text-gray-300 opacity-50' : 'text-blue-600 hover:bg-blue-50 border border-blue-100 dark:border-gray-600 dark:hover:bg-blue-900/30'}`} title="تعديل"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                              <button onClick={() => handleDelete(item.id)} disabled={isNotTested} className={`p-2 rounded-lg transition-colors ${isNotTested ? 'text-gray-300 opacity-50' : 'text-red-600 hover:bg-red-50 border border-red-100 dark:border-gray-600 dark:hover:bg-red-900/30'}`} title="حذف"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                           </div>
                       </td>
                     </tr>
