@@ -11,6 +11,7 @@ import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
 import { FilterItem } from './FilterItem';
+import { compareReportRows } from '../utils/reportSortUtils';
 
 interface ColumnDef {
   key: string;
@@ -308,6 +309,30 @@ export const NewStudentsTestsTable: React.FC = () => {
     });
   }, [newStudentTests, searchTerm, selectedStudentNames, statusFilter, passFilter, alAmeenFilter, ibriFilter, students]);
 
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+
+  const sortedTests = useMemo(() => {
+    let list = [...filteredTests];
+    if (sortConfig) {
+      list.sort((a, b) => {
+        const accA = getAcceptedStudent(a);
+        const accB = getAcceptedStudent(b);
+        const itemA = {
+          ...a,
+          isAlAmeenStr: accA?.isAlAmeen ? 'نعم' : 'لا',
+          isFromIbriStr: (accA && accA.isFromIbri !== false) ? 'نعم' : 'لا',
+        };
+        const itemB = {
+          ...b,
+          isAlAmeenStr: accB?.isAlAmeen ? 'نعم' : 'لا',
+          isFromIbriStr: (accB && accB.isFromIbri !== false) ? 'نعم' : 'لا',
+        };
+        return compareReportRows(itemA, itemB, sortConfig.key, sortConfig.direction);
+      });
+    }
+    return list;
+  }, [filteredTests, sortConfig, students]);
+
   // Confirmation of acceptance
   const confirmAcceptStudent = () => {
     if (!acceptingStudent) return;
@@ -327,7 +352,7 @@ export const NewStudentsTestsTable: React.FC = () => {
   }, [visibleColumns]);
 
   const exportData = useMemo(() => {
-    return filteredTests.map((t, idx) => {
+    return sortedTests.map((t, idx) => {
       const row: Record<string, any> = {};
       const acceptedStudent = getAcceptedStudent(t);
 
@@ -1035,49 +1060,64 @@ export const NewStudentsTestsTable: React.FC = () => {
               <thead>
                 <tr className="bg-gray-50/80 dark:bg-gray-750/50 border-b border-gray-200 dark:border-gray-700 text-[11px] font-black text-gray-500 dark:text-gray-400">
                   {visibleColumns.map(col => {
+                    const isSorted = sortConfig?.key === col.key;
+                    const arrow = isSorted ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : '';
+                    const handleHeaderClick = () => {
+                      if (col.key === 'actions') return;
+                      setSortConfig(prev => {
+                        if (prev?.key === col.key) {
+                          return { key: col.key, direction: prev.direction === 'ascending' ? 'descending' : 'ascending' };
+                        }
+                        return { key: col.key, direction: 'ascending' };
+                      });
+                    };
+
+                    const isAction = col.key === 'actions';
+                    const baseCls = `py-3 px-3 ${isAction ? 'text-center' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 select-none transition-colors'}`;
+
                     switch (col.key) {
                       case 'sequence':
-                        return <th key="sequence" className="py-3 px-3 w-10 text-center">م</th>;
+                        return <th key="sequence" onClick={handleHeaderClick} className={`${baseCls} w-10 text-center`}>م{arrow}</th>;
                       case 'studentName':
-                        return <th key="studentName" className="py-3 px-4">اسم الطالب</th>;
+                        return <th key="studentName" onClick={handleHeaderClick} className={`${baseCls} px-4`}>اسم الطالب{arrow}</th>;
                       case 'isAlAmeenStr':
-                        return <th key="isAlAmeenStr" className="py-3 px-3 text-center">من الأمين؟</th>;
+                        return <th key="isAlAmeenStr" onClick={handleHeaderClick} className={`${baseCls} text-center`}>من الأمين؟{arrow}</th>;
                       case 'isFromIbriStr':
-                        return <th key="isFromIbriStr" className="py-3 px-3 text-center">من جامع عبري؟</th>;
+                        return <th key="isFromIbriStr" onClick={handleHeaderClick} className={`${baseCls} text-center`}>من جامع عبري؟{arrow}</th>;
                       case 'grade':
-                        return <th key="grade" className="py-3 px-3">الصف / المرحلة</th>;
+                        return <th key="grade" onClick={handleHeaderClick} className={baseCls}>الصف / المرحلة{arrow}</th>;
                       case 'parentPhone':
-                        return <th key="parentPhone" className="py-3 px-3">رقم ولي الأمر</th>;
+                        return <th key="parentPhone" onClick={handleHeaderClick} className={baseCls}>رقم ولي الأمر{arrow}</th>;
                       case 'teacherName':
-                        return <th key="teacherName" className="py-3 px-3">المعلم المختبر</th>;
+                        return <th key="teacherName" onClick={handleHeaderClick} className={baseCls}>المعلم المختبر{arrow}</th>;
                       case 'testDate':
-                        return <th key="testDate" className="py-3 px-3">تاريخ الاختبار</th>;
+                        return <th key="testDate" onClick={handleHeaderClick} className={baseCls}>تاريخ الاختبار{arrow}</th>;
                       case 'fathErrors':
-                        return <th key="fathErrors" className="py-3 px-2 text-center text-red-600 dark:text-red-400 font-black">الفتح</th>;
+                        return <th key="fathErrors" onClick={handleHeaderClick} className={`${baseCls} px-2 text-center text-red-600 dark:text-red-400 font-black`}>الفتح{arrow}</th>;
                       case 'tashkeelErrors':
-                        return <th key="tashkeelErrors" className="py-3 px-2 text-center text-amber-600 dark:text-amber-400 font-black">التشكيل</th>;
+                        return <th key="tashkeelErrors" onClick={handleHeaderClick} className={`${baseCls} px-2 text-center text-amber-600 dark:text-amber-400 font-black`}>التشكيل{arrow}</th>;
                       case 'tajweedErrors':
-                        return <th key="tajweedErrors" className="py-3 px-2 text-center text-teal-600 dark:text-teal-400 font-black">التجويد</th>;
+                        return <th key="tajweedErrors" onClick={handleHeaderClick} className={`${baseCls} px-2 text-center text-teal-600 dark:text-teal-400 font-black`}>التجويد{arrow}</th>;
                       case 'score':
-                        return <th key="score" className="py-3 px-3 text-center">الدرجة</th>;
+                        return <th key="score" onClick={handleHeaderClick} className={`${baseCls} text-center`}>الدرجة{arrow}</th>;
                       case 'percentage':
-                        return <th key="percentage" className="py-3 px-3 text-center">النسبة</th>;
+                        return <th key="percentage" onClick={handleHeaderClick} className={`${baseCls} text-center`}>النسبة{arrow}</th>;
                       case 'isPassed':
-                        return <th key="isPassed" className="py-3 px-3 text-center">الاجتياز</th>;
+                        return <th key="isPassed" onClick={handleHeaderClick} className={`${baseCls} text-center`}>الاجتياز{arrow}</th>;
                       case 'notes':
-                        return <th key="notes" className="py-3 px-4">الملاحظات</th>;
+                        return <th key="notes" onClick={handleHeaderClick} className={`${baseCls} px-4`}>الملاحظات{arrow}</th>;
                       case 'status':
-                        return <th key="status" className="py-3 px-4 text-center">القرار والقبول</th>;
+                        return <th key="status" onClick={handleHeaderClick} className={`${baseCls} px-4 text-center`}>القرار والقبول{arrow}</th>;
                       case 'actions':
                         return <th key="actions" className="py-3 px-3 text-center">إجراءات</th>;
                       default:
-                        return <th key={col.key} className="py-3 px-3">{col.label}</th>;
+                        return <th key={col.key} onClick={handleHeaderClick} className={baseCls}>{col.label}{arrow}</th>;
                     }
                   })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
-                {filteredTests.map((test, index) => {
+                {sortedTests.map((test, index) => {
                   const isAccepted = test.status === 'accepted';
                   const isRejected = test.status === 'rejected';
                   const acceptedStudent = getAcceptedStudent(test);

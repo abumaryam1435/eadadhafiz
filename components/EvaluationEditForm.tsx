@@ -82,6 +82,20 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     return [];
   });
   const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>('pages');
+  const juzPagesContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedJuzForPages) {
+      const timer = setTimeout(() => {
+        juzPagesContainerRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedJuzForPages]);
   const [viewingVersesModal, setViewingVersesModal] = useState<{
     isOpen: boolean;
     matnName: string;
@@ -277,36 +291,6 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     setNewMemorizedPages(nextPages);
     
     const calc = calculateSurahsAndAyahs(nextPages, selectedSurahIds, evaluationType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
-    setSelectedSurahs(calc.surahs);
-    setAyahRange(calc.ayahRange);
-  };
-
-  const toggleFullJuz = (juz: number) => {
-    const pagesInJuz = juzPagesMap[juz] || [];
-    const allSelected = pagesInJuz.every(p => newMemorizedPages.includes(p));
-    let nextPages: number[];
-    if (allSelected) {
-      nextPages = newMemorizedPages.filter(p => !pagesInJuz.includes(p));
-    } else {
-      nextPages = Array.from(new Set([...newMemorizedPages, ...pagesInJuz])).sort((a, b) => a - b);
-    }
-    setNewMemorizedPages(nextPages);
-    const calc = calculateSurahsAndAyahs(nextPages, selectedSurahIds, evaluationType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
-    setSelectedSurahs(calc.surahs);
-    setAyahRange(calc.ayahRange);
-  };
-
-  const toggleSurahsInJuz = (juz: number) => {
-    const surahsInJuz = juzSurahsMap[juz] || [];
-    const allSelected = surahsInJuz.every(s => selectedSurahIds.includes(s));
-    let nextSurahIds: number[];
-    if (allSelected) {
-      nextSurahIds = selectedSurahIds.filter(s => !surahsInJuz.includes(s));
-    } else {
-      nextSurahIds = Array.from(new Set([...selectedSurahIds, ...surahsInJuz])).sort((a, b) => a - b);
-    }
-    setSelectedSurahIds(nextSurahIds);
-    const calc = calculateSurahsAndAyahs(newMemorizedPages, nextSurahIds, evaluationType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
     setSelectedSurahs(calc.surahs);
     setAyahRange(calc.ayahRange);
   };
@@ -991,19 +975,13 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                               })}
                             </div>
                             {selectedJuzForPages && (
-                              <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border-2 border-indigo-100 dark:border-gray-700 space-y-3">
+                              <div
+                                ref={juzPagesContainerRef}
+                                className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border-2 border-indigo-100 dark:border-gray-700 space-y-3 scroll-mt-6"
+                              >
                                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
                                   <p className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">محتوى الجزء {selectedJuzForPages}</p>
                                   <div className="flex items-center gap-2">
-                                    {evaluationType === EvaluationType.REVIEW && (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleFullJuz(selectedJuzForPages)}
-                                        className="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
-                                      >
-                                        {(juzPagesMap[selectedJuzForPages] || []).every(p => newMemorizedPages.includes(p)) ? 'إلغاء تحديد الجزء' : 'تحديد كل صفحات الجزء'}
-                                      </button>
-                                    )}
                                     <div className="flex bg-gray-100 dark:bg-gray-900/90 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-inner gap-1.5">
                                       <button
                                         type="button"

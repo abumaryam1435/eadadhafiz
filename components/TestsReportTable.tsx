@@ -8,6 +8,7 @@ import { shareHtmlViaWhatsApp } from '../utils/exportHtml';
 import { isSmartMatch } from '../utils/searchUtils';
 import { HexColorPicker } from "react-colorful";
 import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, normalizeStudentLevel } from "../utils/pageUtils";
+import { compareReportRows } from "../utils/reportSortUtils";
 import { formatJuzsFromNumbers } from "../utils/juzUtils";
 import EvaluationEditForm from './EvaluationEditForm';
 import Modal from './Modal';
@@ -401,40 +402,20 @@ interface SummaryRow {
 
         if (sortConfig) {
             results.sort((a, b) => {
-                if (sortConfig.key === 'halaqaName' || sortConfig.key === 'studentName') {
+                if (sortConfig.key === 'halaqaName') {
                     const hA = a.halaqaName || '';
                     const hB = b.halaqaName || '';
                     const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
                     if (halaqaComp !== 0) {
-                        const direction = sortConfig.key === 'halaqaName' ? sortConfig.direction : 'ascending';
-                        return direction === 'ascending' ? halaqaComp : -halaqaComp;
+                        return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
                     }
                     const sA = a.studentName || '';
                     const sB = b.studentName || '';
-                    const studentComp = sA.localeCompare(sB, 'ar', { numeric: true });
-                    const direction = sortConfig.key === 'studentName' ? sortConfig.direction : 'ascending';
-                    return direction === 'ascending' ? studentComp : -studentComp;
+                    return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
                 }
 
-                let vA = a[sortConfig.key];
-                let vB = b[sortConfig.key];
-                if (sortConfig.key === 'level') {
-                    vA = getLevelNum(vA);
-                    vB = getLevelNum(vB);
-                } else if (sortConfig.key !== 'studentName' && sortConfig.key !== 'halaqaName') {
-                    vA = numericValue(vA);
-                    vB = numericValue(vB);
-                }
-
-                let diff = 0;
-                if (typeof vA === 'string' && typeof vB === 'string') {
-                    diff = vA.localeCompare(vB, undefined, { numeric: true, sensitivity: 'base' });
-                } else {
-                    if (vA < vB) diff = -1;
-                    else if (vA > vB) diff = 1;
-                }
-
-                if (diff !== 0) return sortConfig.direction === 'ascending' ? diff : -diff;
+                const diff = compareReportRows(a, b, sortConfig.key, sortConfig.direction);
+                if (diff !== 0) return diff;
 
                 // Fallback
                 const levelA = getLevelNum(a.level);
@@ -767,7 +748,7 @@ interface SummaryRow {
                                     })}
                                     className={`px-3 py-4 text-xs font-black text-indigo-900 dark:text-indigo-300 uppercase whitespace-nowrap text-right cursor-pointer ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}
                                 >
-                                    {h.label}
+                                    {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                                 </th>
                             ))}
                         </tr>
@@ -1401,46 +1382,21 @@ export const TestsReportTable: React.FC = () => {
     
     if (sortConfig) {
       items.sort((a, b) => {
-        if (sortConfig.key === 'halaqaName' || sortConfig.key === 'studentName') {
-            const isHalaqaVisible = selectedColumnKeys.includes('studentOriginalHalaqaName') || selectedColumnKeys.includes('halaqaName');
-            if (isHalaqaVisible) {
-                const hA = a.halaqaName || '';
-                const hB = b.halaqaName || '';
-                const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
-                if (halaqaComp !== 0) {
-                    const direction = sortConfig.key === 'halaqaName' ? sortConfig.direction : 'ascending';
-                    return direction === 'ascending' ? halaqaComp : -halaqaComp;
-                }
+        if (sortConfig.key === 'halaqaName' && (selectedColumnKeys.includes('studentOriginalHalaqaName') || selectedColumnKeys.includes('halaqaName'))) {
+            const hA = a.halaqaName || '';
+            const hB = b.halaqaName || '';
+            const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
+            if (halaqaComp !== 0) {
+                return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
             }
             const sA = a.studentName || '';
             const sB = b.studentName || '';
-            const studentComp = sA.localeCompare(sB, 'ar', { numeric: true });
-            const direction = sortConfig.key === 'studentName' ? sortConfig.direction : 'ascending';
-            return direction === 'ascending' ? studentComp : -studentComp;
+            return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
         }
 
-        let vA, vB;
-        if (sortConfig.key === 'level') {
-            vA = getLevelNum(a.level);
-            vB = getLevelNum(b.level);
-        } else if (sortConfig.key === 'testTotalScore' || sortConfig.key === 'numericScore') {
-            vA = a.numericScore ?? 0;
-            vB = b.numericScore ?? 0;
-        } else {
-             vA = a[sortConfig.key];
-             vB = b[sortConfig.key];
-        }
-
-        let diff = 0;
-        if (typeof vA === 'string' && typeof vB === 'string') {
-            diff = vA.localeCompare(vB, undefined, { numeric: true, sensitivity: 'base' });
-        } else {
-            if (vA < vB) diff = -1;
-            else if (vA > vB) diff = 1;
-        }
-
+        const diff = compareReportRows(a, b, sortConfig.key, sortConfig.direction);
         if (diff !== 0) {
-            return sortConfig.direction === 'ascending' ? diff : -diff;
+            return diff;
         }
 
         // fallback to level ASC then score DESC
@@ -1932,7 +1888,7 @@ export const TestsReportTable: React.FC = () => {
                   <tr>
                   {dynamicHeaders.map(h => (
                     <th key={h.key} onClick={() => setSortConfig({ key: h.key, direction: sortConfig?.key === h.key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' })} className={`px-3 py-4 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase cursor-pointer whitespace-nowrap text-right ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}>
-                      {h.label}
+                      {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                     </th>
                   ))}
                   <th className="px-3 py-4 text-center text-[10px] font-bold text-gray-500 no-print">العمليات</th>

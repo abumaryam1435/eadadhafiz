@@ -1,5 +1,5 @@
 
-import React, { useState, useContext, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useContext, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { AppContext } from '../App';
 import { QURAN_SURAHS } from '../constants';
 import { Student, AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, SardEvaluation, SardHalaqa, SardPageRange } from '../types';
@@ -358,6 +358,21 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [selectedJuzForPages, setSelectedJuzForPages] = useState<number | null>(null);
   const [selectedSurahIds, setSelectedSurahIds] = useState<number[]>([]);
   const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>('pages');
+  const juzPagesContainerRef = useRef<HTMLDivElement>(null);
+  const sardBottomNavRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedJuzForPages) {
+      const timer = setTimeout(() => {
+        juzPagesContainerRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedJuzForPages]);
   const [isMushafModalOpen, setIsMushafModalOpen] = useState(false);
   const [evalFath, setEvalFath] = useState<number>(0);
   const [evalTashkeel, setEvalTashkeel] = useState<number>(0);
@@ -421,39 +436,6 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     setAyahRange(calc.ayahRange);
   };
 
-  const toggleFullJuz = (juzNumber: number) => {
-    const pList = juzPagesMap[juzNumber] || [];
-    const allSelected = pList.every(p => newMemorizedPages.includes(p) || selectionState.derivedPages.has(p));
-    let nextPages: number[];
-    if (allSelected) {
-      nextPages = newMemorizedPages.filter(p => !pList.includes(p));
-      const surahsInJuz = juzSurahsMap[juzNumber] || [];
-      const nextSurahs = selectedSurahIds.filter(s => !surahsInJuz.includes(s));
-      setSelectedSurahIds(nextSurahs);
-    } else {
-      nextPages = Array.from(new Set([...newMemorizedPages, ...pList])).sort((a, b) => a - b);
-    }
-    setNewMemorizedPages(nextPages);
-    const calc = calculateSurahsAndAyahs(nextPages, selectedSurahIds, evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
-    setSurahs(calc.surahs);
-    setAyahRange(calc.ayahRange);
-  };
-
-  const toggleSurahsInJuz = (juzNumber: number) => {
-    const sList = juzSurahsMap[juzNumber] || [];
-    const allSelected = sList.every(s => selectedSurahIds.includes(s));
-    let nextSurahs: number[];
-    if (allSelected) {
-      nextSurahs = selectedSurahIds.filter(s => !sList.includes(s));
-    } else {
-      nextSurahs = Array.from(new Set([...selectedSurahIds, ...sList])).sort((a, b) => a - b);
-    }
-    setSelectedSurahIds(nextSurahs);
-    const calc = calculateSurahsAndAyahs(newMemorizedPages, nextSurahs, evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
-    setSurahs(calc.surahs);
-    setAyahRange(calc.ayahRange);
-  };
-
   const completedJuzsFromSelection = useMemo(() => {
     const list: number[] = [];
     for (let j = 1; j <= 30; j++) {
@@ -501,11 +483,34 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [highlightSelectionError, setHighlightSelectionError] = useState(false);
   const [highlightSardSelectionError, setHighlightSardSelectionError] = useState(false);
 
-  useEffect(() => {
-    if (currentStep === 'summaryAndConfirm' && formRef.current) {
-        formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // التموضع الفوري والمباشر أسفل رأس الصفحة الثابت (Sticky Header) بدون أي حركة تمرير ليشعر المستخدم أنه الظهور الافتراضي الأصلي
+  const scrollToHeaderSafe = useCallback((behavior: ScrollBehavior = 'instant') => {
+    const header = document.querySelector('header');
+    const headerHeight = header ? header.getBoundingClientRect().height : 80;
+    if (formRef.current) {
+      const rect = formRef.current.getBoundingClientRect();
+      const absoluteTop = rect.top + window.pageYOffset;
+      const targetY = Math.max(0, absoluteTop - headerHeight - 12);
+      window.scrollTo({
+        top: targetY,
+        behavior: behavior
+      });
+    } else {
+      window.scrollTo({ top: 0, behavior: behavior });
     }
-  }, [currentStep]);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (currentStep === 'selectStudent') {
+      scrollToHeaderSafe('instant');
+    }
+  }, [currentStep, scrollToHeaderSafe]);
+
+  useEffect(() => {
+    if (currentStep === 'summaryAndConfirm') {
+      scrollToHeaderSafe('smooth');
+    }
+  }, [currentStep, scrollToHeaderSafe]);
 
   // مرجع لتتبع آخر طالب وأسبوع تم فحصهم لمنع الارتداد العشوائي
   const lastCheckedRef = useRef<string>("");
@@ -1424,7 +1429,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         />
       )}
 
-      <form ref={formRef} onSubmit={handleSubmit} className="bg-white p-3.5 sm:p-8 rounded-xl shadow-lg dark:bg-gray-800 transition-all border border-gray-100 dark:border-gray-700 animate-fade-in relative">
+      <form ref={formRef} onSubmit={handleSubmit} className="bg-white p-3.5 sm:p-8 rounded-xl shadow-lg dark:bg-gray-800 transition-all border border-gray-100 dark:border-gray-700 animate-fade-in relative scroll-mt-32 sm:scroll-mt-36">
         <h3 className="text-lg sm:text-2xl font-bold text-green-900 border-b pb-4 mb-6 dark:text-green-300 flex items-center gap-3">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
           إدخال التقييم {selectedWeek ? `(الأسبوع ${selectedWeek})` : ''}
@@ -1471,7 +1476,6 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               placeholder="0" 
               onFocus={(e) => {
                 e.target.select();
-                handleInputFocus(e);
               }}
             />
             <div className={`flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center border-t pt-4 mt-6 bg-white dark:bg-gray-800 py-4 gap-3`}>
@@ -1497,8 +1501,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             setTimeout(() => setHighlightWeekInput(false), 1500);
                             return;
                         }
-                                                setCurrentStep('selectStudent');
-                    }} className="px-10 py-2.5 bg-green-700 text-white rounded-xl font-bold hover:bg-green-800 transition-colors shadow-sm active:scale-95 text-center w-full">التالي</button>
+                        scrollToHeaderSafe('instant');
+                        setCurrentStep('selectStudent');
+                    }} className="px-10 py-2.5 bg-green-700 text-white rounded-xl font-bold hover:bg-green-800 transition-colors shadow-sm active:scale-95 text-center w-full cursor-pointer">التالي</button>
                 </div>
             </div>
           </div>
@@ -1507,26 +1512,26 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         
         {currentStep === 'selectStudent' && (
           <div className="space-y-6">
-            {/* التبويبات: القرآن الكريم، المتون، السرد */}
-            <div className={`grid ${activeMatns.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-4`}>
+            {/* التبويبات: القرآن الكريم (الحفظ)، المتون، السرد */}
+            <div className={`grid ${activeMatns.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-4 scroll-mt-6`}>
               <button 
                 type="button" 
                 onClick={() => { setSubject('quran'); }} 
-                className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base ${
+                className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
                   subject === 'quran' 
                     ? 'bg-green-100 border-green-600 shadow-sm text-green-900 dark:bg-green-950/40 dark:text-green-300 dark:border-green-600' 
                     : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
                 }`}
               >
                 <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>القرآن الكريم</span>
+                <span>القرآن الكريم (الحفظ)</span>
               </button>
 
               {activeMatns.length > 0 && (
                 <button 
                   type="button" 
                   onClick={() => { setSubject('mutoon'); }} 
-                  className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base ${
+                  className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
                     subject === 'mutoon' 
                       ? 'bg-blue-100 border-blue-600 shadow-sm text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-600' 
                       : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
@@ -1540,7 +1545,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               <button 
                 type="button" 
                 onClick={() => { setSubject('sard'); }} 
-                className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base ${
+                className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
                   subject === 'sard' 
                     ? 'bg-emerald-100 border-emerald-600 shadow-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-600' 
                     : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
@@ -1551,98 +1556,115 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               </button>
             </div>
             
-            {/* في حال اختيار السرد: يتم عرض قائمة طلاب حلقة السرد مع التصفية */}
+            {/* في حال اختيار السرد: يتم عرض قائمة طلاب حلقة السرد مثل آلية تبويب الحفظ */}
             {subject === 'sard' ? (
               <div className="space-y-4">
-                {/* إدارة وتصفية حلقات السرد */}
-                <div className="bg-emerald-50/80 dark:bg-emerald-950/30 p-3.5 sm:p-4 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                      <span className="font-black text-emerald-950 dark:text-emerald-200 text-sm sm:text-base">
-                        {teacherSardHalaqas.length > 0 && !isGuest
-                          ? `حلقة السرد: ${teacherSardHalaqas.find(h => h.id === activeSardHalaqaId)?.name || 'حلقاتي'}`
-                          : 'تصفية حلقات السرد'}
-                      </span>
-                    </div>
-
-                    {teacherSardHalaqas.length > 0 && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setIsGuest(!isGuest);
-                          setSelectedSardHalaqaFilter(null);
-                        }} 
-                        className="text-xs font-bold text-emerald-700 underline hover:text-emerald-900 dark:text-emerald-400"
-                      >
-                        {isGuest ? 'العودة لطلابي في السرد' : 'تقييم طالب من حلقة سرد أخرى'}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* اختيار حلقة السرد إذا كان لدى المعلم أكثر من حلقة أو في نمط الضيف / المعلم بدون حلقة */}
-                  {(isGuest || teacherSardHalaqas.length === 0) ? (
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">اختر الحلقة:</label>
-                      <select
-                        value={selectedSardHalaqaFilter ?? 'ALL'}
-                        onChange={e => setSelectedSardHalaqaFilter(e.target.value === 'ALL' ? null : Number(e.target.value))}
-                        className="w-full text-xs font-bold p-2 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                      >
-                        <option value="ALL">جميع حلقات السرد ({sardHalaqas.length})</option>
-                        {sardHalaqas.map(h => (
-                          <option key={h.id} value={h.id}>{h.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : teacherSardHalaqas.length > 1 ? (
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {teacherSardHalaqas.map(h => (
-                        <button
-                          key={h.id}
-                          type="button"
-                          onClick={() => setSelectedSardHalaqaFilter(h.id)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-                            activeSardHalaqaId === h.id
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'bg-white dark:bg-gray-800 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                          }`}
-                        >
-                          {h.name}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <div className="flex items-center gap-3">
+                <div className="flex justify-between items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <p className="font-bold text-lg">اختر الطلاب للسرد:</p>
-                    {sardEvalMode === 'group' && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                    {sardEvalMode === 'group' && selectedSardGroupIds.length > 0 && (
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                         تم تحديد {toArabicDigits(selectedSardGroupIds.length)} طالب
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                    {sardEvalMode === 'group' && (() => {
-                      const visibleStudentIds = students
-                        .filter(s => {
-                          if (!isSmartMatch(s.name, sardSearch)) return false;
-                          if (selectedSardGroupIds.includes(s.id)) return true;
-                          if (teacherSardHalaqas.length > 0 && !isGuest) {
-                            return s.sardHalaqaId === activeSardHalaqaId;
-                          }
-                          if (selectedSardHalaqaFilter) {
-                            return s.sardHalaqaId === selectedSardHalaqaFilter;
-                          }
-                          return !!s.sardHalaqaId;
-                        })
-                        .map(s => s.id);
-                      
-                      const allVisibleSelected = visibleStudentIds.length > 0 && visibleStudentIds.every(id => selectedSardGroupIds.includes(id));
-                      
-                      return (
+                  {teacherSardHalaqas.length > 0 && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setIsGuest(!isGuest);
+                        setSelectedSardHalaqaFilter(null);
+                      }} 
+                      className="text-xs font-bold text-emerald-700 underline hover:text-emerald-900 dark:text-emerald-400 cursor-pointer"
+                    >
+                      {isGuest ? 'العودة لطلابي في السرد' : 'تقييم طلاب من حلقات سرد أخرى'}
+                    </button>
+                  )}
+                </div>
+
+                {/* تصفية سريعة بحلقة أخرى فقط في نمط الضيف */}
+                {isGuest && (
+                  <div className="flex items-center gap-2 bg-emerald-50/60 dark:bg-emerald-950/20 p-2 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
+                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">تصفية بحلقة:</label>
+                    <select
+                      value={selectedSardHalaqaFilter ?? 'ALL'}
+                      onChange={e => setSelectedSardHalaqaFilter(e.target.value === 'ALL' ? null : Number(e.target.value))}
+                      className="text-xs font-bold p-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                    >
+                      <option value="ALL">جميع حلقات السرد ({sardHalaqas.length})</option>
+                      {sardHalaqas.map(h => (
+                        <option key={h.id} value={h.id}>{h.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* التبديل بين حلقات المعلم إذا كان لديه أكثر من حلقة سرد */}
+                {teacherSardHalaqas.length > 1 && !isGuest && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <span className="text-xs font-bold text-gray-500 shrink-0">حلقاتي:</span>
+                    {teacherSardHalaqas.map(h => (
+                      <button
+                        key={h.id}
+                        type="button"
+                        onClick={() => setSelectedSardHalaqaFilter(h.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                          activeSardHalaqaId === h.id
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {h.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
+                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
+                    <button
+                      type="button"
+                      onClick={() => setSardEvalMode('individual')}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                        sardEvalMode === 'individual'
+                          ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
+                          : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                      }`}
+                    >
+                      فردي
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSardEvalMode('group')}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                        sardEvalMode === 'group'
+                          ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
+                          : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                      }`}
+                    >
+                      جماعي
+                    </button>
+                  </div>
+
+                  {sardEvalMode === 'group' && (() => {
+                    const visibleStudentIds = students
+                      .filter(s => {
+                        if (!isSmartMatch(s.name, sardSearch)) return false;
+                        if (selectedSardGroupIds.includes(s.id)) return true;
+                        if (teacherSardHalaqas.length > 0 && !isGuest) {
+                          return s.sardHalaqaId === activeSardHalaqaId;
+                        }
+                        if (selectedSardHalaqaFilter) {
+                          return s.sardHalaqaId === selectedSardHalaqaFilter;
+                        }
+                        return !!s.sardHalaqaId;
+                      })
+                      .map(s => s.id);
+                    
+                    const allVisibleSelected = visibleStudentIds.length > 0 && visibleStudentIds.every(id => selectedSardGroupIds.includes(id));
+                    
+                    return (
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           type="button"
                           onClick={() => {
@@ -1652,9 +1674,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             } else {
                               // تحديد جميع المعروضين
                               setSelectedSardGroupIds(prev => Array.from(new Set([...prev, ...visibleStudentIds])));
+                              setTimeout(() => {
+                                sardBottomNavRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                              }, 120);
                             }
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-xs ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 ${
                             allVisibleSelected
                               ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900'
                               : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
@@ -1663,34 +1688,25 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           <span>{allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد جميع الطلاب'}</span>
                           <span className="text-[11px] opacity-75">({toArabicDigits(visibleStudentIds.length)})</span>
                         </button>
-                      );
-                    })()}
 
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => setSardEvalMode('individual')}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                          sardEvalMode === 'individual'
-                            ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
-                            : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
-                        }`}
-                      >
-                        فردي
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSardEvalMode('group')}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                          sardEvalMode === 'group'
-                            ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
-                            : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
-                        }`}
-                      >
-                        جماعي
-                      </button>
-                    </div>
-                  </div>
+                        {selectedSardGroupIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttendance(AttendanceStatus.PRESENT);
+                              setCurrentStep('sardContentSelection');
+                            }}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-black transition-all shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 border border-emerald-700 animate-fadeIn"
+                          >
+                            <span>التالي ({toArabicDigits(selectedSardGroupIds.length)})</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 rtl:rotate-180" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="relative">
@@ -1791,7 +1807,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     </button>
                   </div>
                 )}
-                <div className="flex flex-col-reverse sm:flex-row gap-3 items-stretch sm:items-center">
+                <div ref={sardBottomNavRef} className="flex flex-col-reverse sm:flex-row gap-3 items-stretch sm:items-center scroll-mt-6">
                   <FormNav back={() => setCurrentStep('selectWeek')} />
                   {sardEvalMode === 'group' && selectedSardGroupIds.length > 0 && (
                     <button 
@@ -1800,9 +1816,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         setAttendance(AttendanceStatus.PRESENT);
                         setCurrentStep('sardContentSelection');
                       }} 
-                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                     >
-                      <span>التالي ({selectedSardGroupIds.length} طلاب)</span>
+                      <span>التالي ({toArabicDigits(selectedSardGroupIds.length)} طلاب)</span>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 rtl:rotate-180" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
@@ -2380,20 +2396,15 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   </div>
                 )}
 
-                {/* دليل الألوان لتوضيح المحفوظ والمحدد */}
-                <div className="flex flex-wrap items-center justify-center gap-2 p-1.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 text-[10px] font-bold">
-                  <span className="text-gray-500 dark:text-gray-400">دليل الألوان:</span>
+                {/* توضيح المحفوظ سابقاً والمحفوظ قريباً في سطر واحد */}
+                <div className="flex items-center justify-center gap-2 sm:gap-3 py-1 px-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 text-[10px] sm:text-xs font-bold whitespace-nowrap">
                   <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200 px-2 py-0.5 rounded-md border border-emerald-400 dark:border-emerald-700">
                     <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
-                    {evalType === EvaluationType.REVIEW ? 'المحفوظ القديم 🟢' : 'محفوظ سابقاً'}
+                    {evalType === EvaluationType.REVIEW ? 'محفوظ قديم 🟢' : 'محفوظ سابقاً'}
                   </span>
                   <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-950 dark:bg-amber-950/70 dark:text-amber-200 px-2 py-0.5 rounded-md border border-[#8B4513]/50">
                     <span className="w-2 h-2 rounded-full bg-[#8B4513] inline-block"></span>
-                    {evalType === EvaluationType.REVIEW ? 'المحفوظ الجديد لجميع الأسابيع 🟤' : 'محفوظ حديثاً (الأسبوع الماضي)'}
-                  </span>
-                  <span className="inline-flex items-center gap-1 bg-green-500 text-white px-2 py-0.5 rounded-md shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-white inline-block"></span>
-                    {evalType === EvaluationType.REVIEW ? 'محدد للمراجعة ✓' : 'محدد للحفظ الجديد ✓'}
+                    {evalType === EvaluationType.REVIEW ? 'محفوظ جديد 🟤' : 'محفوظ قريباً'}
                   </span>
                 </div>
 
@@ -2472,7 +2483,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     </div>
 
                     {selectedJuzForPages && (
-                      <div className="mt-4 p-3.5 bg-white dark:bg-gray-800 rounded-2xl border-2 border-indigo-100 dark:border-gray-700 space-y-3.5 shadow-sm">
+                      <div
+                        ref={juzPagesContainerRef}
+                        className="mt-4 p-3.5 bg-white dark:bg-gray-800 rounded-2xl border-2 border-indigo-100 dark:border-gray-700 space-y-3.5 shadow-sm scroll-mt-6"
+                      >
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3 gap-2.5">
                           <div className="flex items-center gap-2">
                             <span className="text-base sm:text-lg">📖</span>
@@ -2520,33 +2534,6 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               }`}>
                                 {toArabicDigits((juzSurahsMap[selectedJuzForPages] || []).length)}
                               </span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* شريط الإجراءات السريعة للجزء */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 bg-indigo-50/70 dark:bg-gray-700/50 p-2 rounded-xl border border-indigo-100 dark:border-gray-600">
-                          <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
-                            إجراءات سريعة للجزء {toArabicDigits(selectedJuzForPages)}:
-                          </span>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => toggleFullJuz(selectedJuzForPages)}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[11px] font-black rounded-lg shadow-xs transition-all active:scale-95"
-                            >
-                              {(juzPagesMap[selectedJuzForPages] || []).every(p => selectionState.allActivePages.includes(p)) 
-                                ? '✕ إلغاء تحديد الجزء' 
-                                : `⚡ تحديد كامل الجزء (${(juzPagesMap[selectedJuzForPages] || []).length} ص)`}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleSurahsInJuz(selectedJuzForPages)}
-                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-[11px] font-black rounded-lg shadow-xs transition-all active:scale-95"
-                            >
-                              {(juzSurahsMap[selectedJuzForPages] || []).every(s => selectedSurahIds.includes(s)) 
-                                ? '✕ إلغاء سور الجزء' 
-                                : '📜 تحديد كل سور الجزء'}
                             </button>
                           </div>
                         </div>

@@ -12,6 +12,7 @@ import Modal from './Modal';
 import { FilterItem } from './FilterItem';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
+import { compareReportRows } from '../utils/reportSortUtils';
 
 const getHijriDate = (dateInput: string, adjustments: Record<string, number> = {}) => {
   if (!dateInput || dateInput === '—') return null;
@@ -150,14 +151,10 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
 
     if (sortConfig) {
       items.sort((a, b) => {
-        const vA = (a as any)[sortConfig.key];
-        const vB = (b as any)[sortConfig.key];
-        if (vA < vB) return sortConfig.direction === 'ascending' ? -1 : 1;
-        if (vA > vB) return sortConfig.direction === 'ascending' ? 1 : -1;
-        return 0;
+        return compareReportRows(a, b, sortConfig.key, sortConfig.direction);
       });
     } else {
-        items.sort((a,b) => b.weekNumber !== a.weekNumber ? b.weekNumber - a.weekNumber : a.studentName.localeCompare(b.studentName, 'ar', { numeric: true }));
+        items.sort((a,b) => b.weekNumber !== a.weekNumber ? b.weekNumber - a.weekNumber : a.studentName.localeCompare(b.studentName, 'ar', { sensitivity: 'base' }));
     }
     return items.map((item, index) => ({ ...item, sequence: index + 1 }));
   }, [combinedData, filterWeeks, filterStatus, filterAlAmeen, filterFromIbri, searchTerm, sortConfig]);
@@ -375,8 +372,15 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
           <thead className="bg-gray-50 dark:bg-gray-700/50">
             <tr>
               {headers.map(h => (
-                <th key={h.key} className={`px-4 py-3 text-xs font-bold text-gray-500 uppercase ${h.key === 'date' ? 'text-center' : 'text-right'} ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}>
-                  {h.label}
+                <th 
+                  key={h.key} 
+                  onClick={() => setSortConfig(prev => ({
+                    key: h.key,
+                    direction: prev?.key === h.key && prev.direction === 'ascending' ? 'descending' : 'ascending'
+                  }))}
+                  className={`px-4 py-3 text-xs font-bold text-gray-500 uppercase cursor-pointer hover:text-green-800 select-none transition-colors ${h.key === 'date' ? 'text-center' : 'text-right'} ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}
+                >
+                  {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                 </th>
               ))}
               <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 no-print">العمليات</th>

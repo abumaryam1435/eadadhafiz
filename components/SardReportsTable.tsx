@@ -10,6 +10,7 @@ import { ExcelExportModal } from './ExcelExportModal';
 import Modal from './Modal';
 import { SardEvaluationEditModal } from './SardEvaluationEditModal';
 import { surahNames } from '../utils/quranData';
+import { compareReportRows } from '../utils/reportSortUtils';
 
 const NOT_RECORDED = 'not_recorded';
 const LOCAL_STORAGE_SARD_REPORT_COLUMNS_KEY = 'sardReportSelectedColumns';
@@ -478,35 +479,19 @@ export const SardReportsTable: React.FC = () => {
       items = newItems;
     } else if (sortConfig) {
       items.sort((a, b) => {
-        if (sortConfig.key === 'halaqaName' || sortConfig.key === 'studentName') {
-          const isHalaqaVisible = selectedColumnKeys.includes('studentOriginalHalaqaName') || selectedColumnKeys.includes('halaqaName');
-          if (isHalaqaVisible) {
-            const hA = a.halaqaName || '';
-            const hB = b.halaqaName || '';
-            const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
-            if (halaqaComp !== 0) {
-              const direction = sortConfig.key === 'halaqaName' ? sortConfig.direction : 'ascending';
-              return direction === 'ascending' ? halaqaComp : -halaqaComp;
-            }
+        if (sortConfig.key === 'halaqaName' && (selectedColumnKeys.includes('studentOriginalHalaqaName') || selectedColumnKeys.includes('halaqaName'))) {
+          const hA = a.halaqaName || '';
+          const hB = b.halaqaName || '';
+          const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
+          if (halaqaComp !== 0) {
+            return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
           }
           const sA = a.studentName || '';
           const sB = b.studentName || '';
-          const studentComp = sA.localeCompare(sB, 'ar', { numeric: true });
-          const direction = sortConfig.key === 'studentName' ? sortConfig.direction : 'ascending';
-          return direction === 'ascending' ? studentComp : -studentComp;
+          return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
         }
 
-        const vA = a[sortConfig.key];
-        const vB = b[sortConfig.key];
-        
-        if (typeof vA === 'string' && typeof vB === 'string') {
-          const comparison = vA.localeCompare(vB, undefined, { numeric: true, sensitivity: 'base' });
-          return sortConfig.direction === 'ascending' ? comparison : -comparison;
-        }
-
-        if (vA < vB) return sortConfig.direction === 'ascending' ? -1 : 1;
-        if (vA > vB) return sortConfig.direction === 'ascending' ? 1 : -1;
-        return 0;
+        return compareReportRows(a, b, sortConfig.key, sortConfig.direction);
       });
     }
     
@@ -964,7 +949,7 @@ export const SardReportsTable: React.FC = () => {
                   onClick={() => setSortConfig({ key: h.key, direction: sortConfig?.key === h.key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending' })} 
                   className={`px-3 py-4 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase cursor-pointer whitespace-nowrap text-right ${h.key === 'sequence' ? 'w-px !px-2 text-center' : ''}`}
                 >
-                  {h.label}
+                  {h.label}{sortConfig?.key === h.key ? (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼') : ''}
                 </th>
               ))}
               {!topStudentsSortDesc && <th className="px-3 py-4 text-center text-[10px] font-bold text-gray-500 no-print">العمليات</th>}

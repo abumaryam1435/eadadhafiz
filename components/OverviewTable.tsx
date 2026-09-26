@@ -11,6 +11,7 @@ import Modal from "./Modal";
 import { FilterItem } from "./FilterItem";
 import { formatAndCountJuzs, parseJuzsToNumbers } from "../utils/juzUtils";
 import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, getLastMemorizedPage, getLevelNumericRank, ALL_LEVEL_NAMES, normalizeStudentLevel } from "../utils/pageUtils";
+import { compareReportRows } from "../utils/reportSortUtils";
 import { WordExportModal } from "./WordExportModal";
 import { ExcelExportModal } from "./ExcelExportModal";
 
@@ -630,35 +631,19 @@ export const OverviewTable: React.FC = () => {
 
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        if (sortConfig.key === 'halaqaName' || sortConfig.key === 'studentName') {
-          const isHalaqaVisible = selectedColumnKeys.includes('halaqaName');
-          if (isHalaqaVisible) {
-            const hA = a.halaqaName || '';
-            const hB = b.halaqaName || '';
-            const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
-            if (halaqaComp !== 0) {
-              const direction = sortConfig.key === 'halaqaName' ? sortConfig.direction : 'ascending';
-              return direction === 'ascending' ? halaqaComp : -halaqaComp;
-            }
+        if (sortConfig.key === 'halaqaName' && selectedColumnKeys.includes('halaqaName')) {
+          const hA = a.halaqaName || '';
+          const hB = b.halaqaName || '';
+          const halaqaComp = hA.localeCompare(hB, 'ar', { numeric: true });
+          if (halaqaComp !== 0) {
+            return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
           }
           const sA = a.studentName || '';
           const sB = b.studentName || '';
-          const studentComp = sA.localeCompare(sB, 'ar', { numeric: true });
-          const direction = sortConfig.key === 'studentName' ? sortConfig.direction : 'ascending';
-          return direction === 'ascending' ? studentComp : -studentComp;
+          return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
         }
 
-        const valA = a[sortConfig.key];
-        const valB = b[sortConfig.key];
-        if (typeof valA === "string" && typeof valB === "string") {
-          const comparison = valA.localeCompare(valB, "ar", { numeric: true });
-          return sortConfig.direction === "ascending"
-            ? comparison
-            : -comparison;
-        }
-        if (valA < valB) return sortConfig.direction === "ascending" ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === "ascending" ? 1 : -1;
-        return 0;
+        return compareReportRows(a, b, String(sortConfig.key), sortConfig.direction);
       });
     }
     return sortableItems.map((item, index) => ({
