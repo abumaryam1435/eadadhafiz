@@ -8,6 +8,17 @@ export interface ExportHeader {
   type?: string;
 }
 
+const escapeAttr = (str: any): string => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/[\r\n]+/g, ' ');
+};
+
 const renderCell = (value: any, type?: string) => {
   if (value === undefined || value === null || value === '') return '—';
   if (type === 'translation') {
@@ -48,8 +59,8 @@ export const shareHtmlViaWhatsApp = async (
 
   // Extract unique student names for quick-filter dropdown
   const uniqueStudents = Array.from(
-    new Set(data.map(item => item.studentName || item.name).filter(Boolean))
-  ).sort((a: any, b: any) => String(a).localeCompare(String(b), 'ar'));
+    new Set(data.map(item => String(item.studentName || item.name || '').trim()).filter(Boolean))
+  ).sort((a: string, b: string) => a.localeCompare(b, 'ar'));
 
   // Table Headers
   const ths = headers.map(h => {
@@ -144,10 +155,11 @@ export const shareHtmlViaWhatsApp = async (
       item.evaluatorName || '',
       item.surahs?.map((s: any) => typeof s === 'string' ? s : s.name).join(' ') || '',
       item.ayahsDetails || item.notes || '',
-      item.performance || item.attendance || ''
+      item.performance || item.attendance || '',
+      item.weekNumber ? `أسبوع ${item.weekNumber}` : ''
     ].filter(Boolean).join(' ');
 
-    return `<tr class="data-row ${bgClass}" data-student="${studentNameVal}" data-search="${searchTokens}">${tds}</tr>`;
+    return `<tr class="data-row ${bgClass}" data-student="${escapeAttr(studentNameVal)}" data-search="${escapeAttr(searchTokens)}">${tds}</tr>`;
   }).join('');
 
   const htmlContent = `<!DOCTYPE html>
@@ -178,7 +190,7 @@ export const shareHtmlViaWhatsApp = async (
       border-radius: 16px;
       box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
       border: 1px solid #e2e8f0;
-      overflow: hidden;
+      position: relative;
     }
 
     .header-section {
@@ -187,6 +199,7 @@ export const shareHtmlViaWhatsApp = async (
       padding: 20px 16px;
       text-align: center;
       position: relative;
+      border-radius: 15px 15px 0 0;
       border-bottom: 3px solid #D4AF37;
     }
     .header-section h1 { margin: 0; font-size: 1.35rem; font-weight: 900; letter-spacing: -0.02em; }
@@ -203,6 +216,8 @@ export const shareHtmlViaWhatsApp = async (
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      position: relative;
+      z-index: 50;
     }
 
     .filter-group {
@@ -266,7 +281,7 @@ export const shareHtmlViaWhatsApp = async (
     /* Multi-select dropdown styles */
     .dropdown-container {
       position: relative;
-      min-width: 220px;
+      min-width: 210px;
       max-width: 320px;
       flex: 1;
     }
@@ -302,7 +317,7 @@ export const shareHtmlViaWhatsApp = async (
       flex: 1;
     }
     .dropdown-btn-arrow {
-      font-size: 10px;
+      font-size: 11px;
       color: #64748b;
       transition: transform 0.2s;
     }
@@ -313,19 +328,19 @@ export const shareHtmlViaWhatsApp = async (
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      width: 330px;
-      max-width: 92vw;
+      width: 320px;
+      max-width: 90vw;
       background: white;
       border: 2px solid #006A4E;
       border-radius: 16px;
-      box-shadow: 0 10px 30px -5px rgba(0,0,0,0.18);
-      z-index: 100;
+      box-shadow: 0 15px 35px -5px rgba(0,0,0,0.25);
+      z-index: 9999;
       display: none;
       flex-direction: column;
       overflow: hidden;
     }
     .dropdown-panel.show {
-      display: flex;
+      display: flex !important;
     }
     .dropdown-search-box {
       padding: 10px 12px;
@@ -514,6 +529,7 @@ export const shareHtmlViaWhatsApp = async (
       font-size: 0.8rem;
       color: #64748b;
       font-weight: 600;
+      border-radius: 0 0 15px 15px;
     }
 
     @media print {
@@ -531,7 +547,8 @@ export const shareHtmlViaWhatsApp = async (
       .header-section h1 { font-size: 1.15rem; }
       .controls-panel { padding: 10px; gap: 8px; }
       .filter-group { min-width: 100%; }
-      .student-select { min-width: 100%; max-width: 100%; }
+      .dropdown-container { min-width: 100%; max-width: 100%; }
+      .dropdown-panel { width: 100%; max-width: 100%; right: 0; left: 0; }
       .badge-count { font-size: 0.78rem; padding: 6px 10px; }
       th { font-size: 10.5px; padding: 7px 3px; }
       td { font-size: 10.5px; padding: 7px 3px; }
@@ -556,42 +573,40 @@ export const shareHtmlViaWhatsApp = async (
               type="text" 
               id="searchInput" 
               class="search-input" 
-              placeholder="ابحث بأي جزء من اسم الطالب دون اشتراط الترتيب..." 
-              oninput="handleSearchInput()" 
+              placeholder="ابحث بأي جزء من اسم الطالب، الأسبوع، الحلقة..." 
               autocomplete="off"
             />
-            <button id="clearBtn" class="clear-btn" onclick="clearSearch()" title="مسح">✕</button>
+            <button type="button" id="clearBtn" class="clear-btn" title="مسح">✕</button>
           </div>
 
           ${uniqueStudents.length > 1 ? `
           <div class="dropdown-container" id="studentDropdownContainer">
-            <button type="button" id="studentDropdownBtn" class="dropdown-btn" onclick="toggleStudentDropdown(event)">
+            <button type="button" id="studentDropdownBtn" class="dropdown-btn">
               <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
                 <span>👤</span>
                 <span id="studentDropdownLabel" class="dropdown-btn-label">كل الطلاب (${uniqueStudents.length})</span>
               </div>
               <span class="dropdown-btn-arrow">▼</span>
             </button>
-            <div id="studentDropdownPanel" class="dropdown-panel" onclick="event.stopPropagation()">
+            <div id="studentDropdownPanel" class="dropdown-panel">
               <div class="dropdown-search-box">
                 <span class="dropdown-search-icon">🔍</span>
                 <input 
                   type="text" 
                   id="studentSearchInput" 
                   class="dropdown-search-input" 
-                  placeholder="بحث في أسماء الطلاب..." 
-                  oninput="filterStudentOptions()" 
+                  placeholder="بحث سريع في أسماء الطلاب..." 
                   autocomplete="off"
                 />
               </div>
               <div class="dropdown-actions">
-                <button type="button" class="btn-action btn-select-all" onclick="selectAllStudents(event)">تحديد الكل</button>
-                <button type="button" class="btn-action btn-deselect-all" onclick="deselectAllStudents(event)">إلغاء التحديد</button>
+                <button type="button" id="btnSelectAllStudents" class="btn-action btn-select-all">تحديد الكل</button>
+                <button type="button" id="btnDeselectAllStudents" class="btn-action btn-deselect-all">إلغاء التحديد</button>
               </div>
               <div id="studentOptionsList" class="dropdown-options-list">
                 ${uniqueStudents.map((name, i) => `
-                  <label class="dropdown-option" data-student-name="${name}">
-                    <input type="checkbox" class="dropdown-checkbox student-cb" value="${name}" checked onchange="handleStudentCheckboxChange()" />
+                  <label class="dropdown-option" data-student-name="${escapeAttr(name)}">
+                    <input type="checkbox" class="dropdown-checkbox student-cb" value="${escapeAttr(name)}" checked />
                     <span>${name}</span>
                   </label>
                 `).join('')}
@@ -634,22 +649,17 @@ export const shareHtmlViaWhatsApp = async (
   </div>
 
   <script>
-    var searchInput = document.getElementById("searchInput");
-    var clearBtn = document.getElementById("clearBtn");
-    var matchCount = document.getElementById("matchCount");
-    var totalCount = document.getElementById("totalCount");
-    var noResults = document.getElementById("noResults");
-    var rows = Array.from(document.querySelectorAll("#tableBody tr.data-row"));
+    // Utility: NodeList to Array helper (compatible with all mobile browsers)
+    function toArray(list) {
+      if (!list) return [];
+      var arr = [];
+      for (var i = 0; i < list.length; i++) {
+        arr.push(list[i]);
+      }
+      return arr;
+    }
 
-    var studentDropdownBtn = document.getElementById("studentDropdownBtn");
-    var studentDropdownPanel = document.getElementById("studentDropdownPanel");
-    var studentDropdownLabel = document.getElementById("studentDropdownLabel");
-    var studentSearchInput = document.getElementById("studentSearchInput");
-    var studentCheckboxes = Array.from(document.querySelectorAll(".student-cb"));
-    var studentOptions = Array.from(document.querySelectorAll(".dropdown-option"));
-    var totalStudentsCount = studentCheckboxes.length;
-
-    // دالة تطبيع النصوص العربية
+    // دالة تطبيع النصوص العربية مثل المستخدمة في التطبيق تماماً
     function normalizeArabic(text) {
       if (!text) return "";
       return String(text)
@@ -657,11 +667,11 @@ export const shareHtmlViaWhatsApp = async (
         .replace(/[أإآ]/g, "ا")
         .replace(/ة/g, "ه")
         .replace(/ى/g, "ي")
-        .replace(/[\u064B-\u065F\u0670]/g, "") // إزالة التشكيل
+        .replace(/[\\u064B-\\u065F\\u0670]/g, "") // إزالة التشكيل
         .replace(/ـ+/g, "") // إزالة الكشيدة
         .replace(/[٠-٩]/g, function(d) { return "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString(); })
-        .replace(/[\r\n\t]+/g, " ")
-        .replace(/\s+/g, " ")
+        .replace(/[\\r\\n\\t]+/g, " ")
+        .replace(/\\s+/g, " ")
         .trim();
     }
 
@@ -670,104 +680,22 @@ export const shareHtmlViaWhatsApp = async (
       var normalizedQuery = normalizeArabic(query);
       if (!normalizedQuery) return true;
 
-      var tokens = normalizedQuery.split(/\s+/).filter(function(t) { return t.length > 0; });
+      var tokens = normalizedQuery.split(" ").filter(function(t) { return t.length > 0; });
       var normalizedTarget = normalizeArabic(targetText);
 
-      return tokens.every(function(token) {
-        return normalizedTarget.indexOf(token) > -1;
-      });
-    }
-
-    function toggleStudentDropdown(e) {
-      if (e) e.stopPropagation();
-      if (!studentDropdownPanel) return;
-      var isShown = studentDropdownPanel.classList.contains("show");
-      if (isShown) {
-        closeStudentDropdown();
-      } else {
-        openStudentDropdown();
-      }
-    }
-
-    function openStudentDropdown() {
-      if (!studentDropdownPanel) return;
-      studentDropdownPanel.classList.add("show");
-      if (studentDropdownBtn) studentDropdownBtn.classList.add("active");
-      if (studentSearchInput) {
-        studentSearchInput.value = "";
-        filterStudentOptions();
-        setTimeout(function() { studentSearchInput.focus(); }, 100);
-      }
-    }
-
-    function closeStudentDropdown() {
-      if (!studentDropdownPanel) return;
-      studentDropdownPanel.classList.remove("show");
-      if (studentDropdownBtn) studentDropdownBtn.classList.remove("active");
-    }
-
-    document.addEventListener("click", function(e) {
-      var container = document.getElementById("studentDropdownContainer");
-      if (container && !container.contains(e.target)) {
-        closeStudentDropdown();
-      }
-    });
-
-    document.addEventListener("keydown", function(e) {
-      if (e.key === "Escape") {
-        closeStudentDropdown();
-      }
-    });
-
-    function filterStudentOptions() {
-      var q = (studentSearchInput ? studentSearchInput.value : "") || "";
-      studentOptions.forEach(function(opt) {
-        var name = opt.getAttribute("data-student-name") || opt.textContent;
-        if (!q.trim() || isSmartMatch(name, q)) {
-          opt.style.display = "flex";
-        } else {
-          opt.style.display = "none";
+      for (var i = 0; i < tokens.length; i++) {
+        if (normalizedTarget.indexOf(tokens[i]) === -1) {
+          return false;
         }
-      });
-    }
-
-    function selectAllStudents(e) {
-      if (e) e.stopPropagation();
-      studentCheckboxes.forEach(function(cb) { cb.checked = true; });
-      updateStudentLabel();
-      filterTable();
-    }
-
-    function deselectAllStudents(e) {
-      if (e) e.stopPropagation();
-      studentCheckboxes.forEach(function(cb) { cb.checked = false; });
-      updateStudentLabel();
-      filterTable();
-    }
-
-    function handleStudentCheckboxChange() {
-      updateStudentLabel();
-      filterTable();
-    }
-
-    function updateStudentLabel() {
-      if (!studentDropdownLabel) return;
-      var checkedCount = studentCheckboxes.filter(function(cb) { return cb.checked; }).length;
-      if (checkedCount === totalStudentsCount || totalStudentsCount === 0) {
-        studentDropdownLabel.textContent = "كل الطلاب (" + totalStudentsCount + ")";
-      } else if (checkedCount === 0) {
-        studentDropdownLabel.textContent = "لم يتم اختيار أي طالب (0)";
-      } else if (checkedCount === 1) {
-        var firstChecked = studentCheckboxes.find(function(cb) { return cb.checked; });
-        studentDropdownLabel.textContent = firstChecked ? firstChecked.value : "طالب محدد";
-      } else {
-        studentDropdownLabel.textContent = checkedCount + " طلاب محددين";
       }
+      return true;
     }
 
     function renumberVisibleRows() {
       var seq = 1;
-      rows.forEach(function(row) {
+      var rows = toArray(document.querySelectorAll("#tableBody tr.data-row"));
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
         if (row.style.display !== "none") {
           var seqCell = row.querySelector(".seq-cell");
           if (seqCell) {
@@ -775,60 +703,251 @@ export const shareHtmlViaWhatsApp = async (
             seq++;
           }
         }
-      });
+      }
     }
 
-    function filterTable() {
-      var rawQuery = searchInput ? (searchInput.value || "") : "";
-      clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
-
-      var checkedStudents = new Set();
-      var hasStudentFilter = false;
-      if (studentCheckboxes.length > 0) {
-        var checkedCount = 0;
-        studentCheckboxes.forEach(function(cb) {
-          if (cb.checked) {
-            checkedStudents.add(cb.value.trim());
-            checkedCount++;
-          }
-        });
-        if (checkedCount < totalStudentsCount) {
-          hasStudentFilter = true;
+    function updateStudentLabel() {
+      var label = document.getElementById("studentDropdownLabel");
+      if (!label) return;
+      var cbs = toArray(document.querySelectorAll(".student-cb"));
+      var total = cbs.length;
+      var checked = 0;
+      var firstChecked = "";
+      for (var i = 0; i < total; i++) {
+        if (cbs[i].checked) {
+          checked++;
+          if (!firstChecked) firstChecked = cbs[i].value;
         }
       }
 
-      var count = 0;
-      rows.forEach(function(row) {
-        var rowSearchText = row.getAttribute("data-search") || row.textContent;
-        var studentAttr = (row.getAttribute("data-student") || "").trim();
-
-        // 1. مطابقة البحث الذكي بالنص المدخل
-        var matchesQuery = !rawQuery.trim() || isSmartMatch(rowSearchText, rawQuery);
-
-        // 2. مطابقة الطلاب المحددين في القائمة متعددة الاختيار
-        var matchesStudent = !hasStudentFilter || checkedStudents.has(studentAttr);
-
-        if (matchesQuery && matchesStudent) {
-          row.style.display = "";
-          count++;
-        } else {
-          row.style.display = "none";
-        }
-      });
-
-      matchCount.textContent = count;
-      noResults.style.display = count === 0 ? "block" : "none";
-      renumberVisibleRows();
+      if (total === 0 || checked === total) {
+        label.textContent = "كل الطلاب (" + total + ")";
+      } else if (checked === 0) {
+        label.textContent = "لم يتم اختيار أي طالب (0)";
+      } else if (checked === 1) {
+        label.textContent = firstChecked;
+      } else {
+        label.textContent = checked + " طلاب محددين";
+      }
     }
 
-    function handleSearchInput() {
+    function filterTable() {
+      try {
+        var searchInput = document.getElementById("searchInput");
+        var rawQuery = searchInput ? (searchInput.value || "") : "";
+        var clearBtn = document.getElementById("clearBtn");
+        if (clearBtn) {
+          clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
+        }
+
+        var studentCbs = toArray(document.querySelectorAll(".student-cb"));
+        var totalCbs = studentCbs.length;
+        var checkedMap = {};
+        var checkedCount = 0;
+        for (var c = 0; c < totalCbs; c++) {
+          if (studentCbs[c].checked) {
+            checkedMap[studentCbs[c].value.trim()] = true;
+            checkedCount++;
+          }
+        }
+
+        var filterByStudent = totalCbs > 0 && checkedCount < totalCbs;
+        var rows = toArray(document.querySelectorAll("#tableBody tr.data-row"));
+        var matchCount = document.getElementById("matchCount");
+        var noResults = document.getElementById("noResults");
+        var visibleCount = 0;
+
+        for (var r = 0; r < rows.length; r++) {
+          var row = rows[r];
+          var rowSearchText = row.getAttribute("data-search") || row.textContent || "";
+          var studentAttr = (row.getAttribute("data-student") || "").trim();
+
+          // 1. مطابقة البحث الذكي بالنص المدخل
+          var matchesQuery = !rawQuery.trim() || isSmartMatch(rowSearchText, rawQuery);
+
+          // 2. مطابقة الطلاب المحددين في القائمة متعددة الاختيار
+          var matchesStudent = !filterByStudent || !!checkedMap[studentAttr];
+
+          if (matchesQuery && matchesStudent) {
+            row.style.display = "";
+            visibleCount++;
+          } else {
+            row.style.display = "none";
+          }
+        }
+
+        if (matchCount) {
+          matchCount.textContent = visibleCount;
+        }
+        if (noResults) {
+          noResults.style.display = visibleCount === 0 ? "block" : "none";
+        }
+
+        renumberVisibleRows();
+      } catch (err) {
+        console.error("Filter error:", err);
+      }
+    }
+
+    function filterStudentOptions() {
+      var input = document.getElementById("studentSearchInput");
+      var q = input ? (input.value || "") : "";
+      var options = toArray(document.querySelectorAll(".dropdown-option"));
+      for (var i = 0; i < options.length; i++) {
+        var opt = options[i];
+        var name = opt.getAttribute("data-student-name") || opt.textContent || "";
+        if (!q.trim() || isSmartMatch(name, q)) {
+          opt.style.display = "flex";
+        } else {
+          opt.style.display = "none";
+        }
+      }
+    }
+
+    function toggleStudentDropdown(e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var panel = document.getElementById("studentDropdownPanel");
+      var btn = document.getElementById("studentDropdownBtn");
+      if (!panel) return;
+      var isOpen = panel.classList.contains("show");
+      if (isOpen) {
+        panel.classList.remove("show");
+        if (btn) btn.classList.remove("active");
+      } else {
+        panel.classList.add("show");
+        if (btn) btn.classList.add("active");
+        var searchIn = document.getElementById("studentSearchInput");
+        if (searchIn) {
+          searchIn.value = "";
+          filterStudentOptions();
+        }
+      }
+    }
+
+    function closeStudentDropdown() {
+      var panel = document.getElementById("studentDropdownPanel");
+      var btn = document.getElementById("studentDropdownBtn");
+      if (panel) panel.classList.remove("show");
+      if (btn) btn.classList.remove("active");
+    }
+
+    function selectAllStudents(e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var cbs = toArray(document.querySelectorAll(".student-cb"));
+      for (var i = 0; i < cbs.length; i++) {
+        cbs[i].checked = true;
+      }
+      updateStudentLabel();
+      filterTable();
+    }
+
+    function deselectAllStudents(e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var cbs = toArray(document.querySelectorAll(".student-cb"));
+      for (var i = 0; i < cbs.length; i++) {
+        cbs[i].checked = false;
+      }
+      updateStudentLabel();
       filterTable();
     }
 
     function clearSearch() {
-      if (searchInput) searchInput.value = "";
+      var searchInput = document.getElementById("searchInput");
+      if (searchInput) {
+        searchInput.value = "";
+        searchInput.focus();
+      }
       filterTable();
-      if (searchInput) searchInput.focus();
+    }
+
+    // Expose all handlers globally
+    window.toggleStudentDropdown = toggleStudentDropdown;
+    window.closeStudentDropdown = closeStudentDropdown;
+    window.selectAllStudents = selectAllStudents;
+    window.deselectAllStudents = deselectAllStudents;
+    window.filterStudentOptions = filterStudentOptions;
+    window.filterTable = filterTable;
+    window.clearSearch = clearSearch;
+    window.updateStudentLabel = updateStudentLabel;
+
+    // Attach Event Listeners on DOMContentLoaded or immediately
+    function initListeners() {
+      var searchInput = document.getElementById("searchInput");
+      if (searchInput) {
+        searchInput.addEventListener("input", function() { filterTable(); });
+        searchInput.addEventListener("keyup", function() { filterTable(); });
+      }
+
+      var clearBtn = document.getElementById("clearBtn");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", function(e) {
+          e.preventDefault();
+          clearSearch();
+        });
+      }
+
+      var studentDropdownBtn = document.getElementById("studentDropdownBtn");
+      if (studentDropdownBtn) {
+        studentDropdownBtn.addEventListener("click", function(e) {
+          toggleStudentDropdown(e);
+        });
+      }
+
+      var studentSearchInput = document.getElementById("studentSearchInput");
+      if (studentSearchInput) {
+        studentSearchInput.addEventListener("input", function() { filterStudentOptions(); });
+      }
+
+      var btnSelectAll = document.getElementById("btnSelectAllStudents");
+      if (btnSelectAll) {
+        btnSelectAll.addEventListener("click", function(e) { selectAllStudents(e); });
+      }
+
+      var btnDeselectAll = document.getElementById("btnDeselectAllStudents");
+      if (btnDeselectAll) {
+        btnDeselectAll.addEventListener("click", function(e) { deselectAllStudents(e); });
+      }
+
+      var cbs = toArray(document.querySelectorAll(".student-cb"));
+      for (var i = 0; i < cbs.length; i++) {
+        cbs[i].addEventListener("change", function() {
+          updateStudentLabel();
+          filterTable();
+        });
+      }
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", function(e) {
+        var container = document.getElementById("studentDropdownContainer");
+        if (container && !container.contains(e.target)) {
+          closeStudentDropdown();
+        }
+      });
+
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+          closeStudentDropdown();
+        }
+      });
+
+      // Initial setup
+      updateStudentLabel();
+      filterTable();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initListeners);
+    } else {
+      initListeners();
     }
   </script>
 </body>
@@ -867,7 +986,7 @@ export const shareHtmlViaWhatsApp = async (
       </div>
       <h3 style="color: #006A4E; font-size: 19px; font-weight: 900; margin: 0 0 6px 0;">تم تجهيز التقرير التفاعلي!</h3>
       <p style="color: #64748b; font-size: 12.5px; margin: 0 0 20px 0; font-weight: 600; line-height: 1.45;">
-        ملف تفاعلي ذكي يفتح بنقرة على أي هاتف ويتيح البحث الفوري وتصفية الطلاب بسهولة:
+        ملف تفاعلي ذكي يفتح بنقرة على أي هاتف ويتيح البحث الفوري واختيار الطلاب وتصفيتهم بسهولة:
       </p>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         ${hasNativeShare ? `
