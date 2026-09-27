@@ -128,7 +128,17 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const isFloating = teacherHalaqas.length === 0;
 
   // حلقات السرد الخاصة بالمعلم
-  const teacherSardHalaqas = useMemo(() => (sardHalaqas || []).filter(sh => sh.teacherId === teacherId).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [sardHalaqas, teacherId]);
+  const teacherSardHalaqas = useMemo(() => 
+    (sardHalaqas || [])
+      .filter(sh => Number(sh.teacherId) === Number(teacherId))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), 
+    [sardHalaqas, teacherId]
+  );
+  const teacherSardHalaqaIds = useMemo(() => 
+    new Set(teacherSardHalaqas.map(sh => Number(sh.id))), 
+    [teacherSardHalaqas]
+  );
+  const hasTeacherSardHalaqas = teacherSardHalaqas.length > 0;
 
   const [currentStep, setCurrentStep] = useState<FormStep>('selectHalaqa');
 
@@ -173,6 +183,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [sardTashkeelErrors, setSardTashkeelErrors] = useState<number>(0);
   const [sardTajweedErrors, setSardTajweedErrors] = useState<number>(0);
   const [selectedSardHalaqaFilter, setSelectedSardHalaqaFilter] = useState<number | null>(null);
+  const [isSardGuest, setIsSardGuest] = useState(false);
   const [currentSardEval, setCurrentSardEval] = useState<SardEvaluation | null>(null);
   const [isSardEditModalOpen, setIsSardEditModalOpen] = useState(false);
   const [sardSearch, setSardSearch] = useState('');
@@ -848,9 +859,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
   const activeSardHalaqaId = useMemo(() => {
     if (selectedSardHalaqaFilter) return selectedSardHalaqaFilter;
-    if (teacherSardHalaqas.length > 0 && !isGuest) return teacherSardHalaqas[0].id;
+    if (teacherSardHalaqas.length > 0 && !isSardGuest) return teacherSardHalaqas[0].id;
     return null;
-  }, [selectedSardHalaqaFilter, teacherSardHalaqas, isGuest]);
+  }, [selectedSardHalaqaFilter, teacherSardHalaqas, isSardGuest]);
+
+  const isStudentInSardView = useCallback((s: Student) => {
+    if (hasTeacherSardHalaqas && !isSardGuest) {
+      if (selectedSardHalaqaFilter) {
+        return Number(s.sardHalaqaId) === Number(selectedSardHalaqaFilter);
+      }
+      return teacherSardHalaqaIds.has(Number(s.sardHalaqaId));
+    }
+    if (selectedSardHalaqaFilter) {
+      return Number(s.sardHalaqaId) === Number(selectedSardHalaqaFilter);
+    }
+    return !!s.sardHalaqaId;
+  }, [hasTeacherSardHalaqas, isSardGuest, selectedSardHalaqaFilter, teacherSardHalaqaIds]);
 
   const resetFormFields = useCallback(() => {
     setAttendance(undefined);
@@ -1516,7 +1540,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             <div className={`grid ${activeMatns.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-4 scroll-mt-6`}>
               <button 
                 type="button" 
-                onClick={() => { setSubject('quran'); }} 
+                onClick={() => { 
+                  setSubject('quran'); 
+                  setIsGuest(false);
+                }} 
                 className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
                   subject === 'quran' 
                     ? 'bg-green-100 border-green-600 shadow-sm text-green-900 dark:bg-green-950/40 dark:text-green-300 dark:border-green-600' 
@@ -1530,7 +1557,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               {activeMatns.length > 0 && (
                 <button 
                   type="button" 
-                  onClick={() => { setSubject('mutoon'); }} 
+                  onClick={() => { 
+                    setSubject('mutoon'); 
+                    setIsGuest(false);
+                  }} 
                   className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
                     subject === 'mutoon' 
                       ? 'bg-blue-100 border-blue-600 shadow-sm text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-600' 
@@ -1544,7 +1574,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
               <button 
                 type="button" 
-                onClick={() => { setSubject('sard'); }} 
+                onClick={() => { 
+                  setSubject('sard'); 
+                  setIsSardGuest(false);
+                  setSelectedSardHalaqaFilter(null);
+                  setSardSearch('');
+                }} 
                 className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
                   subject === 'sard' 
                     ? 'bg-emerald-100 border-emerald-600 shadow-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-600' 
@@ -1568,22 +1603,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       </span>
                     )}
                   </div>
-                  {teacherSardHalaqas.length > 0 && (
+                  {hasTeacherSardHalaqas && (
                     <button 
                       type="button" 
                       onClick={() => {
-                        setIsGuest(!isGuest);
+                        setIsSardGuest(prev => !prev);
                         setSelectedSardHalaqaFilter(null);
                       }} 
                       className="text-xs font-bold text-emerald-700 underline hover:text-emerald-900 dark:text-emerald-400 cursor-pointer"
                     >
-                      {isGuest ? 'العودة لطلابي في السرد' : 'تقييم طلاب من حلقات سرد أخرى'}
+                      {isSardGuest ? 'العودة لطلابي في السرد' : 'تقييم طلاب من حلقات سرد أخرى'}
                     </button>
                   )}
                 </div>
 
-                {/* تصفية سريعة بحلقة أخرى فقط في نمط الضيف */}
-                {isGuest && (
+                {/* تصفية سريعة بحلقة أخرى فقط في نمط الضيف أو للمعلم الذي ليس لديه حلقة سرد */}
+                {(isSardGuest || !hasTeacherSardHalaqas) && (
                   <div className="flex items-center gap-2 bg-emerald-50/60 dark:bg-emerald-950/20 p-2 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
                     <label className="text-xs font-bold text-gray-700 dark:text-gray-300 shrink-0">تصفية بحلقة:</label>
                     <select
@@ -1600,16 +1635,27 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 )}
 
                 {/* التبديل بين حلقات المعلم إذا كان لديه أكثر من حلقة سرد */}
-                {teacherSardHalaqas.length > 1 && !isGuest && (
+                {teacherSardHalaqas.length > 1 && !isSardGuest && (
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                     <span className="text-xs font-bold text-gray-500 shrink-0">حلقاتي:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSardHalaqaFilter(null)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        selectedSardHalaqaFilter === null
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      جميع حلقاتي ({teacherSardHalaqas.length})
+                    </button>
                     {teacherSardHalaqas.map(h => (
                       <button
                         key={h.id}
                         type="button"
                         onClick={() => setSelectedSardHalaqaFilter(h.id)}
                         className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                          activeSardHalaqaId === h.id
+                          selectedSardHalaqaFilter === h.id
                             ? 'bg-emerald-600 text-white shadow-xs'
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                         }`}
@@ -1651,13 +1697,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       .filter(s => {
                         if (!isSmartMatch(s.name, sardSearch)) return false;
                         if (selectedSardGroupIds.includes(s.id)) return true;
-                        if (teacherSardHalaqas.length > 0 && !isGuest) {
-                          return s.sardHalaqaId === activeSardHalaqaId;
-                        }
-                        if (selectedSardHalaqaFilter) {
-                          return s.sardHalaqaId === selectedSardHalaqaFilter;
-                        }
-                        return !!s.sardHalaqaId;
+                        return isStudentInSardView(s);
                       })
                       .map(s => s.id);
                     
@@ -1736,13 +1776,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     .filter(s => {
                       if (!isSmartMatch(s.name, sardSearch)) return false;
                       if (sardEvalMode === 'group' && selectedSardGroupIds.includes(s.id)) return true;
-                      if (teacherSardHalaqas.length > 0 && !isGuest) {
-                        return s.sardHalaqaId === activeSardHalaqaId;
-                      }
-                      if (selectedSardHalaqaFilter) {
-                        return s.sardHalaqaId === selectedSardHalaqaFilter;
-                      }
-                      return !!s.sardHalaqaId;
+                      return isStudentInSardView(s);
                     })
                     .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
                     .map(s => {
