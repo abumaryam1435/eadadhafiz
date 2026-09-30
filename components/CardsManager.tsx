@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from 'react-colorful';
 import { parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
+import { shareCardsListHtml } from '../utils/exportHtml';
 import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers, Hash, Eye, EyeOff } from 'lucide-react';
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
@@ -780,6 +781,31 @@ export const CardsManager: React.FC = () => {
         } finally {
             setIsGeneratingList(false);
         }
+    };
+
+    const exportHtmlList = () => {
+        if (activeTargets.length === 0) {
+            showToast('⚠️ لا توجد أسماء محددة للتصدير');
+            return;
+        }
+        
+        let subtitleText = '';
+        if (activeTab === 'students') {
+            subtitleText = `بطاقات الطلاب (${activeTargets.length} طالب)`;
+        } else if (activeTab === 'teachers') {
+            subtitleText = `بطاقات المعلمين (${activeTargets.length} معلم)`;
+        } else {
+            subtitleText = `بطاقات مخصصة (${activeTargets.length} بطاقة)`;
+        }
+
+        shareCardsListHtml(
+            activeTargets,
+            "قائمة_الأسماء_للبطاقات",
+            "قائمة الأسماء لإصدار البطاقات التعريفية",
+            subtitleText,
+            effectiveStageColors,
+            context?.hijriAdjustments || {}
+        );
     };
 
     const imageRef = useRef<HTMLImageElement>(null);
@@ -2844,23 +2870,42 @@ export const CardsManager: React.FC = () => {
                             )}
                         </button>
                         
-                        <button 
-                            onClick={exportPdfList}
-                            disabled={isGeneratingList || activeTargets.length === 0}
-                            className="w-full bg-white dark:bg-gray-700 text-green-700 dark:text-green-300 border border-green-600 dark:border-green-500 px-4 py-3 rounded-xl font-bold hover:bg-green-50 dark:hover:bg-gray-600 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 mt-3"
-                        >
-                            {isGeneratingList ? (
-                                <>
-                                    <svg className="animate-spin h-5 w-5 text-green-700 dark:text-green-300" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    جاري التصدير...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                    تصدير قائمة الأسماء (PDF)
-                                </>
-                            )}
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                            <button 
+                                type="button"
+                                onClick={exportPdfList}
+                                disabled={isGeneratingList || activeTargets.length === 0}
+                                className="w-full bg-white dark:bg-gray-700 text-green-700 dark:text-green-300 border border-green-600 dark:border-green-500 px-3 py-2.5 rounded-xl font-bold hover:bg-green-50 dark:hover:bg-gray-600 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-70 text-xs sm:text-sm cursor-pointer"
+                                title="تصدير قائمة الأسماء بصيغة PDF للطباعة"
+                            >
+                                {isGeneratingList ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4 text-green-700 dark:text-green-300" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span>جاري التصدير...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                        <span>قائمة الأسماء (PDF)</span>
+                                    </>
+                                )}
+                            </button>
+
+                            <button 
+                                type="button"
+                                onClick={exportHtmlList}
+                                disabled={activeTargets.length === 0}
+                                className="w-full bg-teal-600 hover:bg-teal-700 text-white px-3 py-2.5 rounded-xl font-bold active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-70 text-xs sm:text-sm cursor-pointer"
+                                title="تصدير ومشاركة قائمة الأسماء كملف HTML تفاعلي مع إمكانية البحث الفوري والتصفية"
+                            >
+                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                </svg>
+                                <span>قائمة الأسماء (HTML)</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { surahNames, pageSurahsMap, juzPagesMap } from '../utils/quranData';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { isPagePreloaded, preloadMushafPages, preloadSurroundingPages } from '../utils/mushafPreload';
@@ -106,27 +107,24 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState(false);
   const [pageSearchTerm, setPageSearchTerm] = useState('');
-  const [selectedGroupStudentId, setSelectedGroupStudentId] = useState<number | null>(null);
+  const [isPageSearchFocused, setIsPageSearchFocused] = useState(false);
+  const [selectedGroupStudentId, setSelectedGroupStudentId] = useState<number | null>(() => {
+    if (sardGroupMode && sardGroupStudents.length > 0) {
+      return sardGroupStudents[0].id;
+    }
+    return null;
+  });
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
-  const studentDropdownRef = useRef<HTMLDivElement>(null);
+  const [isStudentSearchFocused, setIsStudentSearchFocused] = useState(false);
 
   useEffect(() => {
-    if (sardGroupMode && sardGroupStudents.length > 0 && selectedGroupStudentId === null) {
-      setSelectedGroupStudentId(sardGroupStudents[0].id);
+    if (sardGroupMode && sardGroupStudents.length > 0) {
+      if (selectedGroupStudentId === null || !sardGroupStudents.some(s => s.id === selectedGroupStudentId)) {
+        setSelectedGroupStudentId(sardGroupStudents[0].id);
+      }
     }
   }, [sardGroupMode, sardGroupStudents, selectedGroupStudentId]);
-
-  useEffect(() => {
-    const handleClickOutsideStudent = (event: MouseEvent) => {
-      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
-        setIsStudentDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutsideStudent);
-    return () => document.removeEventListener('mousedown', handleClickOutsideStudent);
-  }, []);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const filteredSardStudents = useMemo(() => {
     if (!studentSearchTerm.trim()) return sardGroupStudents;
@@ -143,18 +141,6 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       return surahs.some(sId => surahNames[sId]?.toLowerCase().includes(term));
     });
   }, [targetPages, pageSearchTerm]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsPageDropdownOpen(false);
-      }
-    };
-    if (isPageDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isPageDropdownOpen]);
 
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1059,400 +1045,393 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
           {/* Middle Row: Student Selector & Page Selector placed prominently below error buttons */}
           {sardGroupMode && sardGroupStudents.length > 0 ? (
             <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto py-0.5">
-              {/* زر اختيار الطالب في السرد الجماعي */}
-              <div className="relative shrink-0 max-w-[80%] sm:max-w-md" ref={studentDropdownRef}>
+              {/* زر اختيار الطالب والتنقل في السرد الجماعي */}
+              <div className="flex items-center gap-1 shrink-0 max-w-[80%] sm:max-w-md">
+                {sardGroupStudents.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const curIdx = sardGroupStudents.findIndex(s => s.id === selectedGroupStudentId);
+                      if (curIdx > 0) {
+                        setSelectedGroupStudentId(sardGroupStudents[curIdx - 1].id);
+                      } else {
+                        setSelectedGroupStudentId(sardGroupStudents[sardGroupStudents.length - 1].id);
+                      }
+                    }}
+                    className="h-7 sm:h-8 px-2 flex items-center justify-center bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition active:scale-95 cursor-pointer border border-emerald-500/50 shrink-0"
+                    title="الطالب السابق"
+                  >
+                    ▶
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
-                    setIsStudentDropdownOpen(!isStudentDropdownOpen);
+                    setIsStudentDropdownOpen(true);
                     setStudentSearchTerm('');
+                    setIsStudentSearchFocused(false);
                   }}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold shadow-2xs border border-emerald-400/40 transition-all cursor-pointer active:scale-95"
-                  title="اضغط لاختيار أو تبديل الطالب"
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold shadow-2xs border border-emerald-400/40 transition-all cursor-pointer active:scale-95 min-h-[28px] sm:min-h-[32px]"
+                  title="اضغط لفتح قائمة طلاب السرد واختيار طالب"
                 >
                   <span className="text-sm shrink-0">👤</span>
-                  <span className="font-black leading-tight break-words">
+                  <span className="font-black leading-tight break-words truncate max-w-[130px] sm:max-w-[220px]">
                     {sardGroupStudents.find(s => s.id === selectedGroupStudentId)?.name || 'اختر الطالب'}
                   </span>
-                  <div className="flex items-center gap-0.5 shrink-0 bg-emerald-800/80 px-1 py-0.2 rounded text-[9px] mr-1">
+                  <div className="flex items-center gap-0.5 shrink-0 bg-emerald-800/80 px-1 py-0.5 rounded text-[9px] mr-0.5">
                     <span>تبديل</span>
-                    <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${isStudentDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-2.5 h-2.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                 </button>
 
-                {isStudentDropdownOpen && (
-                  <div 
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
-                    onClick={() => setIsStudentDropdownOpen(false)}
+                {sardGroupStudents.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const curIdx = sardGroupStudents.findIndex(s => s.id === selectedGroupStudentId);
+                      if (curIdx >= 0 && curIdx < sardGroupStudents.length - 1) {
+                        setSelectedGroupStudentId(sardGroupStudents[curIdx + 1].id);
+                      } else {
+                        setSelectedGroupStudentId(sardGroupStudents[0].id);
+                      }
+                    }}
+                    className="h-7 sm:h-8 px-2 flex items-center justify-center bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition active:scale-95 cursor-pointer border border-emerald-500/50 shrink-0"
+                    title="الطالب التالي"
                   >
-                    <div 
-                      className="w-full max-w-xs sm:max-w-sm max-h-[80vh] flex flex-col bg-white dark:bg-gray-900 border-2 border-emerald-500/60 dark:border-emerald-500/60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md text-right dir-rtl"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="p-3 bg-emerald-50 dark:bg-gray-950 border-b border-emerald-100 dark:border-gray-800 flex items-center justify-between">
-                        <span className="text-xs font-black text-emerald-900 dark:text-emerald-300">
-                          طلاب السرد الجماعي ({filteredSardStudents.length})
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setIsStudentDropdownOpen(false)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg text-xs font-black cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      {/* Search in students without autoFocus */}
-                      {sardGroupStudents.length > 5 && (
-                        <div className="p-2.5 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 relative flex items-center">
-                          <input
-                            type="text"
-                            value={studentSearchTerm}
-                            onChange={(e) => setStudentSearchTerm(e.target.value)}
-                            placeholder="بحث عن اسم الطالب..."
-                            className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl pr-3 pl-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-emerald-500 text-right"
-                          />
-                          {studentSearchTerm && (
-                            <button
-                              type="button"
-                              onClick={() => setStudentSearchTerm('')}
-                              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                              title="مسح البحث"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="flex-1 overflow-y-auto max-h-[60vh] custom-scrollbar divide-y divide-gray-100 dark:divide-gray-800/40">
-                        {filteredSardStudents.length === 0 ? (
-                          <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400 font-bold">
-                            لا توجد نتائج مطابقة
-                          </div>
-                        ) : (
-                          filteredSardStudents.map(student => (
-                            <button
-                              key={student.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedGroupStudentId(student.id);
-                                setIsStudentDropdownOpen(false);
-                              }}
-                              className={`w-full text-right px-4 py-3 text-xs font-bold border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-emerald-50 dark:hover:bg-gray-800 transition-colors flex justify-between items-center cursor-pointer ${
-                                selectedGroupStudentId === student.id ? 'bg-emerald-100/70 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                              <div className="flex flex-col text-right truncate">
-                                <span className="truncate">{student.name}</span>
-                                {student.isAlAmeen && (
-                                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-normal leading-tight">
-                                    (من طلاب الأمين)
-                                  </span>
-                                )}
-                              </div>
-                              {selectedGroupStudentId === student.id && (
-                                <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    ◀
+                  </button>
                 )}
               </div>
 
               {/* زر اختيار الصفحة */}
               {targetPages.length > 0 && (
-                <div className="relative shrink-0" ref={dropdownRef}>
+                <div className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => {
-                      setIsPageDropdownOpen(!isPageDropdownOpen);
+                      setIsPageDropdownOpen(true);
                       setPageSearchTerm('');
+                      setIsPageSearchFocused(false);
                     }}
-                    className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-800 dark:text-amber-200 dark:border-amber-500/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95"
-                    title="اضغط لاختيار صفحة أخرى من القائمة المنسدلة"
+                    className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-800 dark:text-amber-200 dark:border-amber-500/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95 min-h-[28px] sm:min-h-[32px]"
+                    title="اضغط لاختيار صفحة أخرى من القائمة"
                   >
                     <span className="text-[10px] text-amber-800 dark:text-amber-400 font-bold">ص</span>
                     <span className="font-mono font-black">{currentPage}</span>
-                    <svg className={`w-3.5 h-3.5 text-amber-700 dark:text-amber-400 transition-transform duration-200 ${isPageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-
-                  {isPageDropdownOpen && (
-                    <div 
-                      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
-                      onClick={() => setIsPageDropdownOpen(false)}
-                    >
-                      <div 
-                        className="w-full max-w-xs sm:max-w-md max-h-[80vh] flex flex-col bg-white dark:bg-gray-900 border-2 border-amber-500/60 dark:border-amber-500/60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md text-right dir-rtl"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="p-3 bg-amber-50 dark:bg-gray-950 border-b border-amber-100 dark:border-gray-800 flex items-center justify-between">
-                          <span className="text-xs font-black text-amber-900 dark:text-amber-300">
-                            قائمة الصفحات ({targetPages.length} صفحة)
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-amber-100/60 dark:bg-amber-900/40 px-2 py-0.5 rounded-md font-bold">
-                              الحالية: {currentPage}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setIsPageDropdownOpen(false)}
-                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg text-xs font-black cursor-pointer"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-
-                        {targetPages.length > 5 && (
-                          <div className="p-2.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 relative flex items-center">
-                            <input
-                              type="text"
-                              value={pageSearchTerm}
-                              onChange={(e) => setPageSearchTerm(e.target.value)}
-                              placeholder="بحث برقم الصفحة أو اسم السورة..."
-                              className="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl pr-3 pl-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-500 text-right"
-                            />
-                            {pageSearchTerm && (
-                              <button
-                                type="button"
-                                onClick={() => setPageSearchTerm('')}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                title="مسح البحث"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="overflow-y-auto max-h-[60vh] py-1 scrollbar-thin scrollbar-thumb-amber-500/50 scrollbar-track-transparent divide-y divide-gray-100 dark:divide-gray-800/40">
-                          {filteredDropdownPages.length === 0 ? (
-                            <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400 font-bold">
-                              لا توجد نتائج مطابقة
-                            </div>
-                          ) : (
-                            filteredDropdownPages.map(page => {
-                              const isPNew = newPagesSet.has(page);
-                              const isPPrev = prevWeekSet.has(page) && !isPNew;
-                              const isSelected = page === currentPage;
-                              const pSurahs = (pageSurahsMap[page] || []).map(id => surahNames[id]).filter(Boolean);
-
-                              return (
-                                <button
-                                  key={page}
-                                  type="button"
-                                  onClick={() => {
-                                    const newIdx = targetPages.indexOf(page);
-                                    if (newIdx !== -1) {
-                                      setCurrentIndex(newIdx);
-                                      setIsPageDropdownOpen(false);
-                                    }
-                                  }}
-                                  className={`w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer text-right ${
-                                    isSelected 
-                                    ? 'bg-amber-100 text-amber-950 border-r-4 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 dark:border-amber-400' 
-                                    : 'text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="font-mono text-sm font-black">صفحة {page}</span>
-                                    {pSurahs.length > 0 && (
-                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
-                                        ({pSurahs[0]})
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    {isSardMode ? (
-                                      <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 px-1.5 py-0.5 rounded-md font-bold">
-                                        صفحة سرد
-                                      </span>
-                                    ) : (
-                                      <>
-                                        {isPNew && (
-                                          <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 px-1.5 py-0.5 rounded-md font-bold">
-                                            حفظ جديد
-                                          </span>
-                                        )}
-                                        {isPPrev && (
-                                          <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-500/30 px-1.5 py-0.5 rounded-md font-bold">
-                                            حفظ قديم
-                                          </span>
-                                        )}
-                                      </>
-                                    )}
-                                    {isSelected && (
-                                      <span className="text-amber-600 dark:text-amber-400 font-black mr-1 text-sm">✓</span>
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
           ) : (
             <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto py-0.5">
               {studentName && (
-                <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold shadow-2xs min-w-0 max-w-[80%] sm:max-w-md">
+                <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold shadow-2xs min-w-0 max-w-[80%] sm:max-w-md min-h-[28px] sm:min-h-[32px]">
                   <span className="text-sm shrink-0">👤</span>
-                  <span className="font-bold leading-tight break-words">{studentName}</span>
+                  <span className="font-bold leading-tight break-words truncate">{studentName}</span>
                 </div>
               )}
 
               {targetPages.length > 0 && (
-                <div className="relative shrink-0" ref={dropdownRef}>
+                <div className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => {
-                      setIsPageDropdownOpen(!isPageDropdownOpen);
+                      setIsPageDropdownOpen(true);
                       setPageSearchTerm('');
+                      setIsPageSearchFocused(false);
                     }}
-                    className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-800 dark:text-amber-200 dark:border-amber-500/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95"
-                    title="اضغط لاختيار صفحة أخرى من القائمة المنسدلة"
+                    className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-800 dark:text-amber-200 dark:border-amber-500/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95 min-h-[28px] sm:min-h-[32px]"
+                    title="اضغط لاختيار صفحة أخرى من القائمة"
                   >
                     <span className="text-[10px] text-amber-800 dark:text-amber-400 font-bold">ص</span>
                     <span className="font-mono font-black">{currentPage}</span>
-                    <svg className={`w-3.5 h-3.5 text-amber-700 dark:text-amber-400 transition-transform duration-200 ${isPageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-
-                  {isPageDropdownOpen && (
-                    <div 
-                      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
-                      onClick={() => setIsPageDropdownOpen(false)}
-                    >
-                      <div 
-                        className="w-full max-w-xs sm:max-w-md max-h-[80vh] flex flex-col bg-white dark:bg-gray-900 border-2 border-amber-500/60 dark:border-amber-500/60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md text-right dir-rtl"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="p-3 bg-amber-50 dark:bg-gray-950 border-b border-amber-100 dark:border-gray-800 flex items-center justify-between">
-                          <span className="text-xs font-black text-amber-900 dark:text-amber-300">
-                            قائمة الصفحات ({targetPages.length} صفحة)
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-amber-100/60 dark:bg-amber-900/40 px-2 py-0.5 rounded-md font-bold">
-                              الحالية: {currentPage}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setIsPageDropdownOpen(false)}
-                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-lg text-xs font-black cursor-pointer"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-
-                        {targetPages.length > 5 && (
-                          <div className="p-2.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 relative flex items-center">
-                            <input
-                              type="text"
-                              value={pageSearchTerm}
-                              onChange={(e) => setPageSearchTerm(e.target.value)}
-                              placeholder="بحث برقم الصفحة أو اسم السورة..."
-                              className="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-xl pr-3 pl-7 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-500 text-right"
-                            />
-                            {pageSearchTerm && (
-                              <button
-                                type="button"
-                                onClick={() => setPageSearchTerm('')}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                title="مسح البحث"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="overflow-y-auto max-h-[60vh] py-1 scrollbar-thin scrollbar-thumb-amber-500/50 scrollbar-track-transparent divide-y divide-gray-100 dark:divide-gray-800/40">
-                          {filteredDropdownPages.length === 0 ? (
-                            <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400 font-bold">
-                              لا توجد نتائج مطابقة
-                            </div>
-                          ) : (
-                            filteredDropdownPages.map(page => {
-                              const isPNew = newPagesSet.has(page);
-                              const isPPrev = prevWeekSet.has(page) && !isPNew;
-                              const isSelected = page === currentPage;
-                              const pSurahs = (pageSurahsMap[page] || []).map(id => surahNames[id]).filter(Boolean);
-
-                              return (
-                                <button
-                                  key={page}
-                                  type="button"
-                                  onClick={() => {
-                                    const newIdx = targetPages.indexOf(page);
-                                    if (newIdx !== -1) {
-                                      setCurrentIndex(newIdx);
-                                      setIsPageDropdownOpen(false);
-                                    }
-                                  }}
-                                  className={`w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer text-right ${
-                                    isSelected 
-                                    ? 'bg-amber-100 text-amber-950 border-r-4 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 dark:border-amber-400' 
-                                    : 'text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="font-mono text-sm font-black">صفحة {page}</span>
-                                    {pSurahs.length > 0 && (
-                                      <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
-                                        ({pSurahs[0]})
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    {isSardMode ? (
-                                      <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 px-1.5 py-0.5 rounded-md font-bold">
-                                        صفحة سرد
-                                      </span>
-                                    ) : (
-                                      <>
-                                        {isPNew && (
-                                          <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 px-1.5 py-0.5 rounded-md font-bold">
-                                            حفظ جديد
-                                          </span>
-                                        )}
-                                        {isPPrev && (
-                                          <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-500/30 px-1.5 py-0.5 rounded-md font-bold">
-                                            حفظ قديم
-                                          </span>
-                                        )}
-                                      </>
-                                    )}
-                                    {isSelected && (
-                                      <span className="text-amber-600 dark:text-amber-400 font-black mr-1 text-sm">✓</span>
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
+          )}
+
+          {/* نافذة اختيار طالب السرد الجماعي عبر Portal لمنع انحصار القائمة ولدعم التمرير باللمس ورفع النافذة للأعلى عند البحث */}
+          {isStudentDropdownOpen && createPortal(
+            <div 
+              className={`fixed inset-0 z-[999999] flex justify-center p-2.5 sm:p-4 bg-black/70 backdrop-blur-xs animate-fadeIn transition-all duration-200 ${
+                isStudentSearchFocused ? 'items-start pt-2' : 'items-start pt-4 sm:items-center sm:pt-4'
+              }`}
+              onClick={() => setIsStudentDropdownOpen(false)}
+              onTouchStart={e => e.stopPropagation()}
+              onTouchMove={e => e.stopPropagation()}
+              dir="rtl"
+            >
+              <div 
+                className="w-full max-w-sm sm:max-w-md max-h-[88vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md text-right dir-rtl select-text"
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={e => e.stopPropagation()}
+                onTouchMove={e => e.stopPropagation()}
+              >
+                {/* رأس النافذة */}
+                <div className="p-3.5 bg-emerald-700 text-white flex items-center justify-between shadow-xs shrink-0 select-none">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">👥</span>
+                    <span className="text-xs sm:text-sm font-black">
+                      طلاب السرد الجماعي ({filteredSardStudents.length})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsStudentDropdownOpen(false)}
+                    className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg text-xs font-black cursor-pointer transition active:scale-95"
+                    title="إغلاق"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* حقل البحث بالاسم - يرفع النافذة للأعلى فور النقر عليه لتظهر نتائج البحث مع لوحة المفاتيح */}
+                <div className="p-2.5 bg-emerald-50/70 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 relative flex items-center shrink-0">
+                  <input
+                    type="text"
+                    value={studentSearchTerm}
+                    onChange={(e) => setStudentSearchTerm(e.target.value)}
+                    onFocus={() => setIsStudentSearchFocused(true)}
+                    onBlur={() => setIsStudentSearchFocused(false)}
+                    placeholder="بحث عن اسم الطالب في السرد..."
+                    className="w-full bg-white dark:bg-gray-900 border border-emerald-300 dark:border-gray-700 rounded-xl pr-3 pl-8 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-right font-bold"
+                  />
+                  {studentSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setStudentSearchTerm('')}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                      title="مسح البحث"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* قائمة الطلاب القابلة للتمرير باللمس بالكامل وبكل سلاسة */}
+                <div 
+                  className="flex-1 overflow-y-auto max-h-[55vh] sm:max-h-[60vh] divide-y divide-gray-100 dark:divide-gray-800 overscroll-contain touch-pan-y scrollbar-thin scrollbar-thumb-emerald-500/50"
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
+                  {filteredSardStudents.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-gray-500 dark:text-gray-400 font-bold select-none">
+                      لا توجد نتائج مطابقة لاسم الطالب
+                    </div>
+                  ) : (
+                    filteredSardStudents.map((student, idx) => {
+                      const isSelected = selectedGroupStudentId === student.id;
+                      const sErrors = sardGroupErrors[student.id];
+                      const hasErrorsRecorded = sErrors && (sErrors.fath > 0 || sErrors.tashkeel > 0 || sErrors.tajweed > 0);
+
+                      return (
+                        <button
+                          key={student.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGroupStudentId(student.id);
+                            setIsStudentDropdownOpen(false);
+                          }}
+                          className={`w-full text-right px-4 py-3 text-xs sm:text-sm font-bold border-b border-gray-100 dark:border-gray-800 last:border-b-0 transition-colors flex justify-between items-center cursor-pointer min-h-[48px] select-none active:bg-emerald-200/60 ${
+                            isSelected 
+                              ? 'bg-emerald-100/90 text-emerald-950 dark:bg-emerald-900/50 dark:text-emerald-200 border-r-4 border-r-emerald-600' 
+                              : 'text-gray-800 dark:text-gray-200 hover:bg-emerald-50/80 dark:hover:bg-gray-800/80'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="text-xs font-bold text-gray-400 dark:text-gray-500 shrink-0">
+                              {idx + 1}.
+                            </span>
+                            <div className="flex flex-col text-right truncate">
+                              <span className="truncate font-black">{student.name}</span>
+                              {student.isAlAmeen && (
+                                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                                  ⭐ من طلاب برنامج الأمين
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 mr-2">
+                            {hasErrorsRecorded && (
+                              <div className="flex items-center gap-1 text-[10px] font-black">
+                                {sErrors.fath > 0 && (
+                                  <span className="bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200 px-1.5 py-0.5 rounded">
+                                    ف:{sErrors.fath}
+                                  </span>
+                                )}
+                                {sErrors.tashkeel > 0 && (
+                                  <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 px-1.5 py-0.5 rounded">
+                                    ش:{sErrors.tashkeel}
+                                  </span>
+                                )}
+                                {sErrors.tajweed > 0 && (
+                                  <span className="bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 px-1.5 py-0.5 rounded">
+                                    ج:{sErrors.tajweed}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {isSelected && (
+                              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs shrink-0">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* نافذة اختيار الصفحة عبر Portal */}
+          {isPageDropdownOpen && createPortal(
+            <div 
+              className={`fixed inset-0 z-[999999] flex justify-center p-2.5 sm:p-4 bg-black/70 backdrop-blur-xs animate-fadeIn transition-all duration-200 ${
+                isPageSearchFocused ? 'items-start pt-2' : 'items-start pt-4 sm:items-center sm:pt-4'
+              }`}
+              onClick={() => setIsPageDropdownOpen(false)}
+              onTouchStart={e => e.stopPropagation()}
+              onTouchMove={e => e.stopPropagation()}
+              dir="rtl"
+            >
+              <div 
+                className="w-full max-w-xs sm:max-w-md max-h-[88vh] sm:max-h-[85vh] flex flex-col bg-white dark:bg-gray-900 border-2 border-amber-500 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md text-right dir-rtl select-text"
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={e => e.stopPropagation()}
+                onTouchMove={e => e.stopPropagation()}
+              >
+                <div className="p-3.5 bg-amber-700 text-white flex items-center justify-between shadow-xs shrink-0 select-none">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📖</span>
+                    <span className="text-xs sm:text-sm font-black">
+                      قائمة صفحات التقييم ({targetPages.length} صفحة)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-amber-100 bg-amber-900/60 px-2 py-0.5 rounded-md font-black">
+                      الحالية: {currentPage}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsPageDropdownOpen(false)}
+                      className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg text-xs font-black cursor-pointer transition active:scale-95"
+                      title="إغلاق"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {targetPages.length > 5 && (
+                  <div className="p-2.5 bg-amber-50/70 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 relative flex items-center shrink-0">
+                    <input
+                      type="text"
+                      value={pageSearchTerm}
+                      onChange={(e) => setPageSearchTerm(e.target.value)}
+                      onFocus={() => setIsPageSearchFocused(true)}
+                      onBlur={() => setIsPageSearchFocused(false)}
+                      placeholder="بحث برقم الصفحة أو اسم السورة..."
+                      className="w-full bg-white dark:bg-gray-900 border border-amber-300 dark:border-gray-700 rounded-xl pr-3 pl-8 py-2 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 text-right font-bold"
+                    />
+                    {pageSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setPageSearchTerm('')}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                        title="مسح البحث"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div 
+                  className="flex-1 overflow-y-auto max-h-[55vh] sm:max-h-[60vh] py-1 scrollbar-thin scrollbar-thumb-amber-500/50 scrollbar-track-transparent divide-y divide-gray-100 dark:divide-gray-800 overscroll-contain touch-pan-y"
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
+                  {filteredDropdownPages.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-gray-500 dark:text-gray-400 font-bold select-none">
+                      لا توجد نتائج مطابقة
+                    </div>
+                  ) : (
+                    filteredDropdownPages.map(page => {
+                      const isPNew = newPagesSet.has(page);
+                      const isPPrev = prevWeekSet.has(page) && !isPNew;
+                      const isSelected = page === currentPage;
+                      const pSurahs = (pageSurahsMap[page] || []).map(id => surahNames[id]).filter(Boolean);
+
+                      return (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => {
+                            const newIdx = targetPages.indexOf(page);
+                            if (newIdx !== -1) {
+                              setCurrentIndex(newIdx);
+                              setIsPageDropdownOpen(false);
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-2.5 text-xs sm:text-sm font-bold transition-colors cursor-pointer text-right min-h-[44px] select-none active:bg-amber-200/60 ${
+                            isSelected 
+                            ? 'bg-amber-100 text-amber-950 border-r-4 border-amber-500 dark:bg-amber-500/25 dark:text-amber-300 dark:border-amber-400 font-black' 
+                            : 'text-gray-700 hover:bg-amber-50 hover:text-amber-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-sm font-black">صفحة {page}</span>
+                            {pSurahs.length > 0 && (
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[140px]">
+                                ({pSurahs.join('، ')})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {isSardMode ? (
+                              <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 px-1.5 py-0.5 rounded-md font-bold">
+                                صفحة سرد
+                              </span>
+                            ) : (
+                              <>
+                                {isPNew && (
+                                  <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30 px-1.5 py-0.5 rounded-md font-bold">
+                                    حفظ جديد
+                                  </span>
+                                )}
+                                {isPPrev && (
+                                  <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-500/30 px-1.5 py-0.5 rounded-md font-bold">
+                                    حفظ قديم
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            {isSelected && (
+                              <span className="text-amber-600 dark:text-amber-400 font-black mr-1 text-sm">✓</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body
           )}
 
           {/* Bottom Row: Result Box (خانة النتيجة والمجموع) */}

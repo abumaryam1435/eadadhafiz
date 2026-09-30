@@ -1667,14 +1667,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 )}
 
                 <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
-                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
+                  <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit border border-gray-200 dark:border-gray-700">
                     <button
                       type="button"
                       onClick={() => setSardEvalMode('individual')}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                      className={`px-4 py-1.5 rounded-lg text-sm font-black transition-all cursor-pointer ${
                         sardEvalMode === 'individual'
-                          ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
-                          : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                          ? 'bg-emerald-600 text-white shadow-md border border-emerald-500 dark:bg-emerald-600 dark:text-white'
+                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                       }`}
                     >
                       فردي
@@ -1682,10 +1682,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     <button
                       type="button"
                       onClick={() => setSardEvalMode('group')}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+                      className={`px-4 py-1.5 rounded-lg text-sm font-black transition-all cursor-pointer ${
                         sardEvalMode === 'group'
-                          ? 'bg-white text-emerald-700 shadow-sm dark:bg-gray-700 dark:text-emerald-400'
-                          : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                          ? 'bg-emerald-600 text-white shadow-md border border-emerald-500 dark:bg-emerald-600 dark:text-white'
+                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                       }`}
                     >
                       جماعي

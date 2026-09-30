@@ -1195,6 +1195,24 @@ export const OverviewTable: React.FC = () => {
             </button>
             <button
               type="button"
+              onClick={() =>
+                shareHtmlViaWhatsApp(
+                  getDynamicHeaders(filteredAndSortedData),
+                  filteredAndSortedData,
+                  "نظرة_عامة_البيانات",
+                  "نظرة عامة على بيانات الطلاب",
+                  undefined,
+                  hijriAdjustments
+                )
+              }
+              className="px-2.5 sm:px-3 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs active:scale-95 flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap"
+              title="مشاركة تقرير تفاعلي (HTML) يتيح البحث وتصفية الطلاب في الهاتف"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <span>تفاعلي HTML</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setShowResetLevelsModal(true)}
               title="إعادة ضبط مستوى جميع الطلاب ليكون تلقائياً بحسب صفحات الحفظ"
               className="px-2.5 sm:px-3 py-2 text-xs font-bold text-indigo-700 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-100 dark:hover:bg-indigo-900/70 rounded-xl shadow-xs active:scale-95 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
