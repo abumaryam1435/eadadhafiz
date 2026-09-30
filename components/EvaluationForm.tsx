@@ -1931,67 +1931,100 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         )}
 
         {currentStep === 'selectAttendance' && activeStudent && (
-          <div className="space-y-6">
-            <div className="text-center">
-              <p className="font-bold text-xl">
-                حالة الطالب {subject === 'sard' ? 'في السرد' : ''}: <span className="text-green-700 dark:text-green-300">{activeStudent.name}</span>
+          <div className="space-y-4 max-w-lg mx-auto w-full">
+            {/* بطاقة معلومات الطالب المختصرة */}
+            <div className="text-center bg-gradient-to-b from-green-50 to-emerald-50/40 dark:from-green-950/40 dark:to-emerald-950/20 p-3 sm:p-4 rounded-2xl border border-green-200 dark:border-green-800 shadow-2xs">
+              <div className="flex flex-col items-center justify-center">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg sm:text-xl">👤</span>
+                  <p className="font-black text-lg sm:text-xl text-gray-900 dark:text-white">
+                    {activeStudent.name}
+                  </p>
+                </div>
+                {activeStudent.isAlAmeen && (
+                  <p className="text-xs font-normal text-emerald-700 dark:text-emerald-400 mt-0.5 opacity-90">
+                    (من طلاب الأمين)
+                  </p>
+                )}
+              </div>
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-1.5">
+                تحديد حالة حضور الطالب {subject === 'sard' ? 'في السرد' : subject === 'mutoon' ? 'في المتون' : 'في الحفظ'}
               </p>
-              {activeStudent.isAlAmeen && (
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  (من طلاب الأمين)
-                </p>
-              )}
             </div>
+
+            {/* بيانات تقدم الطالب (الحفظ القديم والجديد) */}
             <StudentProgressInfo student={activeStudent} subject={subject} />
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setAttendance(AttendanceStatus.PRESENT); 
-                  if (subject === 'sard') {
-                    setCurrentStep('sardContentSelection');
-                  } else {
-                    setCurrentStep(subject === 'mutoon' ? 'mutoonEvaluation' : 'selectEvaluationType');
-                  }
-                }} 
-                className={`py-6 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${attendance === AttendanceStatus.PRESENT ? 'bg-green-100 border-green-600 text-green-900 shadow-md scale-105' : 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100 dark:bg-green-900/20'}`}
-              >
-                <span className="text-2xl">✅</span>
-                <span className="text-lg font-bold">حاضر</span>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setAttendance(AttendanceStatus.LATE); 
-                  if (subject === 'sard') {
-                    setCurrentStep('sardContentSelection');
-                  } else {
-                    setCurrentStep(subject === 'mutoon' ? 'mutoonEvaluation' : 'selectEvaluationType');
-                  }
-                }} 
-                className={`py-6 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${attendance === AttendanceStatus.LATE ? 'bg-blue-100 border-blue-600 text-blue-900 shadow-md scale-105' : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20'}`}
-              >
-                <span className="text-2xl">🕒</span>
-                <span className="text-lg font-bold">متأخر</span>
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setAttendance(AttendanceStatus.ABSENT); 
-                  setEvalType(undefined);
-                  setPages('');
-                  setAyahRange('');
-                  setSurahs([]);
-                  setPerf(undefined);
-                  setPReview(undefined);
-                  setCurrentStep('selectAbsenceReason'); 
-                }} 
-                className={`col-span-2 py-6 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${attendance === AttendanceStatus.ABSENT ? 'bg-red-100 border-red-600 text-red-900 shadow-md scale-105' : 'bg-red-50 text-red-800 border-red-200 hover:bg-red-100 dark:bg-red-900/20'}`}
-              >
-                <span className="text-2xl">🚫</span>
-                <span className="text-lg font-bold">غائب</span>
-              </button>
+
+            {/* أزرار حالة الحضور متناسقة وواضحة جداً في الهاتف */}
+            <div className="space-y-2 pt-1">
+              <p className="text-center font-black text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                اختر حالة الحضور للبدء بالتقييم:
+              </p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3.5">
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setAttendance(AttendanceStatus.PRESENT); 
+                    if (subject === 'sard') {
+                      setCurrentStep('sardContentSelection');
+                    } else {
+                      setCurrentStep(subject === 'mutoon' ? 'mutoonEvaluation' : 'selectEvaluationType');
+                    }
+                  }} 
+                  className={`py-3.5 sm:py-5 px-2 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                    attendance === AttendanceStatus.PRESENT 
+                      ? 'bg-green-600 text-white border-green-700 shadow-md scale-102' 
+                      : 'bg-green-50/90 text-green-900 hover:bg-green-100 border-green-300 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800'
+                  }`}
+                >
+                  <span className="text-2xl sm:text-3xl">✅</span>
+                  <span className="text-sm sm:text-base font-black">حاضر</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setAttendance(AttendanceStatus.LATE); 
+                    if (subject === 'sard') {
+                      setCurrentStep('sardContentSelection');
+                    } else {
+                      setCurrentStep(subject === 'mutoon' ? 'mutoonEvaluation' : 'selectEvaluationType');
+                    }
+                  }} 
+                  className={`py-3.5 sm:py-5 px-2 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                    attendance === AttendanceStatus.LATE 
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-md scale-102' 
+                      : 'bg-blue-50/90 text-blue-900 hover:bg-blue-100 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
+                  }`}
+                >
+                  <span className="text-2xl sm:text-3xl">🕒</span>
+                  <span className="text-sm sm:text-base font-black">متأخر</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setAttendance(AttendanceStatus.ABSENT); 
+                    setEvalType(undefined);
+                    setPages('');
+                    setAyahRange('');
+                    setSurahs([]);
+                    setPerf(undefined);
+                    setPReview(undefined);
+                    setCurrentStep('selectAbsenceReason'); 
+                  }} 
+                  className={`py-3.5 sm:py-5 px-2 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-1 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                    attendance === AttendanceStatus.ABSENT 
+                      ? 'bg-rose-600 text-white border-rose-700 shadow-md scale-102' 
+                      : 'bg-rose-50/90 text-rose-900 hover:bg-rose-100 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800'
+                  }`}
+                >
+                  <span className="text-2xl sm:text-3xl">🚫</span>
+                  <span className="text-sm sm:text-base font-black">غائب</span>
+                </button>
+              </div>
             </div>
+
             <FormNav back={() => {
               setSelectedStudent(null);
               lastCheckedRef.current = '';
@@ -2334,25 +2367,74 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         )}
 
         {currentStep === 'selectEvaluationType' && (
-          <div className="space-y-4">
-            <p className="font-bold text-lg">نوع الإنجاز:</p>
-            <div className="flex gap-4">
-              <button type="button" onClick={() => { setEvalType(EvaluationType.MEMORIZATION); setCurrentStep('memorizationDetails'); }} className={`flex-1 py-6 rounded-xl font-bold border-2 transition-all ${evalType === EvaluationType.MEMORIZATION ? 'bg-green-100 border-green-600 text-green-900 shadow-sm' : 'bg-green-50 text-green-800 border-transparent dark:bg-green-900/20'}`}>حفظ جديد</button>
-              <button type="button" onClick={() => { 
-                setEvalType(EvaluationType.REVIEW); 
-                setCurrentStep('selectPerformanceLevel'); 
-              }} className={`flex-1 py-6 rounded-xl font-bold border-2 transition-all ${evalType === EvaluationType.REVIEW ? 'bg-blue-100 border-blue-600 text-blue-900 shadow-sm' : 'bg-blue-50 text-blue-800 border-transparent dark:bg-blue-900/20'}`}>مراجعة</button>
-              <button type="button" onClick={() => { 
-                setEvalType(EvaluationType.DID_NOT_MEMORIZE); 
-                setPerf(undefined);
-                setPages('');
-                setAyahRange('');
-                setSurahs([]);
-                setPReview(undefined);
-                setCurrentStep('notesStep'); 
-              }} className={`flex-1 py-6 rounded-xl font-bold border-2 transition-all ${evalType === EvaluationType.DID_NOT_MEMORIZE ? 'bg-gray-200 border-gray-600 text-gray-900 shadow-sm' : 'bg-gray-100 text-gray-800 border-transparent dark:bg-gray-700'}`}>غير مستعد</button>
+          <div className="min-h-[50vh] sm:min-h-0 flex flex-col justify-center items-center py-4 space-y-6 max-w-lg mx-auto w-full text-center">
+            <div className="text-center space-y-1.5 w-full">
+              <h3 className="font-black text-xl sm:text-2xl text-gray-800 dark:text-white">
+                تحديد نوع الإنجاز
+              </h3>
+              <p className="text-xs sm:text-sm font-bold text-gray-500 dark:text-gray-400">
+                اختر نوع تسميع الطالب {activeStudent ? `(${activeStudent.name})` : ''} لهذا اليوم:
+              </p>
             </div>
-            <FormNav back={() => setCurrentStep('selectAttendance')} />
+
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full">
+              <button 
+                type="button" 
+                onClick={() => { 
+                  setEvalType(EvaluationType.MEMORIZATION); 
+                  setCurrentStep('memorizationDetails'); 
+                }} 
+                className={`py-5 sm:py-6 px-2 rounded-2xl font-black text-sm sm:text-base border-2 transition-all flex flex-col items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                  evalType === EvaluationType.MEMORIZATION 
+                    ? 'bg-emerald-600 border-emerald-700 text-white shadow-md scale-102' 
+                    : 'bg-emerald-50/90 hover:bg-emerald-100 text-emerald-950 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800'
+                }`}
+              >
+                <span className="text-2xl sm:text-3xl">📖</span>
+                <span>حفظ جديد</span>
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => { 
+                  setEvalType(EvaluationType.REVIEW); 
+                  setCurrentStep('selectPerformanceLevel'); 
+                }} 
+                className={`py-5 sm:py-6 px-2 rounded-2xl font-black text-sm sm:text-base border-2 transition-all flex flex-col items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                  evalType === EvaluationType.REVIEW 
+                    ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102' 
+                    : 'bg-blue-50/90 hover:bg-blue-100 text-blue-950 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
+                }`}
+              >
+                <span className="text-2xl sm:text-3xl">🔄</span>
+                <span>مراجعة</span>
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => { 
+                  setEvalType(EvaluationType.DID_NOT_MEMORIZE); 
+                  setPerf(undefined);
+                  setPages('');
+                  setAyahRange('');
+                  setSurahs([]);
+                  setPReview(undefined);
+                  setCurrentStep('notesStep'); 
+                }} 
+                className={`py-5 sm:py-6 px-2 rounded-2xl font-black text-sm sm:text-base border-2 transition-all flex flex-col items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                  evalType === EvaluationType.DID_NOT_MEMORIZE 
+                    ? 'bg-gray-700 border-gray-800 text-white shadow-md scale-102' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <span className="text-2xl sm:text-3xl">⚠️</span>
+                <span>غير مستعد</span>
+              </button>
+            </div>
+
+            <div className="w-full pt-2">
+              <FormNav back={() => setCurrentStep('selectAttendance')} />
+            </div>
           </div>
         )}
 

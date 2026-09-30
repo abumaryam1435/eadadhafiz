@@ -534,9 +534,9 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       >
         {/* Header Bar - Either simplified Test Passage Toolbar OR Standard Header Bar */}
         {isTestMode && activePassage ? (
-          /* شريط المقطع المخصص للاختبار: رأس متصل ودائم بدون انقطاع */
+          /* شريط المقطع المخصص للاختبار: رأس متصل ودائم بدون انقطاع مع زيادة الارتفاع من الأعلى */
           <div className="z-30 flex-shrink-0">
-            <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 dark:from-amber-700 dark:via-amber-600 dark:to-amber-700 text-amber-950 dark:text-amber-50 px-2.5 sm:px-4 py-2 shadow-md border-b-2 border-amber-600/80 dark:border-amber-500 select-none">
+            <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 dark:from-amber-700 dark:via-amber-600 dark:to-amber-700 text-amber-950 dark:text-amber-50 px-2.5 sm:px-4 pt-3.5 sm:pt-4.5 pb-2 sm:pb-2.5 shadow-md border-b-2 border-amber-600/80 dark:border-amber-500 select-none">
               <div className="flex items-center justify-between gap-2">
                 {/* 1. بيان نطاق المقطع ورقم الصفحة بشكل متصل وانسيابي بدون انقطاع وبدون شريط تمرير */}
                 <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 py-0.5">
@@ -632,9 +632,9 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
             </div>
           </div>
         ) : (
-          /* الرأس القياسي لمصحف التسميع والسرد العادي: رأس متصل ودائم بدون شريط تمرير وبدون اسم الطالب */
+          /* الرأس القياسي لمصحف التسميع والسرد العادي: رأس متصل مع زيادة الارتفاع من الأعلى */
           <div className="z-30 flex-shrink-0">
-            <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between shadow-md border-b border-emerald-800/60 select-none">
+            <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white px-2.5 sm:px-4 pt-3.5 sm:pt-4.5 pb-2 sm:pb-2.5 flex items-center justify-between shadow-md border-b border-emerald-800/60 select-none">
               <div className="flex items-center gap-2 min-w-0 flex-1 py-0.5">
                 <span className="text-base sm:text-lg flex-shrink-0">📖</span>
                 <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0 whitespace-nowrap">
@@ -818,7 +818,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                 </div>
 
                 {/* Slight Bottom Scroll Clearance */}
-                <div className="w-full h-3 sm:h-6 shrink-0 select-none pointer-events-none" />
+                <div className="w-full h-8 sm:h-12 shrink-0 select-none pointer-events-none" />
               </div>
             </div>
           )}
@@ -830,7 +830,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
           showControls ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
         }`}>
           <div className={showControls ? 'overflow-visible' : 'overflow-hidden'}>
-            <div className="bg-white/95 dark:bg-gray-950/95 text-gray-900 dark:text-white border-t border-gray-200 dark:border-amber-500/40 px-2 sm:px-4 py-1.5 sm:py-2 flex flex-col gap-1 sm:gap-2 shadow-2xl backdrop-blur-md relative z-40">
+            <div className="bg-white/95 dark:bg-gray-950/95 text-gray-900 dark:text-white border-t border-gray-200 dark:border-amber-500/40 px-2 sm:px-4 pt-1.5 sm:pt-2 pb-3.5 sm:pb-4 flex flex-col gap-1 sm:gap-2 shadow-2xl backdrop-blur-md relative z-40 mb-1 sm:mb-2">
               {/* Top Row: Horizontal Error Buttons for (الفتح، التشكيل، التجويد، وتغيير المقطع) */}
           {hasErrorControls && (
             <div className={`grid ${isTestMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-1.5 sm:gap-3 w-full max-w-4xl mx-auto`}>

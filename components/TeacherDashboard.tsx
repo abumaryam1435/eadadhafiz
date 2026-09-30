@@ -75,8 +75,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
     <div className="container mx-auto animate-fade-in px-2 sm:px-6 lg:px-8 space-y-6 max-w-full">
       {/* صفحة اختيار نوع العمل (تظهر فقط إذا كان تقييم الاختبار أو اختبار طالب جديد مفعلاً) */}
       {activeView === 'menu' && hasSpecialFeatures && (
-        <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6 py-3 sm:py-6 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="text-center space-y-1.5 sm:space-y-2">
+        <div className="max-w-xl mx-auto space-y-4 sm:space-y-6 py-4 sm:py-8 min-h-[68vh] sm:min-h-0 animate-in fade-in slide-in-from-top-4 duration-300 flex flex-col items-center justify-center text-center">
+          <div className="text-center space-y-1.5 sm:space-y-2 w-full">
             <h2 className="text-xl sm:text-3xl font-black text-gray-800 dark:text-white">
               مرحباً بك{currentUser?.name ? `: ${currentUser.name}` : ''}
             </h2>
@@ -85,20 +85,20 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 w-full max-w-sm sm:max-w-2xl mx-auto items-center justify-center">
             <button 
               type="button"
               onClick={() => setActiveView('evaluate')} 
-              className="py-3 px-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-emerald-500/50 hover:border-emerald-600 hover:shadow-xl transition-all flex flex-row sm:flex-col items-center text-right sm:text-center justify-start sm:justify-center gap-3.5 sm:gap-3 group active:scale-98 sm:active:scale-95 shadow-sm"
+              className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-emerald-500/50 hover:border-emerald-600 hover:shadow-xl transition-all flex flex-col items-center text-center justify-center gap-2.5 sm:gap-3 group active:scale-95 shadow-sm cursor-pointer w-full touch-manipulation"
             >
-              <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-xl sm:rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform">
+              <div className="w-13 h-13 sm:w-16 sm:h-16 shrink-0 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 transition-transform shadow-xs">
                 📖
               </div>
-              <div className="flex-1 min-w-0">
-                <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white truncate sm:whitespace-normal">
+              <div className="w-full text-center">
+                <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white">
                   التقييم الأسبوعي
                 </span>
-                <span className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 block truncate sm:whitespace-normal">
+                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block mt-0.5">
                   {hasActiveMatns ? 'الحفظ، المتون، السرد' : 'الحفظ، السرد'}
                 </span>
               </div>
@@ -108,22 +108,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
               <button 
                 type="button"
                 onClick={() => setActiveView('test')} 
-                className="py-3 px-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-indigo-500/50 hover:border-indigo-600 hover:shadow-xl transition-all flex flex-row sm:flex-col items-center text-right sm:text-center justify-start sm:justify-center gap-3.5 sm:gap-3 group active:scale-98 sm:active:scale-95 relative overflow-hidden shadow-sm"
+                className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-indigo-500/50 hover:border-indigo-600 hover:shadow-xl transition-all flex flex-col items-center text-center justify-center gap-2.5 sm:gap-3 group active:scale-95 relative overflow-hidden shadow-sm cursor-pointer w-full touch-manipulation"
               >
-                <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-xl sm:rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform">
+                <div className="w-13 h-13 sm:w-16 sm:h-16 shrink-0 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 transition-transform shadow-xs">
                   📝
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center sm:justify-center gap-2">
-                    <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white truncate sm:whitespace-normal">
+                <div className="w-full text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white">
                       تقييم الاختبار
                     </span>
-                    <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-indigo-500"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
                     </span>
                   </div>
-                  <span className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 block truncate sm:whitespace-normal">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block mt-0.5">
                     تقييم اختبارات الحفظ للطلاب
                   </span>
                 </div>
@@ -134,22 +134,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
               <button 
                 type="button"
                 onClick={() => setActiveView('newStudentTest')} 
-                className="py-3 px-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-teal-500/50 hover:border-teal-600 hover:shadow-xl transition-all flex flex-row sm:flex-col items-center text-right sm:text-center justify-start sm:justify-center gap-3.5 sm:gap-3 group active:scale-98 sm:active:scale-95 relative overflow-hidden shadow-sm"
+                className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-teal-500/50 hover:border-teal-600 hover:shadow-xl transition-all flex flex-col items-center text-center justify-center gap-2.5 sm:gap-3 group active:scale-95 relative overflow-hidden shadow-sm cursor-pointer w-full touch-manipulation"
               >
-                <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-xl sm:rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform">
+                <div className="w-13 h-13 sm:w-16 sm:h-16 shrink-0 rounded-2xl bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 transition-transform shadow-xs">
                   🎓
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center sm:justify-center gap-2">
-                    <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white truncate sm:whitespace-normal">
+                <div className="w-full text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white">
                       اختبار طالب جديد
                     </span>
-                    <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-teal-500"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
                     </span>
                   </div>
-                  <span className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 block truncate sm:whitespace-normal">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block mt-0.5">
                     تسجيل وتقييم الطلاب المستجدين
                   </span>
                 </div>
@@ -160,16 +160,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
               <button 
                 type="button"
                 onClick={() => setActiveView('behaviors')} 
-                className="py-3 px-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-amber-500/50 hover:border-amber-600 hover:shadow-xl transition-all flex flex-row sm:flex-col items-center text-right sm:text-center justify-start sm:justify-center gap-3.5 sm:gap-3 group active:scale-98 sm:active:scale-95 shadow-sm"
+                className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-amber-500/50 hover:border-amber-600 hover:shadow-xl transition-all flex flex-col items-center text-center justify-center gap-2.5 sm:gap-3 group active:scale-95 shadow-sm cursor-pointer w-full touch-manipulation"
               >
-                <div className="w-11 h-11 sm:w-16 sm:h-16 shrink-0 rounded-xl sm:rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform">
+                <div className="w-13 h-13 sm:w-16 sm:h-16 shrink-0 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 transition-transform shadow-xs">
                   ⭐
                 </div>
-                <div className="flex-1 min-w-0">
-                  <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white truncate sm:whitespace-normal">
+                <div className="w-full text-center">
+                  <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white">
                     سجل السلوكيات
                   </span>
-                  <span className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 block truncate sm:whitespace-normal">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block mt-0.5">
                     متابعة وتدوين سلوكيات الطلاب
                   </span>
                 </div>
