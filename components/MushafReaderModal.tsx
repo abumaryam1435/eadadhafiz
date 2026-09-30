@@ -875,7 +875,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                 }}
               >
                 {/* Slight Top Scroll Clearance */}
-                <div className="w-full h-8 sm:h-12 shrink-0 select-none pointer-events-none" />
+                <div className="w-full h-1.5 sm:h-4 shrink-0 select-none pointer-events-none" />
 
                 {/* صفحة مصحف المدينة النبوية عالية الدقة مع طبقة تظليل المتجهات Responsive SVG Overlay */}
                 <MushafImagePage
@@ -886,12 +886,12 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                 />
 
                 {/* Bottom Clearance Indicator */}
-                <div className="w-full max-w-[620px] md:max-w-[700px] lg:max-w-[760px] mx-auto flex items-center justify-center gap-2 py-2 text-xs text-amber-950/70 dark:text-gray-400 font-bold select-none bg-amber-100/50 dark:bg-gray-900/50 rounded-xl mt-3 border border-amber-700/20">
+                <div className="w-full max-w-[620px] md:max-w-[700px] lg:max-w-[760px] mx-auto flex items-center justify-center gap-2 py-1.5 text-xs text-amber-950/70 dark:text-gray-400 font-bold select-none bg-amber-100/50 dark:bg-gray-900/50 rounded-xl mt-2 border border-amber-700/20">
                   <span>🏁 نهاية صفحة المصحف ({currentPage})</span>
                 </div>
 
                 {/* Slight Bottom Scroll Clearance */}
-                <div className="w-full h-12 sm:h-16 shrink-0 select-none pointer-events-none" />
+                <div className="w-full h-3 sm:h-6 shrink-0 select-none pointer-events-none" />
               </div>
             </div>
           )}
@@ -903,13 +903,13 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
           showControls ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
         }`}>
           <div className={showControls ? 'overflow-visible' : 'overflow-hidden'}>
-            <div className="bg-white/95 dark:bg-gray-950/95 text-gray-900 dark:text-white border-t border-gray-200 dark:border-amber-500/40 px-2 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-2 shadow-2xl backdrop-blur-md relative z-40">
-              {/* Top Row: Larger Horizontal Error Buttons for (الفتح، التشكيل، التجويد، وتغيير المقطع) */}
+            <div className="bg-white/95 dark:bg-gray-950/95 text-gray-900 dark:text-white border-t border-gray-200 dark:border-amber-500/40 px-2 sm:px-4 py-1.5 sm:py-2 flex flex-col gap-1 sm:gap-2 shadow-2xl backdrop-blur-md relative z-40">
+              {/* Top Row: Horizontal Error Buttons for (الفتح، التشكيل، التجويد، وتغيير المقطع) */}
           {hasErrorControls && (
-            <div className={`grid ${isTestMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-2 sm:gap-3 w-full max-w-4xl mx-auto`}>
+            <div className={`grid ${isTestMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-1.5 sm:gap-3 w-full max-w-4xl mx-auto`}>
               {/* الفتح */}
               <div 
-                className="flex items-stretch bg-rose-50/95 hover:bg-rose-100/90 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 rounded-xl border-2 border-rose-300 dark:border-rose-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-12"
+                className="flex items-center justify-between bg-rose-50/95 hover:bg-rose-100/90 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 rounded-xl border-2 border-rose-300 dark:border-rose-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-11.5 px-2 sm:px-2.5"
                 onClick={() => {
                   if (sardGroupMode && selectedGroupStudentId && setSardGroupErrors) {
                     setSardGroupErrors(prev => ({
@@ -924,14 +924,18 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                   }
                 }}
               >
-                <div className="flex-1 flex items-center justify-end px-2 sm:px-3">
-                  <span className="text-[10px] sm:text-xs font-black text-rose-900 dark:text-rose-200 group-hover:text-rose-950 dark:group-hover:text-white transition-colors select-none text-right flex flex-col leading-tight">
+                <div className="flex-1 flex items-center justify-start select-none">
+                  <span className="text-xs sm:text-sm font-black text-rose-900 dark:text-rose-200 group-hover:text-rose-950 dark:group-hover:text-white transition-colors text-right flex items-center gap-1 sm:gap-1.5 leading-tight">
                     <span>الفتح</span>
-                    {isTestMode ? <span className="text-[9px] text-rose-600 dark:text-rose-400">({testDeductions.fath}-)</span> : <span className="text-[9px] text-rose-600/90 dark:text-rose-300/80">(+1)</span>}
+                    {isTestMode ? (
+                      <span className="text-[9px] sm:text-[10px] text-rose-600 dark:text-rose-400 font-bold">({testDeductions.fath}-)</span>
+                    ) : (
+                      <span className="text-[9px] sm:text-[10px] text-rose-600/90 dark:text-rose-300/80 font-bold">(+1)</span>
+                    )}
                   </span>
                 </div>
-                <div className="px-1.5 sm:px-2 flex items-center justify-center">
-                  <div className="w-10 sm:w-12 h-7 sm:h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-rose-500 dark:border-rose-400 shadow-xs flex items-center justify-center overflow-hidden">
+                <div className="shrink-0 flex items-center justify-center">
+                  <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 aspect-square rounded-full bg-white dark:bg-gray-900 border-2 border-rose-500 dark:border-rose-400 shadow-2xs flex items-center justify-center overflow-hidden">
                     <input 
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
@@ -953,7 +957,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                         }
                       }} 
                       onFocus={e => e.target.select()} 
-                      className="w-full h-full text-center text-sm sm:text-base font-black bg-transparent text-rose-700 dark:text-rose-200 focus:text-rose-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-300 dark:placeholder:text-rose-700 z-10" 
+                      className="w-full h-full text-center text-xs sm:text-sm font-black bg-transparent text-rose-700 dark:text-rose-200 focus:text-rose-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-rose-300 dark:placeholder:text-rose-700 z-10" 
                     />
                   </div>
                 </div>
@@ -961,7 +965,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
               {/* التشكيل */}
               <div 
-                className="flex items-stretch bg-amber-50/95 hover:bg-amber-100/90 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 rounded-xl border-2 border-amber-300 dark:border-amber-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-12"
+                className="flex items-center justify-between bg-amber-50/95 hover:bg-amber-100/90 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 rounded-xl border-2 border-amber-300 dark:border-amber-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-11.5 px-2 sm:px-2.5"
                 onClick={() => {
                   if (sardGroupMode && selectedGroupStudentId && setSardGroupErrors) {
                     setSardGroupErrors(prev => ({
@@ -976,14 +980,18 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                   }
                 }}
               >
-                <div className="flex-1 flex items-center justify-end px-2 sm:px-3">
-                  <span className="text-[10px] sm:text-xs font-black text-amber-900 dark:text-amber-200 group-hover:text-amber-950 dark:group-hover:text-white transition-colors select-none text-right flex flex-col leading-tight">
+                <div className="flex-1 flex items-center justify-start select-none">
+                  <span className="text-xs sm:text-sm font-black text-amber-900 dark:text-amber-200 group-hover:text-amber-950 dark:group-hover:text-white transition-colors text-right flex items-center gap-1 sm:gap-1.5 leading-tight">
                     <span>التشكيل</span>
-                    {isTestMode ? <span className="text-[9px] text-amber-600 dark:text-amber-400">({testDeductions.tashkeel}-)</span> : <span className="text-[9px] text-amber-600/90 dark:text-amber-300/80">(+1)</span>}
+                    {isTestMode ? (
+                      <span className="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 font-bold">({testDeductions.tashkeel}-)</span>
+                    ) : (
+                      <span className="text-[9px] sm:text-[10px] text-amber-600/90 dark:text-amber-300/80 font-bold">(+1)</span>
+                    )}
                   </span>
                 </div>
-                <div className="px-1.5 sm:px-2 flex items-center justify-center">
-                  <div className="w-10 sm:w-12 h-7 sm:h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-amber-500 dark:border-amber-400 shadow-xs flex items-center justify-center overflow-hidden">
+                <div className="shrink-0 flex items-center justify-center">
+                  <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 aspect-square rounded-full bg-white dark:bg-gray-900 border-2 border-amber-500 dark:border-amber-400 shadow-2xs flex items-center justify-center overflow-hidden">
                     <input 
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
@@ -1005,7 +1013,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                         }
                       }} 
                       onFocus={e => e.target.select()} 
-                      className="w-full h-full text-center text-sm sm:text-base font-black bg-transparent text-amber-700 dark:text-amber-200 focus:text-amber-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-300 dark:placeholder:text-amber-700 z-10" 
+                      className="w-full h-full text-center text-xs sm:text-sm font-black bg-transparent text-amber-700 dark:text-amber-200 focus:text-amber-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-amber-300 dark:placeholder:text-amber-700 z-10" 
                     />
                   </div>
                 </div>
@@ -1013,7 +1021,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
               {/* التجويد */}
               <div 
-                className="flex items-stretch bg-teal-50/95 hover:bg-teal-100/90 dark:bg-teal-950/60 dark:hover:bg-teal-900/60 rounded-xl border-2 border-teal-300 dark:border-teal-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-12"
+                className="flex items-center justify-between bg-teal-50/95 hover:bg-teal-100/90 dark:bg-teal-950/60 dark:hover:bg-teal-900/60 rounded-xl border-2 border-teal-300 dark:border-teal-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-11.5 px-2 sm:px-2.5"
                 onClick={() => {
                   if (sardGroupMode && selectedGroupStudentId && setSardGroupErrors) {
                     setSardGroupErrors(prev => ({
@@ -1028,14 +1036,18 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                   }
                 }}
               >
-                <div className="flex-1 flex items-center justify-end px-2 sm:px-3">
-                  <span className="text-[10px] sm:text-xs font-black text-teal-900 dark:text-teal-200 group-hover:text-teal-950 dark:group-hover:text-white transition-colors select-none text-right flex flex-col leading-tight">
+                <div className="flex-1 flex items-center justify-start select-none">
+                  <span className="text-xs sm:text-sm font-black text-teal-900 dark:text-teal-200 group-hover:text-teal-950 dark:group-hover:text-white transition-colors text-right flex items-center gap-1 sm:gap-1.5 leading-tight">
                     <span>التجويد</span>
-                    {isTestMode ? <span className="text-[9px] text-teal-600 dark:text-teal-400">({testDeductions.tajweed}-)</span> : <span className="text-[9px] text-teal-600/90 dark:text-teal-300/80">(0.5)</span>}
+                    {isTestMode ? (
+                      <span className="text-[9px] sm:text-[10px] text-teal-600 dark:text-teal-400 font-bold">({testDeductions.tajweed}-)</span>
+                    ) : (
+                      <span className="text-[9px] sm:text-[10px] text-teal-600/90 dark:text-teal-300/80 font-bold">(0.5)</span>
+                    )}
                   </span>
                 </div>
-                <div className="px-1.5 sm:px-2 flex items-center justify-center">
-                  <div className="w-10 sm:w-12 h-7 sm:h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-teal-500 dark:border-teal-400 shadow-xs flex items-center justify-center overflow-hidden">
+                <div className="shrink-0 flex items-center justify-center">
+                  <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 aspect-square rounded-full bg-white dark:bg-gray-900 border-2 border-teal-500 dark:border-teal-400 shadow-2xs flex items-center justify-center overflow-hidden">
                     <input 
                       onClick={(e) => e.stopPropagation()} 
                       type="number" 
@@ -1057,7 +1069,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                         }
                       }} 
                       onFocus={e => e.target.select()} 
-                      className="w-full h-full text-center text-sm sm:text-base font-black bg-transparent text-teal-700 dark:text-teal-200 focus:text-teal-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-teal-300 dark:placeholder:text-teal-700 z-10" 
+                      className="w-full h-full text-center text-xs sm:text-sm font-black bg-transparent text-teal-700 dark:text-teal-200 focus:text-teal-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-teal-300 dark:placeholder:text-teal-700 z-10" 
                     />
                   </div>
                 </div>
@@ -1066,21 +1078,21 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
               {/* تغيير المقطع (خاص بالاختبار) */}
               {isTestMode && (
                 <div 
-                  className="flex items-stretch bg-purple-50/95 hover:bg-purple-100/90 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 rounded-xl border-2 border-purple-300 dark:border-purple-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-12"
+                  className="flex items-center justify-between bg-purple-50/95 hover:bg-purple-100/90 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 rounded-xl border-2 border-purple-300 dark:border-purple-500/50 overflow-hidden shadow-xs group cursor-pointer active:scale-95 transition-all h-10 sm:h-11.5 px-2 sm:px-2.5"
                   onClick={() => {
                     if (setEvalPassageChanges) {
                       setEvalPassageChanges(prev => (Number(prev) || 0) + 1);
                     }
                   }}
                 >
-                  <div className="flex-1 flex items-center justify-end px-1.5 sm:px-2">
-                    <span className="text-[10px] sm:text-xs font-black text-purple-900 dark:text-purple-200 group-hover:text-purple-950 dark:group-hover:text-white transition-colors select-none text-right flex flex-col leading-tight">
+                  <div className="flex-1 flex items-center justify-start select-none">
+                    <span className="text-xs sm:text-sm font-black text-purple-900 dark:text-purple-200 group-hover:text-purple-950 dark:group-hover:text-white transition-colors text-right flex items-center gap-1 sm:gap-1.5 leading-tight">
                       <span>تغيير المقطع</span>
-                      <span className="text-[9px] text-purple-600 dark:text-purple-400">({testDeductions?.passageChange ?? 2}-)</span>
+                      <span className="text-[9px] sm:text-[10px] text-purple-600 dark:text-purple-400 font-bold">({testDeductions?.passageChange ?? 2}-)</span>
                     </span>
                   </div>
-                  <div className="px-1 sm:px-1.5 flex items-center justify-center">
-                    <div className="w-9 sm:w-11 h-7 sm:h-8 rounded-full bg-white dark:bg-gray-900 border-2 border-purple-500 dark:border-purple-400 shadow-xs flex items-center justify-center overflow-hidden">
+                  <div className="shrink-0 flex items-center justify-center">
+                    <div className="w-6 h-6 sm:w-6.5 sm:h-6.5 aspect-square rounded-full bg-white dark:bg-gray-900 border-2 border-purple-500 dark:border-purple-400 shadow-2xs flex items-center justify-center overflow-hidden">
                       <input 
                         onClick={(e) => e.stopPropagation()} 
                         type="number" 
@@ -1094,7 +1106,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                           }
                         }} 
                         onFocus={e => e.target.select()} 
-                        className="w-full h-full text-center text-sm sm:text-base font-black bg-transparent text-purple-700 dark:text-purple-200 focus:text-purple-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-purple-300 dark:placeholder:text-purple-700 z-10" 
+                        className="w-full h-full text-center text-xs sm:text-sm font-black bg-transparent text-purple-700 dark:text-purple-200 focus:text-purple-950 dark:focus:text-white border-0 border-none outline-none focus:outline-none focus:ring-0 focus:border-0 shadow-none ring-0 p-0 m-0 rounded-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-purple-300 dark:placeholder:text-purple-700 z-10" 
                       />
                     </div>
                   </div>
@@ -1105,27 +1117,25 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
           {/* Middle Row: Student Selector & Page Selector placed prominently below error buttons */}
           {sardGroupMode && sardGroupStudents.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2 w-full max-w-4xl mx-auto">
+            <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto py-0.5">
               {/* زر اختيار الطالب في السرد الجماعي */}
-              <div className="relative w-full" ref={studentDropdownRef}>
+              <div className="relative shrink-0 max-w-[65%]" ref={studentDropdownRef}>
                 <button
                   type="button"
                   onClick={() => {
                     setIsStudentDropdownOpen(!isStudentDropdownOpen);
                     setStudentSearchTerm('');
                   }}
-                  className="w-full flex items-center justify-between gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black shadow-md border border-emerald-400/40 transition-all cursor-pointer active:scale-95"
+                  className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 px-2 py-1 rounded-lg text-[10.5px] sm:text-xs font-bold shadow-2xs border border-emerald-400/40 transition-all cursor-pointer active:scale-95 truncate"
                   title="اضغط لاختيار أو تبديل الطالب"
                 >
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1 text-right">
-                    <span className="text-sm shrink-0">👤</span>
-                    <span className="truncate font-black">
-                      {sardGroupStudents.find(s => s.id === selectedGroupStudentId)?.name || 'اختر الطالب'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 bg-emerald-800/90 px-1.5 sm:px-2 py-0.5 rounded-lg text-[10px] sm:text-xs">
+                  <span className="text-xs shrink-0">👤</span>
+                  <span className="truncate font-black">
+                    {sardGroupStudents.find(s => s.id === selectedGroupStudentId)?.name || 'اختر الطالب'}
+                  </span>
+                  <div className="flex items-center gap-0.5 shrink-0 bg-emerald-800/80 px-1 py-0.2 rounded text-[9px]">
                     <span>تبديل</span>
-                    <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isStudentDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${isStudentDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -1218,26 +1228,21 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
 
               {/* زر اختيار الصفحة */}
               {targetPages.length > 0 && (
-                <div className="relative w-full" ref={dropdownRef}>
+                <div className="relative shrink-0" ref={dropdownRef}>
                   <button
                     type="button"
                     onClick={() => {
                       setIsPageDropdownOpen(!isPageDropdownOpen);
                       setPageSearchTerm('');
                     }}
-                    className="w-full flex items-center justify-between gap-1.5 bg-amber-100 hover:bg-amber-200/80 text-amber-950 border-2 border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-850 dark:text-amber-200 dark:border-amber-500/50 px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black shadow-xs transition-all cursor-pointer active:scale-95"
-                    title="اضغط لاختيار صفحة أخرى"
+                    className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-800 dark:text-amber-200 dark:border-amber-500/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95"
+                    title="اضغط لاختيار صفحة أخرى من القائمة المنسدلة"
                   >
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1 text-right">
-                      <span className="text-sm shrink-0">📖</span>
-                      <span className="font-mono font-black">صفحة {currentPage}</span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 text-amber-800 dark:text-amber-300 font-bold text-[10px] sm:text-xs bg-amber-200/60 dark:bg-amber-950/60 px-1.5 sm:px-2 py-0.5 rounded-lg">
-                      <span>({currentIndex + 1}/{targetPages.length})</span>
-                      <svg className={`w-3.5 h-3.5 text-amber-700 dark:text-amber-400 transition-transform duration-200 ${isPageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                    <span className="text-[10px] text-amber-800 dark:text-amber-400 font-bold">ص</span>
+                    <span className="font-mono font-black">{currentPage}</span>
+                    <svg className={`w-3.5 h-3.5 text-amber-700 dark:text-amber-400 transition-transform duration-200 ${isPageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
                   </button>
 
                   {isPageDropdownOpen && (
@@ -1361,35 +1366,30 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto">
+            <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto py-0.5">
               {studentName && (
-                <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 px-3 py-2 rounded-xl text-xs sm:text-sm font-black truncate max-w-[50%] shadow-xs">
-                  <span className="text-sm">👤</span>
+                <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10.5px] sm:text-xs font-bold truncate max-w-[45%] shadow-2xs">
+                  <span className="text-xs">👤</span>
                   <span className="truncate">{studentName}</span>
                 </div>
               )}
 
               {targetPages.length > 0 && (
-                <div className="relative flex-1" ref={dropdownRef}>
+                <div className="relative shrink-0" ref={dropdownRef}>
                   <button
                     type="button"
                     onClick={() => {
                       setIsPageDropdownOpen(!isPageDropdownOpen);
                       setPageSearchTerm('');
                     }}
-                    className="w-full flex items-center justify-between gap-2 bg-amber-100 hover:bg-amber-200/80 text-amber-950 border-2 border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-850 dark:text-amber-200 dark:border-amber-500/50 px-3 py-2 rounded-xl text-xs sm:text-sm font-black shadow-xs transition-all cursor-pointer active:scale-95"
-                    title="اضغط لاختيار صفحة أخرى"
+                    className="flex items-center gap-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 dark:bg-gray-900 dark:hover:bg-gray-800 dark:text-amber-200 dark:border-amber-500/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs transition-all cursor-pointer active:scale-95"
+                    title="اضغط لاختيار صفحة أخرى من القائمة المنسدلة"
                   >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm">📖</span>
-                      <span className="font-mono font-black">صفحة {currentPage}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-amber-800 dark:text-amber-300 font-bold text-xs bg-amber-200/60 dark:bg-amber-950/60 px-2 py-0.5 rounded-lg">
-                      <span>({currentIndex + 1} من {targetPages.length})</span>
-                      <svg className={`w-3.5 h-3.5 text-amber-700 dark:text-amber-400 transition-transform duration-200 ${isPageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                    <span className="text-[10px] text-amber-800 dark:text-amber-400 font-bold">ص</span>
+                    <span className="font-mono font-black">{currentPage}</span>
+                    <svg className={`w-3.5 h-3.5 text-amber-700 dark:text-amber-400 transition-transform duration-200 ${isPageDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
                   </button>
 
                   {isPageDropdownOpen && (
@@ -1515,21 +1515,21 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
           )}
 
           {/* Bottom Row: Result Box (خانة النتيجة والمجموع) */}
-          <div className="flex items-center justify-between flex-wrap gap-2 w-full max-w-4xl mx-auto pt-1.5 border-t border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between flex-wrap gap-1.5 w-full max-w-4xl mx-auto pt-1 border-t border-gray-200 dark:border-gray-800">
             {/* Live Result / Score Box */}
             {isTestMode ? (
-              <div className="flex items-center gap-2 flex-wrap w-full justify-between">
-                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-gray-900 px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-500/30">
-                  <span className="text-[11px] sm:text-xs text-gray-700 dark:text-gray-300 font-bold">درجة الاختبار:</span>
-                  <span className={`text-sm sm:text-base font-black ${Math.max(0, testScore - (currentEvalFath * testDeductions.fath + currentEvalTashkeel * testDeductions.tashkeel + currentEvalTajweed * testDeductions.tajweed + (evalPassageChanges || 0) * (testDeductions.passageChange ?? 2))) < testScore * 0.5 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+              <div className="flex items-center gap-1.5 flex-wrap w-full justify-between">
+                <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-gray-900 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg border border-emerald-300 dark:border-emerald-500/30">
+                  <span className="text-[10.5px] sm:text-xs text-gray-700 dark:text-gray-300 font-bold">درجة الاختبار:</span>
+                  <span className={`text-xs sm:text-base font-black ${Math.max(0, testScore - (currentEvalFath * testDeductions.fath + currentEvalTashkeel * testDeductions.tashkeel + currentEvalTajweed * testDeductions.tajweed + (evalPassageChanges || 0) * (testDeductions.passageChange ?? 2))) < testScore * 0.5 ? 'text-red-600 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                     {Math.max(0, testScore - (currentEvalFath * testDeductions.fath + currentEvalTashkeel * testDeductions.tashkeel + currentEvalTajweed * testDeductions.tajweed + (evalPassageChanges || 0) * (testDeductions.passageChange ?? 2)))}
                   </span>
-                  <span className="text-[10px] text-gray-500">/ {testScore}</span>
+                  <span className="text-[9px] sm:text-[10px] text-gray-500">/ {testScore}</span>
                 </div>
 
                 {testPassagesCount && testPassagesCount > 0 && onTogglePassage && (
-                  <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-xl border border-amber-300/80 dark:border-amber-800">
-                    <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200 ml-1">
+                  <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-300/80 dark:border-amber-800">
+                    <span className="text-[9.5px] sm:text-[10px] font-bold text-amber-900 dark:text-amber-200 ml-1">
                       المقاطع ({completedPassages.length}/{testPassagesCount}):
                     </span>
                     <div className="flex items-center gap-1">
@@ -1567,31 +1567,31 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                 )}
               </div>
             ) : isSardMode ? (
-              <div className="flex items-center justify-between bg-emerald-50/80 dark:bg-gray-900/80 px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-500/30 w-full">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] sm:text-xs text-emerald-900 dark:text-emerald-300 font-bold">تقدير السرد:</span>
-                  <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black shadow-xs ${liveRating.color}`}>
+              <div className="flex items-center justify-between bg-emerald-50/80 dark:bg-gray-900/80 px-2.5 py-1 rounded-lg border border-emerald-300 dark:border-emerald-500/30 w-full">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10.5px] sm:text-xs text-emerald-900 dark:text-emerald-300 font-bold">تقدير السرد:</span>
+                  <span className={`px-2 py-0.2 rounded-md text-[11px] sm:text-xs font-black shadow-2xs ${liveRating.color}`}>
                     {liveRating.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-amber-900 dark:text-amber-300">مجموع الأخطاء:</span>
-                  <span className="font-mono font-black text-sm bg-white dark:bg-gray-800 px-2 py-0.5 rounded-lg border border-amber-300 dark:border-gray-700 text-amber-700 dark:text-amber-300">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10.5px] sm:text-xs font-bold text-amber-900 dark:text-amber-300">مجموع الأخطاء:</span>
+                  <span className="font-mono font-black text-xs sm:text-sm bg-white dark:bg-gray-800 px-1.5 py-0.2 rounded-md border border-amber-300 dark:border-gray-700 text-amber-700 dark:text-amber-300">
                     {totalErrors}
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between bg-emerald-50/80 dark:bg-gray-900/80 px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-500/30 w-full">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] sm:text-xs text-gray-700 dark:text-gray-300 font-bold">النتيجة:</span>
-                  <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black shadow-xs ${liveRating.color}`}>
+              <div className="flex items-center justify-between bg-emerald-50/80 dark:bg-gray-900/80 px-2.5 py-1 rounded-lg border border-emerald-300 dark:border-emerald-500/30 w-full">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10.5px] sm:text-xs text-gray-700 dark:text-gray-300 font-bold">النتيجة:</span>
+                  <span className={`px-2 py-0.2 rounded-md text-[11px] sm:text-xs font-black shadow-2xs ${liveRating.color}`}>
                     {liveRating.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-amber-900 dark:text-amber-300">مجموع الأخطاء:</span>
-                  <span className="font-mono font-black text-sm bg-white dark:bg-gray-800 px-2 py-0.5 rounded-lg border border-amber-300 dark:border-gray-700 text-amber-700 dark:text-amber-300">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10.5px] sm:text-xs font-bold text-amber-900 dark:text-amber-300">مجموع الأخطاء:</span>
+                  <span className="font-mono font-black text-xs sm:text-sm bg-white dark:bg-gray-800 px-1.5 py-0.2 rounded-md border border-amber-300 dark:border-gray-700 text-amber-700 dark:text-amber-300">
                     {totalErrors} {totalErrors === 1 ? 'خطأ' : totalErrors === 2 ? 'خطآن' : 'أخطاء'}
                   </span>
                 </div>

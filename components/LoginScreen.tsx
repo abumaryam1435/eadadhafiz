@@ -127,8 +127,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
       <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-[2.5rem] text-center shadow-2xl golden-frame dark:bg-slate-900 animate-fade-in relative flex flex-col justify-center min-h-[98dvh] sm:min-h-fit mb-0 sm:mb-auto">
         <div className="flex-grow flex flex-col justify-center">
-            <Logo className="h-24 w-24 sm:h-28 sm:w-28 mx-auto mb-6 drop-shadow-2xl" />
-            <h1 className="text-3xl sm:text-4xl font-black text-green-900 dark:text-green-400 mb-1">{appName}</h1>
+            <Logo className="h-24 w-24 sm:h-28 sm:w-28 mx-auto mb-3 drop-shadow-2xl" />
+            <h1 
+              className="text-xl sm:text-2xl font-[900] text-green-900 dark:text-green-400 mb-3 flex items-center justify-center gap-1.5 tracking-wide"
+              style={{ fontFamily: "'Cairo', 'Tajawal', 'Alexandria', 'IBM Plex Sans Arabic', sans-serif" }}
+            >
+              <span className="text-xs sm:text-sm text-gold opacity-80 select-none">✦</span>
+              <span>{appName && appName !== 'إعداد حافظ' ? appName : 'مشروع إعداد حافظ'}</span>
+              <span className="text-xs sm:text-sm text-gold opacity-80 select-none">✦</span>
+            </h1>
             <p className="font-amiri text-xl sm:text-2xl golden-text mb-8 italic">"خيركم من تعلم القرآن وعلمه"</p>
 
             {mode === 'initial' && (

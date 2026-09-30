@@ -65,24 +65,27 @@ export const MaghribDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <header className="bg-green-800 text-white shadow-2xl dark:bg-slate-900 dark:text-white border-b-[6px] border-[#D4AF37] sticky top-0 z-50">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between py-3 sm:h-24 gap-4 sm:gap-0">
-            <div className="flex items-center gap-3">
-              <Logo className="h-14 w-14 sm:h-16 sm:w-16 drop-shadow-md" />
-              <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tight hidden sm:block">{appName} - {programTitle}</h1>
+        <div className="container mx-auto px-2 sm:px-6">
+          <div className="flex flex-row items-center justify-between py-2 sm:py-3 sm:h-24 gap-2 sm:gap-0">
+            <div className="flex flex-col items-center sm:flex-row sm:items-center space-y-0.5 sm:space-y-0 sm:gap-3 shrink-0">
+              <Logo className="h-10 w-10 sm:h-16 sm:w-16 drop-shadow-md shrink-0" />
+              <div className="flex flex-col text-center sm:text-right">
+                <h1 className="text-[10.5px] sm:text-2xl font-black leading-tight tracking-tight max-w-[75px] sm:max-w-none truncate sm:whitespace-normal">{appName}</h1>
+                <span className="text-[9px] text-yellow-300 font-bold hidden sm:inline">{programTitle}</span>
+              </div>
             </div>
-            <div className="flex gap-2 flex-nowrap justify-center sm:justify-end">
-               <button onClick={toggleDarkMode} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-yellow-300 transition-all shrink-0">
+            <div className="flex gap-1 sm:gap-2 flex-nowrap justify-end shrink-0">
+               <button onClick={toggleDarkMode} className="p-1.5 sm:p-2 bg-white/10 hover:bg-white/20 rounded-lg sm:rounded-xl text-yellow-300 transition-all shrink-0 text-xs sm:text-base">
                   {darkMode ? '☀️' : '🌙'}
                </button>
-               <button onClick={() => setProgramType(null)} className="px-2 py-2 sm:px-4 sm:py-2.5 bg-white text-green-900 rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-gray-100 transition-all shadow-sm whitespace-nowrap">
-                  تغيير البرنامج
+               <button onClick={() => setProgramType(null)} className="px-1.5 py-1.5 sm:px-4 sm:py-2.5 bg-white text-green-900 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-gray-100 transition-all shadow-sm whitespace-nowrap">
+                  البرنامج
                </button>
-               <button onClick={() => setShowPasswordModal(true)} className="px-2 py-2 sm:px-4 sm:py-2.5 bg-amber-500 text-white rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-amber-600 transition-all shadow-sm whitespace-nowrap">
-                  تغيير الرقم السري
+               <button onClick={() => setShowPasswordModal(true)} className="px-1.5 py-1.5 sm:px-4 sm:py-2.5 bg-amber-500 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-amber-600 transition-all shadow-sm whitespace-nowrap">
+                  الرقم السري
                </button>
-               <button onClick={logout} className="px-2 py-2 sm:px-4 sm:py-2.5 bg-red-500 text-white rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-red-600 transition-all shadow-sm whitespace-nowrap">
-                  تسجيل الخروج
+               <button onClick={logout} className="px-1.5 py-1.5 sm:px-4 sm:py-2.5 bg-red-500 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-red-600 transition-all shadow-sm whitespace-nowrap">
+                  خروج
                </button>
             </div>
           </div>

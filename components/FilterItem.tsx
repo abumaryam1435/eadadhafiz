@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { HexColorPicker } from "react-colorful";
 import { isSmartMatch } from '../utils/searchUtils';
+import { Copy, Check, ClipboardPaste } from 'lucide-react';
 
 export interface FilterItemProps {
   id: string;
@@ -33,6 +34,28 @@ export const FilterItem: React.FC<FilterItemProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
+  const [copiedColor, setCopiedColor] = useState<string | null>(null);
+  const [copiedSuccessId, setCopiedSuccessId] = useState<string | null>(null);
+
+  const handleCopyColor = (colorToCopy: string, itemId?: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const hex = colorToCopy.startsWith('#') ? colorToCopy : `#${colorToCopy}`;
+    setCopiedColor(hex);
+    if (itemId) setCopiedSuccessId(itemId);
+    try {
+      navigator.clipboard.writeText(hex);
+    } catch (err) {}
+    setTimeout(() => {
+      setCopiedSuccessId(null);
+    }, 2000);
+  };
+
+  const handlePasteColorToItem = (itemId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (copiedColor && onColorChange) {
+      onColorChange(itemId, copiedColor);
+    }
+  };
 
   // تفريغ نص البحث تلقائياً عند فتح القائمة المنسدلة
   useEffect(() => {
@@ -158,13 +181,16 @@ export const FilterItem: React.FC<FilterItemProps> = ({
               <button onClick={handleSelectAll} className="text-[10px] text-blue-600 font-bold hover:underline">تحديد الكل</button>
               <button onClick={handleDeselectAll} className="text-[10px] text-red-600 font-bold hover:underline">إلغاء الكل</button>
           </div>
-          <ul className="max-h-48 overflow-y-auto scrollbar-hidden">
+          <ul className="max-h-56 overflow-y-auto scrollbar-hidden space-y-0.5">
             {options.filter((o: any) => isSmartMatch(o.name, search) || (o.stage && isSmartMatch(o.stage, search))).map((o: any) => {
               const strId = String(o.id);
               const isChecked = isAllSelected || (selectedValues || []).includes(strId);
+              const itemColor = colorMap[strId] || defaultColorPickerValue;
+              const isCopiedThis = copiedSuccessId === strId;
+
               return (
                 <li key={o.id} 
-                  className={`dropdown-list-item text-[10px] rounded mb-0.5 flex items-center justify-between gap-2 ${isChecked ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 font-bold' : 'dark:text-gray-300'}`}
+                  className={`dropdown-list-item text-[10px] rounded p-1 flex items-center justify-between gap-1.5 transition-colors ${isChecked ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 font-bold' : 'hover:bg-gray-50 dark:hover:bg-gray-700/60 dark:text-gray-300'}`}
                 >
                   <div 
                     onClick={() => { 
@@ -180,7 +206,7 @@ export const FilterItem: React.FC<FilterItemProps> = ({
                             }
                         }
                     }}
-                    className="flex items-center gap-2 flex-grow cursor-pointer p-1 min-w-0"
+                    className="flex items-center gap-2 flex-grow cursor-pointer min-w-0"
                   >
                     <input type="checkbox" checked={isChecked} readOnly className="h-3.5 w-3.5 rounded text-green-600 border-gray-300 dark:border-gray-500 dark:bg-gray-700 pointer-events-none shrink-0" />
                     <span className="truncate" style={colorMap && colorMap[String(o.id)] ? { color: colorMap[String(o.id)], fontWeight: 'bold' } : {}}>{o.name}</span>
@@ -192,18 +218,43 @@ export const FilterItem: React.FC<FilterItemProps> = ({
                   </div>
                   
                   {showColorPicker && onColorChange && (
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {/* زر نسخ كود اللون */}
                       <button 
-                        className="w-5 h-5 rounded-full border border-gray-200 shadow-sm"
-                        style={{ backgroundColor: colorMap[String(o.id)] || defaultColorPickerValue }}
-                        onClick={() => setActiveColorPicker(String(o.id))}
+                        type="button"
+                        onClick={(e) => handleCopyColor(itemColor, strId, e)}
+                        className={`p-1 rounded transition-colors ${isCopiedThis ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                        title={isCopiedThis ? 'تم نسخ كود اللون!' : `نسخ كود اللون (${itemColor})`}
+                      >
+                        {isCopiedThis ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      </button>
+
+                      {/* زر لصق اللون المنسوخ إذا تم نسخه مسبقاً */}
+                      {copiedColor && (
+                        <button 
+                          type="button"
+                          onClick={(e) => handlePasteColorToItem(strId, e)}
+                          className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
+                          title={`لصق اللون المنسوخ (${copiedColor}) على هذا المستوى`}
+                        >
+                          <ClipboardPaste className="w-3 h-3" />
+                        </button>
+                      )}
+
+                      {/* دائرة اختيار اللون */}
+                      <button 
+                        type="button"
+                        className="w-5 h-5 rounded-full border border-gray-200 dark:border-gray-600 shadow-xs transition-transform hover:scale-110 active:scale-95"
+                        style={{ backgroundColor: itemColor }}
+                        onClick={() => setActiveColorPicker(strId)}
                         title="اختر لون لتمييز السجل"
                       />
                       {colorMap[String(o.id)] && (
                         <button 
+                          type="button"
                           onClick={() => onColorChange(String(o.id), null)}
-                          className="text-[9px] text-gray-400 hover:text-red-500 px-1"
-                          title="إلغاء التمييز"
+                          className="text-[9px] text-gray-400 hover:text-red-500 px-0.5"
+                          title="استعادة اللون الافتراضي"
                         >
                           ✕
                         </button>
@@ -214,6 +265,26 @@ export const FilterItem: React.FC<FilterItemProps> = ({
               );
             })}
           </ul>
+
+          {/* شريط حالة نسخ اللون */}
+          {copiedColor && showColorPicker && (
+            <div className="mt-2 p-1.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-[10px] text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center gap-1.5 font-bold">
+                <span className="w-3 h-3 rounded-full border border-black/10 inline-block" style={{ backgroundColor: copiedColor }} />
+                <span>اللون المنسوخ:</span>
+                <code className="font-mono text-[9px] uppercase bg-white dark:bg-gray-800 px-1 py-0.5 rounded border border-emerald-200 dark:border-emerald-700">{copiedColor}</code>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setCopiedColor(null)}
+                className="text-gray-400 hover:text-red-500 font-bold px-1"
+                title="إلغاء النسخ"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {showColorPicker && onToggleSaveColors && (
             <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -261,11 +332,44 @@ export const FilterItem: React.FC<FilterItemProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setActiveColorPicker(null)}>
             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 animate-fade-in max-w-xs w-full" onClick={(e) => e.stopPropagation()}>
                 <div className="w-full flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
-                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">تخصيص لون المرحلة</h3>
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shadow-xs" style={{ backgroundColor: colorMap[activeColorPicker] || defaultColorPickerValue }} />
+                        <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">تخصيص لون: {activeColorPicker}</h3>
+                    </div>
                     <button onClick={() => setActiveColorPicker(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm">✕</button>
                 </div>
                 
                 <HexColorPicker color={colorMap[activeColorPicker] || defaultColorPickerValue} onChange={(color) => onColorChange(activeColorPicker, color)} />
+
+                {/* خيار نسخ اللون وتطبيقه من مراحل أخرى مباشرة */}
+                {options.filter((opt: any) => String(opt.id) !== activeColorPicker && colorMap[String(opt.id)]).length > 0 && (
+                  <div className="w-full bg-amber-50/70 dark:bg-gray-700/40 p-2 rounded-xl border border-amber-200/70 dark:border-gray-600">
+                    <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200 block mb-1">
+                      📋 نسخ ولصق نفس لون مرحلة أخرى مباشرة:
+                    </span>
+                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto scrollbar-hidden">
+                      {options.filter((opt: any) => String(opt.id) !== activeColorPicker && colorMap[String(opt.id)]).map((opt: any) => {
+                        const targetCol = colorMap[String(opt.id)];
+                        const isSame = (colorMap[activeColorPicker] || defaultColorPickerValue).toLowerCase() === targetCol.toLowerCase();
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              onColorChange(activeColorPicker, targetCol);
+                              setCopiedColor(targetCol);
+                            }}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold border transition-all ${isSame ? 'bg-amber-200 dark:bg-amber-800 text-amber-950 dark:text-white border-amber-400 shadow-xs' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-amber-100 dark:hover:bg-gray-700'}`}
+                            title={`تطبيق نفس لون ${opt.name} (${targetCol})`}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-2xs" style={{ backgroundColor: targetCol }} />
+                            <span className="truncate max-w-[90px]">{opt.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="w-full">
                   <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 block">ألوان مقترحة:</span>
@@ -297,15 +401,43 @@ export const FilterItem: React.FC<FilterItemProps> = ({
                   </div>
                 </div>
 
-                <div className="w-full flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">HEX:</span>
+                <div className="w-full flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 p-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">HEX:</span>
                     <input 
                         type="text" 
                         value={colorMap[activeColorPicker] || defaultColorPickerValue} 
                         onChange={(e) => onColorChange(activeColorPicker, e.target.value)}
                         onFocus={e => e.target.select()}
-                        className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase"
+                        className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase font-bold"
                     />
+                    
+                    {/* زر نسخ الكود */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyColor(colorMap[activeColorPicker] || defaultColorPickerValue, activeColorPicker)}
+                      className="px-2 py-1 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-bold rounded border border-gray-200 dark:border-gray-600 shrink-0 flex items-center gap-1 shadow-2xs"
+                      title="نسخ كود اللون"
+                    >
+                      {copiedSuccessId === activeColorPicker ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedSuccessId === activeColorPicker ? 'تم' : 'نسخ'}</span>
+                    </button>
+
+                    {/* زر لصق الكود */}
+                    {copiedColor && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onColorChange && activeColorPicker) {
+                            onColorChange(activeColorPicker, copiedColor);
+                          }
+                        }}
+                        className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded shrink-0 flex items-center gap-1 shadow-2xs"
+                        title={`لصق اللون المنسوخ (${copiedColor})`}
+                      >
+                        <ClipboardPaste className="w-3 h-3" />
+                        <span>لصق</span>
+                      </button>
+                    )}
                 </div>
                 <div className="flex gap-2 w-full pt-1">
                     <button onClick={() => setActiveColorPicker(null)} className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">تم واعتماد</button>
@@ -317,3 +449,4 @@ export const FilterItem: React.FC<FilterItemProps> = ({
     </div>
   );
 };
+

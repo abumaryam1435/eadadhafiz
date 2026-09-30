@@ -428,6 +428,21 @@ export const getReportStyles = () => `
     border-collapse: collapse !important; 
     table-layout: fixed !important; 
     box-sizing: border-box !important;
+    page-break-inside: auto !important;
+  }
+  thead {
+    display: table-header-group !important;
+  }
+  tbody {
+    display: table-row-group !important;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
   }
   th { 
     background-color: #006A4E !important; 
@@ -1189,7 +1204,8 @@ export const sharePdfDirectly = async (
   adjustments: Record<string, number> = {},
   colorMap: Record<string, string> = {},
   rankColors?: Record<string, string>,
-  orientation: "landscape" | "portrait" = "landscape"
+  orientation: "landscape" | "portrait" = "landscape",
+  customHtmlContent?: string
 ) => {
   const overlay = document.createElement("div");
   overlay.style.position = "fixed";
@@ -1226,7 +1242,7 @@ export const sharePdfDirectly = async (
 
   try {
     const styles = getReportStyles();
-    const content = getPaginatedReportContent(
+    const content = customHtmlContent || getPaginatedReportContent(
       headers,
       data,
       reportTitle,

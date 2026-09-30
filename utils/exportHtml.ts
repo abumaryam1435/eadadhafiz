@@ -51,7 +51,7 @@ export const shareHtmlViaWhatsApp = async (
   subtitle?: string, 
   adjustments: Record<string, number> = {}, 
   colorMap: Record<string, string> = {},
-  rankColors?: Record<string, { bg: string; text: string; border: string }>
+  rankColors?: any
 ) => {
   // Construct HTML content
   const today = new Date();
@@ -113,34 +113,34 @@ export const shareHtmlViaWhatsApp = async (
       }
 
       if (h.key === 'studentName' || h.key === 'name') {
-        cellStyle += ' font-weight: 800; text-align: right; color: #064e3b;';
+        cellStyle += ' font-weight: 900; text-align: right; color: #044e3b; font-size: 14px;';
       }
 
       if (h.key === 'attendance' && item.attendance && colorMap[item.attendance] && !isAbsentOrNotRecorded) {
-        cellStyle += `background-color: ${hexToRgba(colorMap[item.attendance], 0.15)};`;
+        cellStyle += `background-color: ${hexToRgba(colorMap[item.attendance], 0.15)}; font-weight: 800;`;
       } else if (h.key === 'periodicReview' && item.periodicReview && colorMap[item.periodicReview]) {
-        cellStyle += `background-color: ${hexToRgba(colorMap[item.periodicReview], 0.15)};`;
+        cellStyle += `background-color: ${hexToRgba(colorMap[item.periodicReview], 0.15)}; font-weight: 800;`;
       } else if (h.key === 'level' && item.level && colorMap[item.level]) {
-        cellStyle += `background-color: ${hexToRgba(colorMap[item.level], 0.15)}; color: ${colorMap[item.level]}; font-weight: bold;`;
+        cellStyle += `background-color: ${hexToRgba(colorMap[item.level], 0.15)}; color: ${colorMap[item.level]}; font-weight: 900;`;
       } else if (h.key === 'evalStatus' && item.evalStatus && colorMap[item.evalStatus]) {
-        cellStyle += `background-color: ${hexToRgba(colorMap[item.evalStatus], 0.15)};`;
+        cellStyle += `background-color: ${hexToRgba(colorMap[item.evalStatus], 0.15)}; font-weight: 800;`;
       } else if (h.key === 'performance' && item.performance && colorMap[item.performance]) {
-        cellStyle += `background-color: ${hexToRgba(colorMap[item.performance], 0.15)};`;
+        cellStyle += `background-color: ${hexToRgba(colorMap[item.performance], 0.15)}; font-weight: 800;`;
       }
 
       // Rank styling if available
       if (h.key === 'rank' && item.rank && rankColors && rankColors[item.rank]) {
         const rc = rankColors[item.rank];
-        content = `<span style="background:${rc.bg}; color:${rc.text}; border:1px solid ${rc.border}; padding:2px 8px; border-radius:6px; font-weight:800; font-size:11px;">${content}</span>`;
+        content = `<span style="background:${rc.bg}; color:${rc.text}; border:1.5px solid ${rc.border}; padding:3px 10px; border-radius:8px; font-weight:900; font-size:12.5px;">${content}</span>`;
       }
       
       if ((h.key === 'evaluationDate' || h.key === 'date') && value && value !== '—') {
         const dual = getDualDate(value, adjustments);
         if (dual) {
           content = `
-            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1.25;">
-              <span style="font-weight: 800; font-size: 0.9em; color:#065f46;">${dual.hijri}</span>
-              <span style="font-size: 0.78em; opacity: 0.75; font-family: monospace;">${dual.gregorian}</span>
+            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1.3;">
+              <span style="font-weight: 800; font-size: 0.95em; color:#064e3b;">${dual.hijri}</span>
+              <span style="font-size: 0.82em; opacity: 0.85; font-family: monospace; font-weight: 600;">${dual.gregorian}</span>
             </div>`;
         }
       }
@@ -482,27 +482,30 @@ export const shareHtmlViaWhatsApp = async (
     th {
       background: #006A4E !important;
       color: white !important;
-      padding: 10px 6px;
+      padding: 12px 8px;
       text-align: center;
       font-weight: 800;
-      font-size: 12px;
+      font-size: 13.5px;
       position: sticky;
       top: 0;
       z-index: 20;
       border-bottom: 2px solid #D4AF37;
-      border-right: 1px solid rgba(255, 255, 255, 0.15);
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
       white-space: nowrap;
+      letter-spacing: -0.01em;
     }
     th:first-child { border-right: none; }
 
     td {
-      padding: 9px 6px;
-      border-bottom: 1px solid #e2e8f0;
-      border-right: 1px solid #f1f5f9;
+      padding: 11px 8px;
+      border-bottom: 1px solid #cbd5e1;
+      border-right: 1px solid #e2e8f0;
       text-align: center;
       vertical-align: middle;
-      font-size: 12px;
-      line-height: 1.35;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.45;
     }
     td:first-child { border-right: none; }
 
@@ -526,9 +529,9 @@ export const shareHtmlViaWhatsApp = async (
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       color: #64748b;
-      font-weight: 600;
+      font-weight: 700;
       border-radius: 0 0 15px 15px;
     }
 
@@ -549,9 +552,9 @@ export const shareHtmlViaWhatsApp = async (
       .filter-group { min-width: 100%; }
       .dropdown-container { min-width: 100%; max-width: 100%; }
       .dropdown-panel { width: 100%; max-width: 100%; right: 0; left: 0; }
-      .badge-count { font-size: 0.78rem; padding: 6px 10px; }
-      th { font-size: 10.5px; padding: 7px 3px; }
-      td { font-size: 10.5px; padding: 7px 3px; }
+      .badge-count { font-size: 0.82rem; padding: 6px 10px; }
+      th { font-size: 12px; padding: 9px 5px; }
+      td { font-size: 12px; padding: 9px 5px; font-weight: 700; }
     }
   </style>
 </head>

@@ -183,9 +183,10 @@ async function startServer() {
     }
   });
 
+  let vite: any = null;
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
@@ -199,7 +200,14 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`\n  VITE v6.2.0  ready in 150 ms\n`);
+    console.log(`  ➜  Local:   http://localhost:${PORT}/`);
+    console.log(`  ➜  Network: http://0.0.0.0:${PORT}/\n`);
+    if (vite && typeof vite.printUrls === 'function') {
+      try {
+        vite.printUrls();
+      } catch (_) {}
+    }
   });
 }
 

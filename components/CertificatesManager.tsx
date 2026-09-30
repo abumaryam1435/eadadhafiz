@@ -218,6 +218,9 @@ export const CertificatesManager: React.FC = () => {
                     compress: true
                 });
 
+                // Enforce Actual Size (100% scale) and zero margin scaling when printed directly
+                doc.viewerPreferences({ PrintScaling: 'None' }, true);
+
                 await document.fonts.ready;
 
                 const img = new Image();
@@ -398,9 +401,12 @@ export const CertificatesManager: React.FC = () => {
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h4 className="font-bold text-gray-700 dark:text-gray-300">قالب الشهادة</h4>
-                            <p className="text-xs text-gray-500">ارفع صورة القالب الجاهز (A4 Landscape)</p>
+                            <p className="text-xs text-gray-500">ارفع صورة القالب الجاهز (A4 أفقي 297 × 210 مم بدون هوامش ميتة)</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded border border-emerald-200 dark:border-emerald-800">
+                                📐 قياس A4 كامل 100% بدون هوامش
+                            </span>
                             <label className="cursor-pointer bg-blue-50 text-blue-700 px-4 py-1.5 rounded-lg font-bold hover:bg-blue-100 transition-colors text-sm border border-blue-200 flex items-center gap-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                 رفع قالب

@@ -246,6 +246,13 @@ export const HALAQA_SIZE_PRESETS = [
     { id: 'b5', name: 'B5', width: 176, height: 250, unit: 'mm' as const, label: '17.6 × 25 سم' },
 ];
 
+export const CARD_SIZE_PRESETS = [
+    { id: 'cr80', name: 'بطاقة قياسية (CR80)', width: 85, height: 54, unit: 'mm' as const, label: '8.5 × 5.4 سم (معيار بطاقة الهوية والبنك)' },
+    { id: 'business', name: 'بطاقة وسط', width: 90, height: 60, unit: 'mm' as const, label: '9 × 6 سم' },
+    { id: 'large', name: 'بطاقة تعليق كبيرة', width: 100, height: 70, unit: 'mm' as const, label: '10 × 7 سم' },
+    { id: 'a6', name: 'A6 ربع صفحة', width: 105, height: 148, unit: 'mm' as const, label: '10.5 × 14.8 سم' },
+];
+
 export const DEFAULT_STAGE_COLORS = [
     '#059669', // 1. الأخضر (المرحلة ذات أكبر عدد من الطلاب)
     '#2563eb', // 2. الأزرق (المرحلة التالية - عدد أقل من الأولى)
@@ -615,50 +622,157 @@ export const CardsManager: React.FC = () => {
     const exportPdfList = async () => {
         setIsGeneratingList(true);
         try {
-            const { sharePdfDirectly } = await import('../utils/exportPdf');
-            const headers = [
-                { key: 'sequence', label: 'م', type: 'text' },
-                { key: 'name', label: 'الاسم', type: 'text' },
-                { key: 'stageName', label: 'المرحلة', type: 'text' },
-            ];
+            const { sharePdfDirectly, gregorianToHijriFormatted } = await import('../utils/exportPdf');
             
-            const dataToExport = [];
-            let currentStage = '';
+            // Group active targets by Color (stages sharing the same color are considered one group with one unified sequence)
+            const colorGroupsMap = new Map<string, { stageNames: Set<string>; color: string; targets: CardTargetItem[] }>();
             
             for (const target of activeTargets) {
-                if (target.stage !== currentStage) {
-                    currentStage = target.stage || '';
-                    const stageColor = effectiveStageColors[currentStage] || '#059669';
-                    
-                    dataToExport.push({
-                        sequence: `<div style="page-break-before: always; height: 0;"></div>`,
-                        name: `<div style="color: ${stageColor}; font-weight: bold; font-size: 14px;">مستوى ${currentStage}</div>`,
-                        stageName: '',
+                const stageColor = ((target.stage && effectiveStageColors[target.stage]) || '#059669').toUpperCase();
+                const colorKey = stageColor;
+                if (!colorGroupsMap.has(colorKey)) {
+                    colorGroupsMap.set(colorKey, {
+                        stageNames: new Set<string>(),
+                        color: stageColor,
+                        targets: []
                     });
                 }
-                
-                const stageColor = effectiveStageColors[target.stage || ''] || '#000000';
-                dataToExport.push({
-                    sequence: target.stageIndex,
-                    name: target.name,
-                    stageName: `<span style="color: ${stageColor}; font-weight: bold;">${target.stage}</span>`
-                });
-            }
-            
-            if (dataToExport.length > 0 && typeof dataToExport[0].sequence === 'string' && dataToExport[0].sequence.includes('page-break-before')) {
-                 dataToExport[0].sequence = ''; // Prevent blank first page
+                const group = colorGroupsMap.get(colorKey)!;
+                if (target.stage) group.stageNames.add(target.stage);
+                group.targets.push(target);
             }
 
+            const colorGroups = Array.from(colorGroupsMap.values());
+            const today = new Date();
+            const dateLine = gregorianToHijriFormatted(today, {});
+
+            const toArabic = (num: number) => String(num).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)]);
+
+            // Generate structured, strictly paginated pages
+            const allPagesHtml: string[] = [];
+
+            colorGroups.forEach((group) => {
+                const stageNamesArray = Array.from(group.stageNames);
+                let titleDisplay = '';
+                if (stageNamesArray.length === 0) {
+                    titleDisplay = activeTab === 'teachers' ? 'المعلمون' : 'بطاقات عامة';
+                } else if (stageNamesArray.length === 1) {
+                    titleDisplay = `مستوى / مرحلة: ${stageNamesArray[0]}`;
+                } else {
+                    titleDisplay = `المستويات المشتركة بنفس اللون (${stageNamesArray.join(' + ')})`;
+                }
+
+                // Chunk targets for this color group:
+                // Page 1 has main header + banner: holds up to 21 rows
+                // Subsequent pages have repeat banner: holds up to 25 rows
+                const PAGE_1_ROWS = 21;
+                const PAGE_N_ROWS = 25;
+
+                const groupChunks: CardTargetItem[][] = [];
+                let remainingTargets = [...group.targets];
+
+                if (remainingTargets.length > 0) {
+                    groupChunks.push(remainingTargets.slice(0, PAGE_1_ROWS));
+                    remainingTargets = remainingTargets.slice(PAGE_1_ROWS);
+                }
+
+                while (remainingTargets.length > 0) {
+                    groupChunks.push(remainingTargets.slice(0, PAGE_N_ROWS));
+                    remainingTargets = remainingTargets.slice(PAGE_N_ROWS);
+                }
+
+                const totalGroupPages = groupChunks.length;
+
+                groupChunks.forEach((chunk, pageInGroupIdx) => {
+                    const isFirstPageOfGroup = pageInGroupIdx === 0;
+
+                    const rowsHtml = chunk.map((target, idx) => {
+                        const seq = target.stageIndex !== undefined ? target.stageIndex : (idx + 1);
+                        const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                        const targetStage = target.stage || '-';
+                        return `
+                            <tr style="background-color: ${bg}; height: 8.5mm; page-break-inside: avoid !important; break-inside: avoid !important;">
+                                <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 800; font-family: monospace; font-size: 11px; width: 10%; color: #334155;">${seq}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 4px 10px; text-align: right; font-weight: 800; font-size: 11.5px; color: #0f172a; width: 60%;">${target.name}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-size: 11px; width: 30%;">
+                                    <span style="display: inline-flex; align-items: center; gap: 4px; color: ${group.color}; font-weight: 800; background: ${group.color}15; padding: 2px 8px; border-radius: 6px; border: 1px solid ${group.color}30;">
+                                        ● ${targetStage}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    const headerBlock = isFirstPageOfGroup
+                        ? `
+                            <div class="header" style="text-align: center; margin-bottom: 6px; padding-bottom: 5px; border-bottom: 2px double #D4AF37;">
+                                <h1 style="color: #006A4E; font-size: 16px; font-weight: 800; margin: 0 0 2px 0;">قائمة الأسماء لإصدار البطاقات التعريفية</h1>
+                                <div class="date-line" style="font-size: 9.5px; color: #4b5563; font-weight: 700;">${dateLine}</div>
+                            </div>
+                            <!-- Color / Stage Summary Banner -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 2px solid ${group.color}; border-radius: 8px; padding: 6px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="display: inline-block; width: 13px; height: 13px; border-radius: 50%; background-color: ${group.color}; box-shadow: 0 0 0 2px rgba(0,0,0,0.1);"></span>
+                                    <span style="font-size: 12.5px; font-weight: 900; color: #0f172a;"><strong style="color: ${group.color};">${titleDisplay}</strong></span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: ${group.color}; color: #ffffff; padding: 2px 8px; border-radius: 5px; font-size: 10.5px; font-weight: 800;">
+                                        عدد البطاقات: ${group.targets.length}
+                                    </span>
+                                    ${totalGroupPages > 1 ? `<span style="font-size: 10px; color: #64748b; font-weight: bold;">(صفحة ${toArabic(pageInGroupIdx + 1)} من ${toArabic(totalGroupPages)})</span>` : ''}
+                                </div>
+                            </div>
+                        `
+                        : `
+                            <!-- Repeating Header on Subsequent Pages -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1.5px solid ${group.color}; border-radius: 8px; padding: 5px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background-color: ${group.color};"></span>
+                                    <span style="font-size: 11.5px; font-weight: 800; color: #0f172a;">تابع: <strong style="color: ${group.color};">${titleDisplay}</strong></span>
+                                </div>
+                                <div style="font-size: 10.5px; color: ${group.color}; font-weight: 800; background: ${group.color}15; padding: 2px 8px; border-radius: 5px;">
+                                    صفحة ${toArabic(pageInGroupIdx + 1)} من ${toArabic(totalGroupPages)}
+                                </div>
+                            </div>
+                        `;
+
+                    const pageHtml = `
+                        <div class="pdf-page-block" style="width: 210mm; height: 295mm; max-height: 295mm; box-sizing: border-box !important; page-break-after: always; break-after: page; page-break-inside: avoid !important; overflow: hidden !important; position: relative; padding: 10mm 18mm 8mm 18mm; background: #ffffff; direction: rtl; text-align: right; margin: 0 auto;">
+                            ${headerBlock}
+                            
+                            <!-- Table with explicit THEAD header repeated on every single page -->
+                            <table style="width: 100% !important; border-collapse: collapse; margin: 0 auto; table-layout: fixed; box-sizing: border-box;">
+                                <thead>
+                                    <tr style="height: 8.5mm;">
+                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: center; border: 1px solid #004D40; padding: 4px 4px; font-size: 11px; width: 10%;">م</th>
+                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: right; border: 1px solid #004D40; padding: 4px 10px; font-size: 11px; width: 60%;">الاسم</th>
+                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: center; border: 1px solid #004D40; padding: 4px 4px; font-size: 11px; width: 30%;">المرحلة / المستوى</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+
+                    allPagesHtml.push(pageHtml);
+                });
+            });
+
+            const fullCustomHtml = allPagesHtml.join('');
+
             await sharePdfDirectly(
-                headers as any,
-                dataToExport,
-                "قائمة_البطاقات",
+                [],
+                [],
+                "قائمة_الأسماء_للبطاقات",
                 "قائمة الأسماء لإصدار البطاقات",
                 undefined,
                 {},
                 {},
                 undefined,
-                "portrait"
+                "portrait",
+                fullCustomHtml
             );
         } catch (error) {
             console.error("Error generating list PDF:", error);
@@ -743,9 +857,9 @@ export const CardsManager: React.FC = () => {
         if (config.unit === 'cm') { cardW *= 10; cardH *= 10; }
         else if (config.unit === 'in') { cardW *= 25.4; cardH *= 25.4; }
 
-        const gap = pdfGaps ? 5 : 0;
-        const availW = Math.max(0, docW - 20);
-        const availH = Math.max(0, docH - 20);
+        const gap = pdfGaps ? 6 : 2;
+        const availW = Math.max(0, docW - 16);
+        const availH = Math.max(0, docH - 10);
         const cols = Math.max(1, Math.floor((availW + gap) / (cardW + gap)));
         const rows = Math.max(1, Math.floor((availH + gap) / (cardH + gap)));
         return cols * rows;
@@ -771,9 +885,9 @@ export const CardsManager: React.FC = () => {
         if (halaqaConfig.unit === 'cm') { cardW *= 10; cardH *= 10; }
         else if (halaqaConfig.unit === 'in') { cardW *= 25.4; cardH *= 25.4; }
 
-        const gap = pdfGaps ? 5 : 0;
-        const availW = Math.max(0, docW - 20);
-        const availH = Math.max(0, docH - 20);
+        const gap = pdfGaps ? 6 : 2;
+        const availW = Math.max(0, docW - 16);
+        const availH = Math.max(0, docH - 10);
         const cols = Math.max(1, Math.floor((availW + gap) / (cardW + gap)));
         const rows = Math.max(1, Math.floor((availH + gap) / (cardH + gap)));
         return cols * rows;
@@ -792,6 +906,52 @@ export const CardsManager: React.FC = () => {
         else if (halaqaConfig.unit === 'in') { currentW_MM *= 25.4; currentH_MM *= 25.4; }
 
         return Math.abs(currentW_MM - preset.width) < 0.8 && Math.abs(currentH_MM - preset.height) < 0.8;
+    };
+
+    const isCardPresetActive = (preset: typeof CARD_SIZE_PRESETS[0]) => {
+        let currentW_MM = config.width;
+        let currentH_MM = config.height;
+        if (config.unit === 'cm') { currentW_MM *= 10; currentH_MM *= 10; }
+        else if (config.unit === 'in') { currentW_MM *= 25.4; currentH_MM *= 25.4; }
+        return Math.abs(currentW_MM - preset.width) < 0.8 && Math.abs(currentH_MM - preset.height) < 0.8;
+    };
+
+    const handleCardUnitChange = (newUnit: 'cm' | 'mm' | 'in') => {
+        setConfig(prev => {
+            const oldUnit = prev.unit || 'mm';
+            if (oldUnit === newUnit) return prev;
+            let wMM = prev.width;
+            let hMM = prev.height;
+            if (oldUnit === 'cm') { wMM *= 10; hMM *= 10; }
+            else if (oldUnit === 'in') { wMM *= 25.4; hMM *= 25.4; }
+            
+            let newW = wMM;
+            let newH = hMM;
+            if (newUnit === 'cm') { newW = Number((wMM / 10).toFixed(2)); newH = Number((hMM / 10).toFixed(2)); }
+            else if (newUnit === 'in') { newW = Number((wMM / 25.4).toFixed(2)); newH = Number((hMM / 25.4).toFixed(2)); }
+            else { newW = Math.round(wMM); newH = Math.round(hMM); }
+            
+            return { ...prev, unit: newUnit, width: newW, height: newH };
+        });
+    };
+
+    const handleHalaqaUnitChange = (newUnit: 'cm' | 'mm' | 'in') => {
+        setHalaqaConfig(prev => {
+            const oldUnit = prev.unit || 'mm';
+            if (oldUnit === newUnit) return prev;
+            let wMM = prev.width;
+            let hMM = prev.height;
+            if (oldUnit === 'cm') { wMM *= 10; hMM *= 10; }
+            else if (oldUnit === 'in') { wMM *= 25.4; hMM *= 25.4; }
+            
+            let newW = wMM;
+            let newH = hMM;
+            if (newUnit === 'cm') { newW = Number((wMM / 10).toFixed(2)); newH = Number((hMM / 10).toFixed(2)); }
+            else if (newUnit === 'in') { newW = Number((wMM / 25.4).toFixed(2)); newH = Number((hMM / 25.4).toFixed(2)); }
+            else { newW = Math.round(wMM); newH = Math.round(hMM); }
+            
+            return { ...prev, unit: newUnit, width: newW, height: newH };
+        });
     };
 
     useEffect(() => {
@@ -1147,6 +1307,9 @@ export const CardsManager: React.FC = () => {
                 format: exportMode === 'single' ? [docW, docH] : (exportMode === 'other' ? [docW, docH] : exportMode as any)
             });
 
+            // Enforce Actual Size (100% scale) when printed directly from PDF readers
+            pdf.viewerPreferences({ PrintScaling: 'None' }, true);
+
             let cardWMM = halaqaConfig.width;
             let cardHMM = halaqaConfig.height;
             if (halaqaConfig.unit === 'cm') { cardWMM *= 10; cardHMM *= 10; }
@@ -1161,9 +1324,9 @@ export const CardsManager: React.FC = () => {
                     pdf.addImage(imgData, 'JPEG', 0, 0, cardWMM, cardHMM);
                 }
             } else {
-                const gap = pdfGaps ? 5 : 0;
-                const marginX = 10;
-                const marginY = 10;
+                const gap = pdfGaps ? 6 : 2;
+                const marginX = 8;
+                const marginY = 5;
                 const cols = Math.max(1, Math.floor((docW - marginX * 2 + gap) / (cardWMM + gap)));
                 const rows = Math.max(1, Math.floor((docH - marginY * 2 + gap) / (cardHMM + gap)));
                 const cardsPerPage = cols * rows;
@@ -1182,12 +1345,19 @@ export const CardsManager: React.FC = () => {
                     const col = pageIndex % cols;
                     const row = Math.floor(pageIndex / cols);
 
-                    const x = startX + col * (cardWMM + gap);
+                    // Start from right (RTL): 1st card in row is on right, 2nd is on left
+                    const colRTL = cols - 1 - col;
+                    const x = startX + colRTL * (cardWMM + gap);
                     const y = startY + row * (cardHMM + gap);
 
                     await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType);
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
                     pdf.addImage(imgData, 'JPEG', x, y, cardWMM, cardHMM);
+
+                    // faint border for cutting
+                    pdf.setDrawColor(210, 210, 210);
+                    pdf.setLineWidth(0.1);
+                    pdf.rect(x, y, cardWMM, cardHMM);
                 }
             }
 
@@ -1316,10 +1486,17 @@ export const CardsManager: React.FC = () => {
                 });
             }
 
-            // ترتيب الطلاب أولاً حسب المرحلة الدراسية، ثم حسب الترتيب الهجائي للاسم
+            // ترتيب الطلاب أولاً حسب اللون (المراحل المشتركة بنفس اللون معاً)، ثم حسب المرحلة الدراسية، ثم حسب الاسم الهجائي
             result.sort((a, b) => {
                 const stageA = getStudentDisplayStage(a);
                 const stageB = getStudentDisplayStage(b);
+
+                const colorA = ((stageA && effectiveStageColors[stageA]) || '#059669').toUpperCase();
+                const colorB = ((stageB && effectiveStageColors[stageB]) || '#059669').toUpperCase();
+
+                if (colorA !== colorB) {
+                    return colorA.localeCompare(colorB);
+                }
 
                 if (stageA && stageB) {
                     const weightA = getStageWeight(stageA);
@@ -1336,17 +1513,18 @@ export const CardsManager: React.FC = () => {
                 return (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true });
             });
 
-            let currentStage = '';
-            let currentStageIndex = 1;
+            let currentColor = '';
+            let currentColorIndex = 1;
             
             return result.map(s => {
                 const stage = getStudentDisplayStage(s);
-                if (stage !== currentStage) {
-                    currentStage = stage;
-                    currentStageIndex = 1;
+                const color = ((stage && effectiveStageColors[stage]) || '#059669').toUpperCase();
+                if (color !== currentColor) {
+                    currentColor = color;
+                    currentColorIndex = 1;
                 }
-                const res: CardTargetItem = { id: s.id, name: s.name, stage, stageIndex: currentStageIndex };
-                currentStageIndex++;
+                const res: CardTargetItem = { id: s.id, name: s.name, stage, stageIndex: currentColorIndex };
+                currentColorIndex++;
                 return res;
             });
         } else if (activeTab === 'teachers') {
@@ -1357,7 +1535,7 @@ export const CardsManager: React.FC = () => {
         } else {
             return excelData.map((e, idx): CardTargetItem => ({...e, stage: null, stageIndex: idx + 1}));
         }
-    }, [activeTab, students, users, excelData, selectedStage, stages.length]);
+    }, [activeTab, students, users, excelData, selectedStage, stages.length, effectiveStageColors]);
 
     const activeTargets = useMemo<CardTargetItem[]>(() => {
         const hasSpecificSelection = selectedIds && selectedIds.length > 0 && !selectedIds.includes('ALL') && !selectedIds.includes('all');
@@ -1789,19 +1967,21 @@ export const CardsManager: React.FC = () => {
                     format: docFormat
                 });
 
+                // Enforce Actual Size (100% scale) when printed directly from PDF readers
+                pdf.viewerPreferences({ PrintScaling: 'None' }, true);
+
                 docWidth = pdf.internal.pageSize.getWidth();
                 docHeight = pdf.internal.pageSize.getHeight();
 
-                let currentX = 0;
-                let currentY = 0;
-                const marginX = 10; 
-                const marginY = 10;
-                let firstPage = true;
+                const gap = pdfGaps ? 6 : 2;
+                const marginX = 8; 
+                const marginY = 5;
+                const cols = Math.max(1, Math.floor((docWidth - marginX * 2 + gap) / (cardWidthMM + gap)));
+                const rows = Math.max(1, Math.floor((docHeight - marginY * 2 + gap) / (cardHeightMM + gap)));
+                const cardsPerPage = exportMode === 'single' ? 1 : cols * rows;
 
-                if (exportMode === 'a4' || exportMode === 'a3' || exportMode === 'other') {
-                    currentX = marginX;
-                    currentY = marginY;
-                }
+                const startX = (docWidth - (cols * cardWidthMM + (cols - 1) * gap)) / 2;
+                const startY = (docHeight - (rows * cardHeightMM + (rows - 1) * gap)) / 2;
 
                 for (let i = 0; i < targets.length; i++) {
                     const target = targets[i];
@@ -2035,29 +2215,28 @@ export const CardsManager: React.FC = () => {
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
                     if (exportMode === 'single') {
-                        if (!firstPage) pdf.addPage([cardWidthMM, cardHeightMM], cardWidthMM > cardHeightMM ? 'landscape' : 'portrait');
+                        if (i > 0) pdf.addPage([cardWidthMM, cardHeightMM], cardWidthMM > cardHeightMM ? 'landscape' : 'portrait');
                         pdf.addImage(imgData, 'JPEG', 0, 0, cardWidthMM, cardHeightMM);
-                        firstPage = false;
                     } else {
-                        const gap = pdfGaps ? 5 : 0;
-                        if (currentX + cardWidthMM > docWidth - marginX && currentX !== marginX) {
-                            currentX = marginX;
-                            currentY += cardHeightMM + gap;
-                        }
-                        if (currentY + cardHeightMM > docHeight - marginY && currentY !== marginY) {
+                        if (i > 0 && i % cardsPerPage === 0) {
                             pdf.addPage(docFormat, isLandscape ? 'landscape' : 'portrait');
-                            currentX = marginX;
-                            currentY = marginY;
                         }
-                        
-                        pdf.addImage(imgData, 'JPEG', currentX, currentY, cardWidthMM, cardHeightMM);
+
+                        const pageIndex = i % cardsPerPage;
+                        const col = pageIndex % cols;
+                        const row = Math.floor(pageIndex / cols);
+
+                        // Start from right (RTL): 1st card in row is on right, 2nd is on left
+                        const colRTL = cols - 1 - col;
+                        const x = startX + colRTL * (cardWidthMM + gap);
+                        const y = startY + row * (cardHeightMM + gap);
+
+                        pdf.addImage(imgData, 'JPEG', x, y, cardWidthMM, cardHeightMM);
                         
                         // faint border for cutting
-                        pdf.setDrawColor(200, 200, 200);
+                        pdf.setDrawColor(210, 210, 210);
                         pdf.setLineWidth(0.1);
-                        pdf.rect(currentX, currentY, cardWidthMM, cardHeightMM);
-
-                        currentX += cardWidthMM + gap;
+                        pdf.rect(x, y, cardWidthMM, cardHeightMM);
                     }
                 }
 
@@ -2306,14 +2485,21 @@ export const CardsManager: React.FC = () => {
                         
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
                             <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">إعدادات الطباعة</h4>
-                            <div className="flex items-center justify-between mb-3">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <div className="relative">
+                            <div className="flex items-center justify-between mb-3 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <label className="flex items-center gap-2 cursor-pointer w-full">
+                                    <div className="relative shrink-0">
                                         <input type="checkbox" className="sr-only" checked={pdfGaps} onChange={(e) => handlePdfGapsChange(e.target.checked)} />
                                         <div className={`block w-10 h-6 rounded-full transition-colors ${pdfGaps ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
                                         <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${pdfGaps ? 'transform translate-x-4' : ''}`}></div>
                                     </div>
-                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">ترك مسافة بين البطاقات</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                            {pdfGaps ? 'مسافة تباعد واسعة بين البطاقات (6 مم)' : 'مسافة دقيقة لخط القص (2 مم)'}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                            {pdfGaps ? 'فواصل 6 مم لقص البطاقات بالمقص بسهولة وراحة' : 'فواصل 2 مم لتقارب البطاقات واستيعاب أقصى عدد مع خط قص واضح'}
+                                        </span>
+                                    </div>
                                 </label>
                             </div>
                             <div className="flex gap-2">
@@ -2625,6 +2811,19 @@ export const CardsManager: React.FC = () => {
                                     {formatSheetsCount(estimatedTotalSheets, totalCardsCount)}
                                 </span>
                             </div>
+
+                            {/* تنبيه دقة المقاس الفعلي 100% */}
+                            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-xl p-2.5 text-emerald-900 dark:text-emerald-200 shadow-2xs">
+                                <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                                    <span className="text-sm">📐</span>
+                                    <span>المقاس الفعلي 100% في الواقع:</span>
+                                    <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">مضبوط برمجياً</span>
+                                </div>
+                                <p className="text-[10px] leading-relaxed text-emerald-800 dark:text-emerald-300">
+                                    ملف الـ PDF مبرمج لمنع التصغير (<code className="font-mono text-[9px] bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.5 rounded">PrintScaling: None</code>).
+                                    عند الطباعة من الملف مباشرة، تأكد من اختيار <strong>«الحجم الفعلي / Actual Size» أو 100%</strong> وتجنب «ملاءمة / Fit» لضمان خروج البطاقة بنفس المقاس المحدد بالمليمتر تماماً.
+                                </p>
+                            </div>
                         </div>
 
                         <button 
@@ -2667,25 +2866,60 @@ export const CardsManager: React.FC = () => {
 
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white dark:bg-gray-800 p-3.5 sm:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-3">
                             <h4 className="font-bold text-sm sm:text-base text-gray-700 dark:text-gray-300">أبعاد الطباعة</h4>
                             <div className="flex items-center gap-1.5 sm:gap-4">
                                 <div className="flex items-center gap-1 sm:gap-2">
                                     <label className="text-[10px] sm:text-xs font-bold text-gray-600 dark:text-gray-400">العرض:</label>
-                                    <input type="number" value={safeNumberVal(config.width, 8.5)} onChange={e => setConfig(p => ({...p, width: parseSafeNumber(e.target.value, 8.5)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                    <input type="number" value={safeNumberVal(config.width, config.unit === 'cm' ? 8.5 : 85)} onChange={e => setConfig(p => ({...p, width: parseSafeNumber(e.target.value, config.unit === 'cm' ? 8.5 : 85)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
                                     <label className="text-[10px] sm:text-xs font-bold text-gray-600 dark:text-gray-400">الطول:</label>
-                                    <input type="number" value={safeNumberVal(config.height, 5.5)} onChange={e => setConfig(p => ({...p, height: parseSafeNumber(e.target.value, 5.5)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                    <input type="number" value={safeNumberVal(config.height, config.unit === 'cm' ? 5.4 : 54)} onChange={e => setConfig(p => ({...p, height: parseSafeNumber(e.target.value, config.unit === 'cm' ? 5.4 : 54)}))} onFocus={e => e.target.select()} className="w-12 sm:w-16 p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                 </div>
                                 <div className="flex items-center gap-1 sm:gap-2">
                                     <label className="text-[10px] sm:text-xs font-bold text-gray-600 dark:text-gray-400">الوحدة:</label>
-                                    <select value={config.unit} onChange={e => setConfig(p => ({...p, unit: e.target.value as any}))} className="p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        <option value="cm">سم</option>
+                                    <select value={config.unit} onChange={e => handleCardUnitChange(e.target.value as any)} className="p-1 text-[10px] sm:text-xs border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold">
                                         <option value="mm">مم</option>
+                                        <option value="cm">سم</option>
                                         <option value="in">بوصة</option>
                                     </select>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* مقاسات جاهزة لبطاقة الهوية والطلاب */}
+                        <div className="mb-4 bg-gray-50 dark:bg-gray-700/40 p-2.5 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
+                                📐 مقاسات شائعة جاهزة للتعيين المباشر:
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                {CARD_SIZE_PRESETS.map(preset => {
+                                    const active = isCardPresetActive(preset);
+                                    return (
+                                        <button
+                                            key={preset.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setConfig(p => ({
+                                                    ...p,
+                                                    width: preset.width,
+                                                    height: preset.height,
+                                                    unit: preset.unit
+                                                }));
+                                                showToast(`📐 تم ضبط مقاس البطاقة على ${preset.name} (${preset.width} × ${preset.height} مم)`);
+                                            }}
+                                            className={`p-1.5 rounded-lg text-center border transition-all text-xs font-bold ${
+                                                active 
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' 
+                                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            <span className="block text-[11px] font-bold">{preset.name}</span>
+                                            <span className={`block text-[9px] ${active ? 'text-emerald-100' : 'text-gray-500 dark:text-gray-400'}`}>{preset.label}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -3194,9 +3428,9 @@ export const CardsManager: React.FC = () => {
                                         إعدادات الطباعة
                                     </h4>
                                     
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <div className="relative">
+                                    <div className="flex items-center justify-between mb-2 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                        <label className="flex items-center gap-2 cursor-pointer w-full">
+                                            <div className="relative shrink-0">
                                                 <input
                                                     type="checkbox"
                                                     className="sr-only"
@@ -3206,7 +3440,14 @@ export const CardsManager: React.FC = () => {
                                                 <div className={`block w-10 h-6 rounded-full transition-colors ${pdfGaps ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
                                                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${pdfGaps ? 'transform translate-x-4' : ''}`}></div>
                                             </div>
-                                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">ترك مسافة بين البطاقات</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                                    {pdfGaps ? 'مسافة تباعد واسعة بين البطاقات (6 مم)' : 'مسافة دقيقة لخط القص (2 مم)'}
+                                                </span>
+                                                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                    {pdfGaps ? 'فواصل 6 مم لقص البطاقات بالمقص بسهولة وراحة' : 'فواصل 2 مم لتقارب البطاقات واستيعاب أقصى عدد مع خط قص واضح'}
+                                                </span>
+                                            </div>
                                         </label>
                                     </div>
 
@@ -3539,6 +3780,19 @@ export const CardsManager: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* تنبيه دقة المقاس الفعلي 100% */}
+                                    <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-xl p-2.5 text-emerald-900 dark:text-emerald-200 shadow-2xs">
+                                        <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
+                                            <span className="text-sm">📐</span>
+                                            <span>المقاس الفعلي 100% في الواقع:</span>
+                                            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">مضبوط برمجياً</span>
+                                        </div>
+                                        <p className="text-[10px] leading-relaxed text-emerald-800 dark:text-emerald-300">
+                                            ملف الـ PDF مبرمج لمنع التصغير (<code className="font-mono text-[9px] bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.5 rounded">PrintScaling: None</code>).
+                                            عند الطباعة من الملف مباشرة، تأكد من اختيار <strong>«الحجم الفعلي / Actual Size» أو 100%</strong> وتجنب «ملاءمة / Fit» لضمان خروج بطاقة الحلقة بنفس المقاس المحدد بالمليمتر تماماً.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {/* PDF Generation Button */}
@@ -3628,8 +3882,8 @@ export const CardsManager: React.FC = () => {
                                                 <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">العرض:</label>
                                                 <input
                                                     type="number"
-                                                    value={safeNumberVal(halaqaConfig.width, 8.5)}
-                                                    onChange={e => setHalaqaConfig(p => ({ ...p, width: parseSafeNumber(e.target.value, 8.5) }))}
+                                                    value={safeNumberVal(halaqaConfig.width, halaqaConfig.unit === 'cm' ? 14.8 : 148)}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, width: parseSafeNumber(e.target.value, halaqaConfig.unit === 'cm' ? 14.8 : 148) }))}
                                                     onFocus={e => e.target.select()}
                                                     className="w-16 sm:w-20 p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
                                                 />
@@ -3638,8 +3892,8 @@ export const CardsManager: React.FC = () => {
                                                 <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الارتفاع:</label>
                                                 <input
                                                     type="number"
-                                                    value={safeNumberVal(halaqaConfig.height, 5.5)}
-                                                    onChange={e => setHalaqaConfig(p => ({ ...p, height: parseSafeNumber(e.target.value, 5.5) }))}
+                                                    value={safeNumberVal(halaqaConfig.height, halaqaConfig.unit === 'cm' ? 21 : 210)}
+                                                    onChange={e => setHalaqaConfig(p => ({ ...p, height: parseSafeNumber(e.target.value, halaqaConfig.unit === 'cm' ? 21 : 210) }))}
                                                     onFocus={e => e.target.select()}
                                                     className="w-16 sm:w-20 p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center font-bold"
                                                 />
@@ -3648,7 +3902,7 @@ export const CardsManager: React.FC = () => {
                                                 <label className="text-xs text-gray-600 dark:text-gray-400 font-bold">الوحدة:</label>
                                                 <select
                                                     value={halaqaConfig.unit}
-                                                    onChange={e => setHalaqaConfig(p => ({ ...p, unit: e.target.value as any }))}
+                                                    onChange={e => handleHalaqaUnitChange(e.target.value as any)}
                                                     className="p-1.5 text-xs border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white font-bold cursor-pointer"
                                                 >
                                                     <option value="mm">مم</option>
