@@ -526,9 +526,11 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       }
       return { label: grade, color };
     }
-    if (totalErrors === 0) return { label: 'ممتاز', color: 'bg-emerald-600 text-white' };
-    if (totalErrors <= 2) return { label: 'جيد جداً', color: 'bg-blue-600 text-white' };
-    if (totalErrors <= 5) return { label: 'جيد', color: 'bg-amber-600 text-white' };
+    // التغيير بين التقديرات يكون بالعدد الصحيح دون حساب الفواصل (مثلاً 0.5 تجويد يبقى ممتاز، و1.0 ينتقل إلى جيد جداً)
+    const integerErrors = Math.floor(totalErrors);
+    if (integerErrors === 0) return { label: 'ممتاز', color: 'bg-emerald-600 text-white' };
+    if (integerErrors <= 2) return { label: 'جيد جداً', color: 'bg-blue-600 text-white' };
+    if (integerErrors <= 5) return { label: 'جيد', color: 'bg-amber-600 text-white' };
     return { label: 'لم يحفظ', color: 'bg-red-600 text-white' };
   }, [totalErrors, isSardMode]);
 
@@ -546,253 +548,192 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       >
         {/* Header Bar - Either simplified Test Passage Toolbar OR Standard Header Bar */}
         {isTestMode && activePassage ? (
-          /* شريط المقطع المخصص للاختبار: يقتصر فقط على بيان نطاق المقطع، زر إكمال المقطع، زر الانتقال للمقطع الآخر، وزر الإغلاق */
-          <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out z-30 flex-shrink-0 ${
-            showControls ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-          }`}>
-            <div className="overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 dark:from-amber-700 dark:via-amber-600 dark:to-amber-700 text-amber-950 dark:text-amber-50 px-2.5 sm:px-4 py-2 shadow-md border-b-2 border-amber-600/80 dark:border-amber-500 select-none">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  {/* 1. بيان نطاق المقطع وزر الإغلاق على الهاتف */}
-                  <div className="flex items-center justify-between gap-2 min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                      <span className="bg-amber-950 text-amber-100 text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1 shadow-xs shrink-0">
-                        <span>🎯</span>
-                        <span>المقطع {toArabicDigits(activePassage.passageNumber)} من {toArabicDigits(allPassages?.length || testPassagesCount || 3)}</span>
+          /* شريط المقطع المخصص للاختبار: رأس متصل ودائم بدون انقطاع */
+          <div className="z-30 flex-shrink-0">
+            <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 dark:from-amber-700 dark:via-amber-600 dark:to-amber-700 text-amber-950 dark:text-amber-50 px-2.5 sm:px-4 py-2 shadow-md border-b-2 border-amber-600/80 dark:border-amber-500 select-none">
+              <div className="flex items-center justify-between gap-2">
+                {/* 1. بيان نطاق المقطع ورقم الصفحة بشكل متصل وانسيابي بدون انقطاع وبدون شريط تمرير */}
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 py-0.5">
+                  <span className="bg-amber-950 text-amber-100 text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-black flex items-center gap-1 shadow-xs shrink-0 whitespace-nowrap">
+                    <span>🎯</span>
+                    <span>المقطع {toArabicDigits(activePassage.passageNumber)} من {toArabicDigits(allPassages?.length || testPassagesCount || 3)}</span>
+                  </span>
+                  <span className="text-[11px] sm:text-sm font-black text-amber-950 dark:text-amber-50 truncate">
+                    {activePassage.description}
+                  </span>
+                  <span className="bg-amber-950/20 text-amber-950 dark:text-amber-100 text-[11px] px-2 py-0.5 rounded-md font-black shrink-0 whitespace-nowrap border border-amber-700/30">
+                    ص {currentPage}
+                  </span>
+                </div>
+
+                {/* 2. الأزرار المختصرة المحددة: إكمال المقطع، الانتقال للمقطع الآخر، الإغلاق */}
+                <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0">
+                  {/* زر إنجاز المقطع (مربع بني مطابق لصفحة الاختبار) */}
+                  {onTogglePassage && (
+                    <button
+                      type="button"
+                      onClick={() => onTogglePassage(activePassage.passageNumber)}
+                      className={`w-7 h-7 min-w-[28px] min-h-[28px] rounded-lg shrink-0 flex items-center justify-center transition-all border-2 cursor-pointer select-none active:scale-90 ${
+                        completedPassages.includes(activePassage.passageNumber)
+                          ? 'bg-[#78350f] border-[#78350f] text-white shadow-xs'
+                          : 'bg-white border-[#78350f] hover:bg-amber-50'
+                      }`}
+                      title={completedPassages.includes(activePassage.passageNumber) ? 'تم التسميع - انقر للإلغاء' : 'تحديد المقطع كمُنجز'}
+                    >
+                      {completedPassages.includes(activePassage.passageNumber) && (
+                        <Check className="w-4 h-4 text-white stroke-[3.5]" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* زر تغيير المقطع المقترح مع الخصم (مطابق لزر صفحة الاختبار) */}
+                  {onReplaceActivePassageWithDeduction && (
+                    <button
+                      type="button"
+                      onClick={() => onReplaceActivePassageWithDeduction(activePassage.passageNumber)}
+                      className="min-h-[28px] h-7 px-2 py-0.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-xs font-black shadow-xs transition-all active:scale-95 flex items-center justify-center gap-1 border border-purple-500 shrink-0 cursor-pointer select-none"
+                      title={`تغيير المقطع المقترح وخصم ${toArabicDigits(testDeductions?.passageChange ?? 2)} درجات`}
+                    >
+                      <RotateCw className="w-3.5 h-3.5 text-white shrink-0" />
+                      <span className="text-[10px] bg-purple-900/90 text-purple-100 px-1 py-0.5 rounded-md font-black leading-none">
+                        (-{toArabicDigits(testDeductions?.passageChange ?? 2)})
                       </span>
-                      <span className="text-[11px] sm:text-sm font-black text-amber-950 dark:text-amber-50 break-words leading-tight">
-                        {activePassage.description}
-                      </span>
+                    </button>
+                  )}
+
+                  {/* أزرار الانتقال للمقطع الآخر */}
+                  {allPassages && allPassages.length > 1 && onSelectPassage && (
+                    <div className="flex items-center gap-1 bg-amber-950/20 p-0.5 rounded-xl border border-amber-600/40 shrink-0">
+                      <button
+                        type="button"
+                        disabled={activePassage.passageNumber <= 1}
+                        onClick={() => {
+                          const prev = allPassages.find(p => p.passageNumber === activePassage.passageNumber - 1);
+                          if (prev) onSelectPassage(prev);
+                        }}
+                        className="min-h-[30px] px-2 py-1 rounded-lg bg-amber-950 text-amber-100 text-xs font-black disabled:opacity-30 disabled:pointer-events-none hover:bg-black transition active:scale-95 cursor-pointer"
+                        title="الانتقال للمقطع السابق"
+                      >
+                        ▶ السابق
+                      </button>
+                      <button
+                        type="button"
+                        disabled={activePassage.passageNumber >= allPassages.length}
+                        onClick={() => {
+                          const next = allPassages.find(p => p.passageNumber === activePassage.passageNumber + 1);
+                          if (next) onSelectPassage(next);
+                        }}
+                        className="min-h-[30px] px-2 py-1 rounded-lg bg-amber-950 text-amber-100 text-xs font-black disabled:opacity-30 disabled:pointer-events-none hover:bg-black transition active:scale-95 cursor-pointer"
+                        title="الانتقال للمقطع التالي"
+                      >
+                        التالي ◀
+                      </button>
                     </div>
+                  )}
 
-                    {/* زر الإغلاق على الهاتف في الزاوية العلوية */}
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="sm:hidden px-2.5 py-1 min-h-[32px] rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-xs transition active:scale-95 flex items-center justify-center gap-1 border border-red-500 shrink-0"
-                      title="إغلاق المصحف"
-                    >
-                      <span>✕</span>
-                      <span>إغلاق</span>
-                    </button>
-                  </div>
-
-                  {/* 2. الأزرار المختصرة المحددة: إكمال المقطع، الانتقال للمقطع الآخر، الإغلاق للشاشات الأكبر */}
-                  <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 shrink-0">
-                    {/* زر إنجاز المقطع (مربع بني مطابق لصفحة الاختبار) */}
-                    {onTogglePassage && (
-                      <button
-                        type="button"
-                        onClick={() => onTogglePassage(activePassage.passageNumber)}
-                        className={`w-7 h-7 min-w-[28px] min-h-[28px] rounded-lg shrink-0 flex items-center justify-center transition-all border-2 cursor-pointer select-none active:scale-90 ${
-                          completedPassages.includes(activePassage.passageNumber)
-                            ? 'bg-[#78350f] border-[#78350f] text-white shadow-xs'
-                            : 'bg-white border-[#78350f] hover:bg-amber-50'
-                        }`}
-                        title={completedPassages.includes(activePassage.passageNumber) ? 'تم التسميع - انقر للإلغاء' : 'تحديد المقطع كمُنجز'}
-                      >
-                        {completedPassages.includes(activePassage.passageNumber) && (
-                          <Check className="w-4 h-4 text-white stroke-[3.5]" />
-                        )}
-                      </button>
-                    )}
-
-                    {/* زر تغيير المقطع المقترح مع الخصم (مطابق لزر صفحة الاختبار) */}
-                    {onReplaceActivePassageWithDeduction && (
-                      <button
-                        type="button"
-                        onClick={() => onReplaceActivePassageWithDeduction(activePassage.passageNumber)}
-                        className="min-h-[28px] h-7 px-2 py-0.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-xs font-black shadow-xs transition-all active:scale-95 flex items-center justify-center gap-1 border border-purple-500 shrink-0 cursor-pointer select-none"
-                        title={`تغيير المقطع المقترح وخصم ${toArabicDigits(testDeductions?.passageChange ?? 2)} درجات`}
-                      >
-                        <RotateCw className="w-3.5 h-3.5 text-white shrink-0" />
-                        <span className="text-[10px] bg-purple-900/90 text-purple-100 px-1 py-0.5 rounded-md font-black leading-none">
-                          (-{toArabicDigits(testDeductions?.passageChange ?? 2)})
-                        </span>
-                      </button>
-                    )}
-
-                    {/* أزرار الانتقال للمقطع الآخر */}
-                    {allPassages && allPassages.length > 1 && onSelectPassage && (
-                      <div className="flex items-center gap-1 bg-amber-950/20 p-0.5 rounded-xl border border-amber-600/40 shrink-0">
-                        <button
-                          type="button"
-                          disabled={activePassage.passageNumber <= 1}
-                          onClick={() => {
-                            const prev = allPassages.find(p => p.passageNumber === activePassage.passageNumber - 1);
-                            if (prev) onSelectPassage(prev);
-                          }}
-                          className="min-h-[34px] px-2.5 py-1 rounded-lg bg-amber-950 text-amber-100 text-xs font-black disabled:opacity-30 disabled:pointer-events-none hover:bg-black transition active:scale-95"
-                          title="الانتقال للمقطع السابق"
-                        >
-                          ▶ السابق
-                        </button>
-                        <button
-                          type="button"
-                          disabled={activePassage.passageNumber >= allPassages.length}
-                          onClick={() => {
-                            const next = allPassages.find(p => p.passageNumber === activePassage.passageNumber + 1);
-                            if (next) onSelectPassage(next);
-                          }}
-                          className="min-h-[34px] px-2.5 py-1 rounded-lg bg-amber-950 text-amber-100 text-xs font-black disabled:opacity-30 disabled:pointer-events-none hover:bg-black transition active:scale-95"
-                          title="الانتقال للمقطع التالي"
-                        >
-                          التالي ◀
-                        </button>
-                      </div>
-                    )}
-
-                    {/* زر الإغلاق للشاشات الكبيرة */}
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="hidden sm:flex px-3 py-1 min-h-[34px] rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-xs transition active:scale-95 items-center justify-center gap-1 border border-red-500 shrink-0"
-                      title="إغلاق المصحف"
-                    >
-                      <span>✕</span>
-                      <span>إغلاق</span>
-                    </button>
-                  </div>
+                  {/* زر الإغلاق */}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-2.5 sm:px-3 py-1 min-h-[30px] rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-xs transition active:scale-95 flex items-center justify-center gap-1 border border-red-500 shrink-0 cursor-pointer"
+                    title="إغلاق المصحف"
+                  >
+                    <span>✕</span>
+                    <span className="hidden sm:inline">إغلاق</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          /* الرأس القياسي لمصحف التسميع والسرد العادي */
-          <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out z-30 flex-shrink-0 ${
-            showControls ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-          }`}>
-            <div className="overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between shadow-md border-b border-emerald-800/60">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="text-base sm:text-lg flex-shrink-0">📖</span>
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                <span className="text-xs sm:text-sm font-black text-amber-200 truncate">
-                  {isSardMode ? 'مصحف السرد' : 'مصحف التسميع'}
-                </span>
-
-                {targetPages.length > 0 && (
-                  <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                    <span className="bg-emerald-800/90 text-white px-2 py-0.5 rounded-md text-[11px] font-bold border border-emerald-700/60 shadow-xs">
-                      جزء {currentJuz}
-                    </span>
-                    {currentSurahs.length > 0 && (
-                      <span className="bg-emerald-950/80 text-emerald-200 px-2 py-0.5 rounded-md text-[11px] font-medium border border-emerald-800/80 truncate max-w-[150px]">
-                        {currentSurahs.join('، ')}
-                      </span>
-                    )}
-                    {isSardMode ? (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black">
-                        سرد
-                      </span>
-                    ) : (
-                      <>
-                        {isNew && (
-                          <span className="px-1.5 py-0.5 rounded bg-green-500 text-white text-[10px] font-black">
-                            جديد
-                          </span>
-                        )}
-                        {isPrevWeek && !isNew && (
-                          <span className="px-1.5 py-0.5 rounded bg-[#8B4513] text-amber-100 text-[10px] font-black">
-                            سابق
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {studentName && (
-                  <span className="hidden lg:inline-block text-[11px] text-emerald-300 font-medium">
-                    ({studentName})
+          /* الرأس القياسي لمصحف التسميع والسرد العادي: رأس متصل ودائم بدون شريط تمرير وبدون اسم الطالب */
+          <div className="z-30 flex-shrink-0">
+            <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between shadow-md border-b border-emerald-800/60 select-none">
+              <div className="flex items-center gap-2 min-w-0 flex-1 py-0.5">
+                <span className="text-base sm:text-lg flex-shrink-0">📖</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0 whitespace-nowrap">
+                  <span className="text-xs sm:text-sm font-black text-amber-200">
+                    {isSardMode ? 'مصحف السرد' : 'مصحف التسميع'}
                   </span>
-                )}
+
+                  {targetPages.length > 0 && (
+                    <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                      <span className="bg-emerald-800/90 text-white px-2 py-0.5 rounded-md text-[11px] font-bold border border-emerald-700/60 shadow-xs">
+                        جزء {currentJuz}
+                      </span>
+                      {currentSurahs.length > 0 && (
+                        <span className="bg-emerald-950/80 text-emerald-200 px-2 py-0.5 rounded-md text-[11px] font-medium border border-emerald-800/80 whitespace-nowrap">
+                          {currentSurahs.join('، ')}
+                        </span>
+                      )}
+                      <span className="bg-amber-400 text-amber-950 px-2 py-0.5 rounded-md text-[11px] font-black border border-amber-300 shadow-xs">
+                        ص {currentPage}
+                      </span>
+                      {isSardMode ? (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black">
+                          سرد
+                        </span>
+                      ) : (
+                        <>
+                          {isNew && (
+                            <span className="px-1.5 py-0.5 rounded bg-green-500 text-white text-[10px] font-black">
+                              جديد
+                            </span>
+                          )}
+                          {isPrevWeek && !isNew && (
+                            <span className="px-1.5 py-0.5 rounded bg-[#8B4513] text-amber-100 text-[10px] font-black">
+                              سابق
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Header Action Tools: Quick Zoom & Close Button */}
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 mr-2">
+                {/* Quick Zoom Buttons */}
+                <div className="hidden sm:flex items-center bg-emerald-950/80 rounded-lg p-0.5 border border-emerald-700/50">
+                  <button 
+                    type="button" 
+                    onClick={handleZoomIn} 
+                    className="w-6 h-6 flex items-center justify-center rounded text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer"
+                    title="تكبير"
+                  >
+                    +
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleZoomReset} 
+                    className="px-1.5 h-6 flex items-center justify-center rounded text-[10px] font-bold text-emerald-200 hover:bg-emerald-700 transition cursor-pointer"
+                    title="إعادة ضبط"
+                  >
+                    {Math.round(zoom * 100)}%
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={handleZoomOut} 
+                    className="w-6 h-6 flex items-center justify-center rounded text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer"
+                    title="تصغير"
+                  >
+                    -
+                  </button>
+                </div>
+
+                {/* Close Button */}
+                <button 
+                  type="button" 
+                  onClick={onClose} 
+                  className="px-2.5 sm:px-3 py-1 rounded-lg bg-red-600/90 hover:bg-red-700 text-white text-xs font-black shadow-xs transition active:scale-95 flex items-center gap-1 border border-red-500/80 cursor-pointer"
+                  title="إغلاق المصحف"
+                >
+                  <span>✕</span>
+                  <span className="hidden sm:inline">إغلاق</span>
+                </button>
               </div>
             </div>
-
-            {/* Header Action Tools */}
-            <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-              {/* Quick Zoom Buttons */}
-              <div className="hidden sm:flex items-center bg-emerald-950/80 rounded-lg p-0.5 border border-emerald-700/50">
-                <button 
-                  type="button" 
-                  onClick={handleZoomIn} 
-                  className="w-6 h-6 flex items-center justify-center rounded text-xs font-bold text-white hover:bg-emerald-700 transition"
-                  title="تكبير"
-                >
-                  +
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleZoomReset} 
-                  className="px-1.5 h-6 flex items-center justify-center rounded text-[10px] font-bold text-emerald-200 hover:bg-emerald-700 transition"
-                  title="إعادة ضبط"
-                >
-                  {Math.round(zoom * 100)}%
-                </button>
-                <button 
-                  type="button" 
-                  onClick={handleZoomOut} 
-                  className="w-6 h-6 flex items-center justify-center rounded text-xs font-bold text-white hover:bg-emerald-700 transition"
-                  title="تصغير"
-                >
-                  -
-                </button>
-              </div>
-
-              {/* Fit Width / Height Toggle */}
-              <button 
-                type="button" 
-                onClick={() => setFitMode(prev => prev === 'width' ? 'height' : 'width')} 
-                className="p-1 sm:p-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-700 text-amber-200 transition text-xs font-bold border border-emerald-700/50 flex items-center justify-center gap-1"
-                title={fitMode === 'width' ? "التبديل إلى ملاءمة الارتفاع" : "التبديل إلى أقصى عرض (تمرير عمودي)"}
-              >
-                <span>{fitMode === 'width' ? '↕️' : '↔️'}</span>
-                <span className="hidden sm:inline text-[11px]">{fitMode === 'width' ? 'ملاءمة الارتفاع' : 'أقصى عرض'}</span>
-              </button>
-
-              <button 
-                type="button" 
-                onClick={toggleFullscreen} 
-                className="p-1 sm:p-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-700 text-white transition text-xs font-bold border border-emerald-700/50 flex items-center justify-center"
-                title={isFullscreen ? "إلغاء ملء الشاشة" : "ملء الشاشة"}
-              >
-                ⛶
-              </button>
-
-              <button 
-                type="button" 
-                onClick={onClose} 
-                className="px-3 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-600 text-white transition text-sm font-black shadow-lg shadow-red-900/20 flex items-center justify-center gap-1 border border-red-500 backdrop-blur-sm active:scale-95"
-                title="إغلاق المصحف"
-              >
-                <span>✕</span> <span>إغلاق</span>
-              </button>
-            </div>
-          </div>
-          </div>
-          </div>
-        )}
-
-        {/* Subtle Floating Page Info & Close Badge when bars are hidden */}
-        {!showControls && (
-          <div className="absolute top-2 left-2 right-2 z-40 flex items-center justify-between pointer-events-none animate-fade-in">
-            {/* Quick Page Info Badge */}
-            <div className="bg-black/80 backdrop-blur-md text-amber-200 px-3 py-1 rounded-full text-xs font-bold border border-amber-500/40 shadow-lg flex items-center gap-2 pointer-events-auto">
-              <span>صفحة {currentPage}</span>
-              {currentSurahs.length > 0 && <span className="text-gray-300 font-normal">({currentSurahs[0]})</span>}
-              <span className="text-emerald-400 text-[10px]">جزء {currentJuz}</span>
-            </div>
-
-            {/* Quick Close Button */}
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="w-8 h-8 rounded-full bg-red-600/90 hover:bg-red-600 text-white font-bold flex items-center justify-center shadow-lg border border-red-400 active:scale-95 transition pointer-events-auto"
-              title="إغلاق المصحف"
-            >
-              ✕
-            </button>
           </div>
         )}
 
@@ -1119,21 +1060,21 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
           {sardGroupMode && sardGroupStudents.length > 0 ? (
             <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto py-0.5">
               {/* زر اختيار الطالب في السرد الجماعي */}
-              <div className="relative shrink-0 max-w-[65%]" ref={studentDropdownRef}>
+              <div className="relative shrink-0 max-w-[80%] sm:max-w-md" ref={studentDropdownRef}>
                 <button
                   type="button"
                   onClick={() => {
                     setIsStudentDropdownOpen(!isStudentDropdownOpen);
                     setStudentSearchTerm('');
                   }}
-                  className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 px-2 py-1 rounded-lg text-[10.5px] sm:text-xs font-bold shadow-2xs border border-emerald-400/40 transition-all cursor-pointer active:scale-95 truncate"
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold shadow-2xs border border-emerald-400/40 transition-all cursor-pointer active:scale-95"
                   title="اضغط لاختيار أو تبديل الطالب"
                 >
-                  <span className="text-xs shrink-0">👤</span>
-                  <span className="truncate font-black">
+                  <span className="text-sm shrink-0">👤</span>
+                  <span className="font-black leading-tight break-words">
                     {sardGroupStudents.find(s => s.id === selectedGroupStudentId)?.name || 'اختر الطالب'}
                   </span>
-                  <div className="flex items-center gap-0.5 shrink-0 bg-emerald-800/80 px-1 py-0.2 rounded text-[9px]">
+                  <div className="flex items-center gap-0.5 shrink-0 bg-emerald-800/80 px-1 py-0.2 rounded text-[9px] mr-1">
                     <span>تبديل</span>
                     <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${isStudentDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
@@ -1368,9 +1309,9 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
           ) : (
             <div className="flex items-center justify-between gap-2 w-full max-w-4xl mx-auto py-0.5">
               {studentName && (
-                <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10.5px] sm:text-xs font-bold truncate max-w-[45%] shadow-2xs">
-                  <span className="text-xs">👤</span>
-                  <span className="truncate">{studentName}</span>
+                <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 px-2.5 py-1 rounded-lg text-xs sm:text-sm font-bold shadow-2xs min-w-0 max-w-[80%] sm:max-w-md">
+                  <span className="text-sm shrink-0">👤</span>
+                  <span className="font-bold leading-tight break-words">{studentName}</span>
                 </div>
               )}
 
