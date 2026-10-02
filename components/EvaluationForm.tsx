@@ -398,12 +398,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   }, [newMemorizedPages, selectedSurahIds, studentQuranHistory]);
 
   const getSurahHistory = useCallback((sId: number) => {
+    if (studentQuranHistory.unmemorizedSurahs.has(sId)) return 'UNMEMORIZED';
     if (studentQuranHistory.prevWeekFullSurahs.has(sId)) return 'PREV_WEEK_FULL';
     if (studentQuranHistory.priorFullSurahs.has(sId)) return 'PRIOR_FULL';
     return 'NONE';
   }, [studentQuranHistory]);
 
   const getPageHistory = useCallback((page: number) => {
+    if (studentQuranHistory.unmemorizedPages.has(page)) return 'UNMEMORIZED';
     if (studentQuranHistory.prevWeekFullPages.has(page)) return 'PREV_WEEK_FULL';
     if (studentQuranHistory.priorFullPages.has(page)) return 'PRIOR_FULL';
     if (studentQuranHistory.prevWeekPartialPages.has(page)) return 'PREV_WEEK_PARTIAL';
@@ -422,9 +424,13 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       ? selectedSurahIds.filter(id => id !== surahId)
       : [...selectedSurahIds, surahId];
     
+    // إلغاء أي تحديد سابق بالصفحات عند التحديد بالسور لاعتماد التحديد الأخير
+    if (newMemorizedPages.length > 0) {
+      setNewMemorizedPages([]);
+    }
     setSelectedSurahIds(nextSurahIds);
     
-    const calc = calculateSurahsAndAyahs(newMemorizedPages, nextSurahIds, evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
+    const calc = calculateSurahsAndAyahs([], nextSurahIds, evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
     setSurahs(calc.surahs);
     setAyahRange(calc.ayahRange);
   };
@@ -440,9 +446,13 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       ? newMemorizedPages.filter(p => p !== pageNumber)
       : [...newMemorizedPages, pageNumber];
     
+    // إلغاء أي تحديد سابق بالسور عند التحديد بالصفحات لاعتماد التحديد الأخير
+    if (selectedSurahIds.length > 0) {
+      setSelectedSurahIds([]);
+    }
     setNewMemorizedPages(nextPages);
     
-    const calc = calculateSurahsAndAyahs(nextPages, selectedSurahIds, evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
+    const calc = calculateSurahsAndAyahs(nextPages, [], evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory);
     setSurahs(calc.surahs);
     setAyahRange(calc.ayahRange);
   };
@@ -2658,6 +2668,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                             {juzPagesMap[selectedJuzForPages]?.map(page => {
                               const hist = getPageHistory(page);
+                              const isUnmemorized = hist === 'UNMEMORIZED';
                               const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
                               const isPrevWeekPartial = hist === 'PREV_WEEK_PARTIAL';
                               const isPriorFull = hist === 'PRIOR_FULL';
@@ -2687,7 +2698,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   title = 'صفحة غير مكتملة';
                                 }
                               } else {
-                                if (isPrevWeekFull) {
+                                if (isUnmemorized) {
+                                  btnStyle = 'bg-red-600 hover:bg-red-700 text-white font-black shadow-sm border border-red-700 ring-2 ring-red-300 dark:ring-red-900 cursor-pointer animate-pulse-subtle';
+                                  title = 'لم يحفظ في الأسبوع السابق 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                } else if (isPrevWeekFull) {
                                   btnStyle = 'bg-[#8B4513] text-white shadow-sm cursor-not-allowed border border-[#5c2e0b]';
                                   title = 'تم حفظها بالكامل في الأسبوع السابق';
                                 } else if (isPriorFull) {
@@ -2726,6 +2740,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               juzSurahsMap[selectedJuzForPages].map(sId => {
                                 const name = surahNames[sId];
                                 const hist = getSurahHistory(sId);
+                                const isUnmemorized = hist === 'UNMEMORIZED';
                                 const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
                                 const isPriorFull = hist === 'PRIOR_FULL';
                                 
@@ -2750,7 +2765,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                     title = 'سورة محفوظ قديم 🟢 (انقر لتحديدها للمراجعة)';
                                   }
                                 } else {
-                                  if (isPrevWeekFull) {
+                                  if (isUnmemorized) {
+                                    btnStyle = 'bg-red-600 hover:bg-red-700 text-white font-black shadow-sm border border-red-700 ring-2 ring-red-300 dark:ring-red-900 cursor-pointer animate-pulse-subtle';
+                                    title = 'لم يحفظ السورة في الأسبوع السابق 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                  } else if (isPrevWeekFull) {
                                     btnStyle = 'bg-[#8B4513] text-white shadow-sm cursor-not-allowed border border-[#5c2e0b]';
                                     title = 'تم حفظ السورة بالكامل في الأسبوع السابق';
                                   } else if (isPriorFull) {

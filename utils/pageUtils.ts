@@ -1,6 +1,6 @@
 import { Student, Evaluation, AttendanceStatus, EvaluationType } from "../types";
 import { toArabicDigits, toEnglishDigits, formatRtlRange, formatAndCountJuzs } from "./juzUtils";
-import { quranPageMap, surahNames, surahPagesMap, countQuranPages } from "./quranData";
+import { quranPageMap, surahNames, surahPagesMap, countQuranPages, isEvaluationUnmemorized } from "./quranData";
 
 export { countQuranPages };
 
@@ -94,6 +94,7 @@ export function getLastMemorizedPage(
       att === "present" ||
       att === "late";
     if (!isAttended) return false;
+    if (isEvaluationUnmemorized(e)) return false;
 
     const isMemType =
       e.evaluationType === EvaluationType.MEMORIZATION ||

@@ -4751,6 +4751,7 @@ export function calculateSurahsAndAyahs(
   };
 }
 
+import { PerformanceLevel, EvaluationType, AttendanceStatus } from '../types';
 import type { Student, Evaluation } from '../types';
 
 export function toEnglishDigits(val: string | number | undefined | null): string {
@@ -4793,6 +4794,38 @@ export interface StudentQuranHistory {
   newEvalsFullSurahs: Set<number>;
   oldFullJuzs: Set<number>;
   newEvalsFullJuzs: Set<number>;
+  unmemorizedPages: Set<number>;
+  unmemorizedSurahs: Set<number>;
+}
+
+export function isEvaluationUnmemorized(e: Evaluation | null | undefined): boolean {
+  if (!e) return false;
+  const perf = String(e.performance || '').toLowerCase();
+  const evalType = String(e.evaluationType || '').toLowerCase();
+  const att = String(e.attendance || '').toLowerCase();
+
+  if (
+    perf === PerformanceLevel.MORE_THAN_FIVE_ERRORS ||
+    perf === 'more_than_five_errors' ||
+    perf.includes('لم يحفظ') ||
+    perf.includes('غير مستعد')
+  ) {
+    return true;
+  }
+
+  if (
+    evalType === EvaluationType.DID_NOT_MEMORIZE ||
+    evalType === 'did_not_memorize' ||
+    evalType.includes('لم يحفظ')
+  ) {
+    return true;
+  }
+
+  if (att === AttendanceStatus.UNPREPARED || att === 'unprepared') {
+    return true;
+  }
+
+  return false;
 }
 
 export function analyzeStudentQuranHistory(
@@ -4820,6 +4853,8 @@ export function analyzeStudentQuranHistory(
   const newEvalsFullSurahs = new Set<number>();
   const oldFullJuzs = new Set<number>();
   const newEvalsFullJuzs = new Set<number>();
+  const unmemorizedPages = new Set<number>();
+  const unmemorizedSurahs = new Set<number>();
 
   if (!student) {
     return {
@@ -4842,6 +4877,8 @@ export function analyzeStudentQuranHistory(
       newEvalsFullSurahs,
       oldFullJuzs,
       newEvalsFullJuzs,
+      unmemorizedPages,
+      unmemorizedSurahs,
     };
   }
 
@@ -4888,8 +4925,7 @@ export function analyzeStudentQuranHistory(
       e.weekNumber < currentWeek &&
       (!currentEvalId || e.id !== currentEvalId) &&
       e.subject !== 'mutoon' &&
-      e.newMemorizedPages &&
-      e.newMemorizedPages.length > 0
+      ((e.newMemorizedPages && e.newMemorizedPages.length > 0) || (e.surahs && e.surahs.length > 0))
     )
     .sort((a, b) => a.weekNumber - b.weekNumber);
 
@@ -4900,6 +4936,7 @@ export function analyzeStudentQuranHistory(
   const surahLastTouchWeek = new Map<number, number>();
 
   pastEvals.forEach(e => {
+    const isUnmem = isEvaluationUnmemorized(e);
     const evalSurahNames = e.surahs || [];
     const evalSurahIds = new Set<number>();
     evalSurahNames.forEach(name => {
@@ -4908,6 +4945,22 @@ export function analyzeStudentQuranHistory(
     });
 
     const isExplicitSurahEval = evalSurahIds.size > 0;
+
+    // إذا كان التقييم "لم يحفظ":
+    // لا يُحسب ضمن المحفوظ الجديد للقرآن. وإذا كان في آخر أسبوع تقييم للطالب، يتم تسجيله ليظهر أحمر وقابل للتحديد
+    if (isUnmem) {
+      if (e.weekNumber === lastEvalWeekNumber) {
+        e.newMemorizedPages?.forEach(p => {
+          if (p >= 1 && p <= 604) unmemorizedPages.add(p);
+        });
+        evalSurahIds.forEach(sId => {
+          unmemorizedSurahs.add(sId);
+          const pList = surahPagesMap[sId] || [];
+          pList.forEach(p => unmemorizedPages.add(p));
+        });
+      }
+      return;
+    }
 
     e.newMemorizedPages?.forEach(p => {
       if (p < 1 || p > 604) return;
@@ -5000,6 +5053,11 @@ export function analyzeStudentQuranHistory(
     }
   }
 
+  // تنظيف الصفحات/السور غير المحفوظة إذا تم إكمالها مسبقاً أو حفظها لاحقاً
+  fullPages.forEach(p => unmemorizedPages.delete(p));
+  oldPages.forEach(p => unmemorizedPages.delete(p));
+  allFullSurahs.forEach(sId => unmemorizedSurahs.delete(sId));
+
   // 5. Classify all Juzs
   for (let j = 1; j <= 30; j++) {
     const jPages = juzPagesMap[j] || [];
@@ -5042,6 +5100,8 @@ export function analyzeStudentQuranHistory(
     newEvalsFullSurahs,
     oldFullJuzs,
     newEvalsFullJuzs,
+    unmemorizedPages,
+    unmemorizedSurahs,
   };
 }
 
