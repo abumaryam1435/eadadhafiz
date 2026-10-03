@@ -4796,6 +4796,10 @@ export interface StudentQuranHistory {
   newEvalsFullJuzs: Set<number>;
   unmemorizedPages: Set<number>;
   unmemorizedSurahs: Set<number>;
+  unmemorizedFullPages: Set<number>;
+  unmemorizedPartialPages: Set<number>;
+  unmemorizedFullSurahs: Set<number>;
+  unmemorizedPartialSurahs: Set<number>;
 }
 
 export function isEvaluationUnmemorized(e: Evaluation | null | undefined): boolean {
@@ -4855,6 +4859,10 @@ export function analyzeStudentQuranHistory(
   const newEvalsFullJuzs = new Set<number>();
   const unmemorizedPages = new Set<number>();
   const unmemorizedSurahs = new Set<number>();
+  const unmemorizedFullPages = new Set<number>();
+  const unmemorizedPartialPages = new Set<number>();
+  const unmemorizedFullSurahs = new Set<number>();
+  const unmemorizedPartialSurahs = new Set<number>();
 
   if (!student) {
     return {
@@ -4879,6 +4887,10 @@ export function analyzeStudentQuranHistory(
       newEvalsFullJuzs,
       unmemorizedPages,
       unmemorizedSurahs,
+      unmemorizedFullPages,
+      unmemorizedPartialPages,
+      unmemorizedFullSurahs,
+      unmemorizedPartialSurahs,
     };
   }
 
@@ -4935,6 +4947,10 @@ export function analyzeStudentQuranHistory(
   const pageLastTouchWeek = new Map<number, number>();
   const surahLastTouchWeek = new Map<number, number>();
 
+  const unmemPages = new Set<number>();
+  const unmemCoveredSurahsByPage = new Map<number, Set<number>>();
+  const unmemDirectSurahIds = new Set<number>();
+
   pastEvals.forEach(e => {
     const isUnmem = isEvaluationUnmemorized(e);
     const evalSurahNames = e.surahs || [];
@@ -4947,16 +4963,38 @@ export function analyzeStudentQuranHistory(
     const isExplicitSurahEval = evalSurahIds.size > 0;
 
     // إذا كان التقييم "لم يحفظ":
-    // لا يُحسب ضمن المحفوظ الجديد للقرآن. وإذا كان في آخر أسبوع تقييم للطالب، يتم تسجيله ليظهر أحمر وقابل للتحديد
+    // لا يُحسب ضمن المحفوظ الجديد للقرآن. وإذا كان في آخر أسبوع تقييم للطالب، يتم تسجيله بدقة كاملة وجزئية
     if (isUnmem) {
-      if (e.weekNumber === lastEvalWeekNumber) {
+      {
         e.newMemorizedPages?.forEach(p => {
-          if (p >= 1 && p <= 604) unmemorizedPages.add(p);
+          if (p >= 1 && p <= 604) {
+            unmemPages.add(p);
+            if (!unmemCoveredSurahsByPage.has(p)) {
+              unmemCoveredSurahsByPage.set(p, new Set());
+            }
+            const pSet = unmemCoveredSurahsByPage.get(p)!;
+            if (isExplicitSurahEval) {
+              const surahsOnPage = pageSurahsMap[p] || [];
+              surahsOnPage.forEach(sId => {
+                if (evalSurahIds.has(sId)) pSet.add(sId);
+              });
+            } else {
+              const surahsOnPage = pageSurahsMap[p] || [];
+              surahsOnPage.forEach(sId => pSet.add(sId));
+            }
+          }
         });
+
         evalSurahIds.forEach(sId => {
-          unmemorizedSurahs.add(sId);
+          unmemDirectSurahIds.add(sId);
           const pList = surahPagesMap[sId] || [];
-          pList.forEach(p => unmemorizedPages.add(p));
+          pList.forEach(p => {
+            unmemPages.add(p);
+            if (!unmemCoveredSurahsByPage.has(p)) {
+              unmemCoveredSurahsByPage.set(p, new Set());
+            }
+            unmemCoveredSurahsByPage.get(p)!.add(sId);
+          });
         });
       }
       return;
@@ -5053,12 +5091,46 @@ export function analyzeStudentQuranHistory(
     }
   }
 
-  // تنظيف الصفحات/السور غير المحفوظة إذا تم إكمالها مسبقاً أو حفظها لاحقاً
-  fullPages.forEach(p => unmemorizedPages.delete(p));
-  oldPages.forEach(p => unmemorizedPages.delete(p));
-  allFullSurahs.forEach(sId => unmemorizedSurahs.delete(sId));
+  // 5. Classify Unmemorized Pages (Full vs Partial)
+  unmemPages.forEach(p => {
+    if (fullPages.has(p) || oldPages.has(p)) return;
+    unmemorizedPages.add(p);
+    const pSet = unmemCoveredSurahsByPage.get(p);
+    const surahsOnPage = pageSurahsMap[p] || [];
+    const isAllSurahsCovered = surahsOnPage.length === 0 || surahsOnPage.every(sId => pSet && pSet.has(sId));
+    if (isAllSurahsCovered) {
+      unmemorizedFullPages.add(p);
+    } else {
+      unmemorizedPartialPages.add(p);
+    }
+  });
 
-  // 5. Classify all Juzs
+  // 6. Classify Unmemorized Surahs (Full vs Partial)
+  for (let sId = 1; sId <= 114; sId++) {
+    if (allFullSurahs.has(sId) || oldFullSurahs.has(sId)) continue;
+    const sPages = surahPagesMap[sId] || [];
+    if (sPages.length === 0) continue;
+
+    const isSurahComplete = sPages.every(p => {
+      const pSet = unmemCoveredSurahsByPage.get(p);
+      return pSet && pSet.has(sId);
+    });
+
+    const hasAnyPageCovered = sPages.some(p => {
+      const pSet = unmemCoveredSurahsByPage.get(p);
+      return pSet && pSet.has(sId);
+    }) || unmemDirectSurahIds.has(sId);
+
+    if (isSurahComplete || unmemDirectSurahIds.has(sId)) {
+      unmemorizedSurahs.add(sId);
+      unmemorizedFullSurahs.add(sId);
+    } else if (hasAnyPageCovered) {
+      unmemorizedSurahs.add(sId);
+      unmemorizedPartialSurahs.add(sId);
+    }
+  }
+
+  // 7. Classify all Juzs
   for (let j = 1; j <= 30; j++) {
     const jPages = juzPagesMap[j] || [];
     const isJuzComplete = jPages.length > 0 && jPages.every(p => fullPages.has(p));
@@ -5102,6 +5174,10 @@ export function analyzeStudentQuranHistory(
     newEvalsFullJuzs,
     unmemorizedPages,
     unmemorizedSurahs,
+    unmemorizedFullPages,
+    unmemorizedPartialPages,
+    unmemorizedFullSurahs,
+    unmemorizedPartialSurahs,
   };
 }
 

@@ -398,14 +398,16 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   }, [newMemorizedPages, selectedSurahIds, studentQuranHistory]);
 
   const getSurahHistory = useCallback((sId: number) => {
-    if (studentQuranHistory.unmemorizedSurahs.has(sId)) return 'UNMEMORIZED';
+    if (studentQuranHistory.unmemorizedFullSurahs.has(sId)) return 'UNMEM_FULL';
+    if (studentQuranHistory.unmemorizedPartialSurahs.has(sId)) return 'UNMEM_PARTIAL';
     if (studentQuranHistory.prevWeekFullSurahs.has(sId)) return 'PREV_WEEK_FULL';
     if (studentQuranHistory.priorFullSurahs.has(sId)) return 'PRIOR_FULL';
     return 'NONE';
   }, [studentQuranHistory]);
 
   const getPageHistory = useCallback((page: number) => {
-    if (studentQuranHistory.unmemorizedPages.has(page)) return 'UNMEMORIZED';
+    if (studentQuranHistory.unmemorizedFullPages.has(page)) return 'UNMEM_FULL';
+    if (studentQuranHistory.unmemorizedPartialPages.has(page)) return 'UNMEM_PARTIAL';
     if (studentQuranHistory.prevWeekFullPages.has(page)) return 'PREV_WEEK_FULL';
     if (studentQuranHistory.priorFullPages.has(page)) return 'PRIOR_FULL';
     if (studentQuranHistory.prevWeekPartialPages.has(page)) return 'PREV_WEEK_PARTIAL';
@@ -1464,6 +1466,24 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       )}
 
       <form ref={formRef} onSubmit={handleSubmit} className="bg-white p-3.5 sm:p-8 rounded-xl shadow-lg dark:bg-gray-800 transition-all border border-gray-100 dark:border-gray-700 animate-fade-in relative scroll-mt-32 sm:scroll-mt-36">
+        {currentStep === 'selectStudent' && (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => {
+                scrollToHeaderSafe('instant');
+                setCurrentStep('selectWeek');
+              }}
+              className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl font-bold shadow-xs active:scale-95 transition-all flex items-center gap-2 cursor-pointer text-sm border border-gray-200 dark:border-gray-600 w-full sm:w-auto justify-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 rtl:rotate-0 rotate-180 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              <span>رجوع</span>
+            </button>
+          </div>
+        )}
+
         <h3 className="text-lg sm:text-2xl font-bold text-green-900 border-b pb-4 mb-6 dark:text-green-300 flex items-center gap-3">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
           إدخال التقييم {selectedWeek ? `(الأسبوع ${selectedWeek})` : ''}
@@ -2611,55 +2631,41 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     {selectedJuzForPages && (
                       <div
                         ref={juzPagesContainerRef}
-                        className="mt-4 p-3.5 bg-white dark:bg-gray-800 rounded-2xl border-2 border-indigo-100 dark:border-gray-700 space-y-3.5 shadow-sm scroll-mt-6"
+                        className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-indigo-100 dark:border-gray-700 space-y-3 shadow-xs scroll-mt-6"
                       >
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3 gap-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-base sm:text-lg">📖</span>
-                            <p className="text-sm sm:text-base font-black text-indigo-950 dark:text-indigo-200">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-2.5 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm">📖</span>
+                            <p className="text-xs sm:text-sm font-bold text-indigo-950 dark:text-indigo-200">
                               محتوى الجزء {toArabicDigits(selectedJuzForPages)}
                             </p>
                           </div>
                           
-                          {/* تبويب الصفحات والسور المميز والأكبر لشاشة الهاتف */}
-                          <div className="flex w-full sm:w-auto bg-gray-100 dark:bg-gray-900/90 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-inner gap-1.5">
+                          {/* تبويب الصفحات والسور بتنسيق أنيق ومضبوط لشاشات الهاتف */}
+                          <div className="flex bg-gray-100 dark:bg-gray-900/90 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-inner gap-1 self-stretch sm:self-auto">
                             <button
                               type="button"
                               onClick={() => setQuranSelectionTab('pages')}
-                              className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer ${
+                              className={`flex-1 sm:flex-initial px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer ${
                                 quranSelectionTab === 'pages'
-                                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-2 ring-emerald-300 dark:ring-emerald-700'
+                                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-black ring-1 ring-emerald-300 dark:ring-emerald-600'
                                   : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800'
                               }`}
                             >
-                              <span className="text-sm sm:text-base">📄</span>
+                              <span className="text-xs">📄</span>
                               <span>الصفحات</span>
-                              <span className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
-                                quranSelectionTab === 'pages'
-                                  ? 'bg-white/20 text-white'
-                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                              }`}>
-                                {toArabicDigits((juzPagesMap[selectedJuzForPages] || []).length)}
-                              </span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setQuranSelectionTab('surahs')}
-                              className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer ${
+                              className={`flex-1 sm:flex-initial px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer ${
                                 quranSelectionTab === 'surahs'
-                                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md ring-2 ring-indigo-300 dark:ring-indigo-700'
+                                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-xs font-black ring-1 ring-indigo-300 dark:ring-indigo-600'
                                   : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800'
                               }`}
                             >
-                              <span className="text-sm sm:text-base">📜</span>
+                              <span className="text-xs">📜</span>
                               <span>السور</span>
-                              <span className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
-                                quranSelectionTab === 'surahs'
-                                  ? 'bg-white/20 text-white'
-                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                              }`}>
-                                {toArabicDigits((juzSurahsMap[selectedJuzForPages] || []).length)}
-                              </span>
                             </button>
                           </div>
                         </div>
@@ -2668,7 +2674,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                             {juzPagesMap[selectedJuzForPages]?.map(page => {
                               const hist = getPageHistory(page);
-                              const isUnmemorized = hist === 'UNMEMORIZED';
+                              const isUnmemFull = hist === 'UNMEM_FULL';
+                              const isUnmemPartial = hist === 'UNMEM_PARTIAL';
                               const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
                               const isPrevWeekPartial = hist === 'PREV_WEEK_PARTIAL';
                               const isPriorFull = hist === 'PRIOR_FULL';
@@ -2698,9 +2705,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                   title = 'صفحة غير مكتملة';
                                 }
                               } else {
-                                if (isUnmemorized) {
+                                if (isUnmemFull) {
                                   btnStyle = 'bg-red-600 hover:bg-red-700 text-white font-black shadow-sm border border-red-700 ring-2 ring-red-300 dark:ring-red-900 cursor-pointer animate-pulse-subtle';
-                                  title = 'لم يحفظ في الأسبوع السابق 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                  title = 'لم يحفظ في الأسبوع السابق (كاملة) 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                } else if (isUnmemPartial) {
+                                  btnStyle = 'bg-red-50 text-red-800 border-2 border-dashed border-red-600 font-bold hover:bg-red-100 dark:bg-red-950/40 dark:text-red-200 dark:border-red-500 cursor-pointer animate-pulse-subtle';
+                                  title = 'صفحة غير مكتملة - لم يحفظ في الأسبوع السابق (منقطة الإطار) 🔴 (انقر لتحديدها لإعادة التقييم)';
                                 } else if (isPrevWeekFull) {
                                   btnStyle = 'bg-[#8B4513] text-white shadow-sm cursor-not-allowed border border-[#5c2e0b]';
                                   title = 'تم حفظها بالكامل في الأسبوع السابق';
@@ -2740,7 +2750,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               juzSurahsMap[selectedJuzForPages].map(sId => {
                                 const name = surahNames[sId];
                                 const hist = getSurahHistory(sId);
-                                const isUnmemorized = hist === 'UNMEMORIZED';
+                                const isUnmemFull = hist === 'UNMEM_FULL';
+                                const isUnmemPartial = hist === 'UNMEM_PARTIAL';
                                 const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
                                 const isPriorFull = hist === 'PRIOR_FULL';
                                 
@@ -2765,9 +2776,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                     title = 'سورة محفوظ قديم 🟢 (انقر لتحديدها للمراجعة)';
                                   }
                                 } else {
-                                  if (isUnmemorized) {
+                                  if (isUnmemFull) {
                                     btnStyle = 'bg-red-600 hover:bg-red-700 text-white font-black shadow-sm border border-red-700 ring-2 ring-red-300 dark:ring-red-900 cursor-pointer animate-pulse-subtle';
-                                    title = 'لم يحفظ السورة في الأسبوع السابق 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                    title = 'سورة كاملة - لم يحفظ في الأسابيع السابقة 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                  } else if (isUnmemPartial) {
+                                    btnStyle = 'bg-red-50 text-red-800 border-2 border-dashed border-red-600 font-bold hover:bg-red-100 dark:bg-red-950/40 dark:text-red-200 dark:border-red-500 cursor-pointer animate-pulse-subtle';
+                                    title = 'سورة غير مكتملة - لم يحفظ في الأسابيع السابقة (منقطة الإطار) 🔴 (انقر لتحديدها لإعادة التقييم)';
                                   } else if (isPrevWeekFull) {
                                     btnStyle = 'bg-[#8B4513] text-white shadow-sm cursor-not-allowed border border-[#5c2e0b]';
                                     title = 'تم حفظ السورة بالكامل في الأسبوع السابق';

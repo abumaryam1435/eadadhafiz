@@ -436,48 +436,37 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
 
           <StudentProgressInfo student={student} />
 
-          {/* التاريخ ونمط التحديد */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">تاريخ السرد:</label>
-              <input 
-                type="date" 
-                value={date} 
-                onChange={(e) => setDate(e.target.value)} 
-                className="input-style w-full font-bold"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">طريقة تحديد المحتوى:</label>
-              <div className="flex gap-1.5 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('juz')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    selectionMode === 'juz' ? 'bg-emerald-700 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300'
-                  }`}
-                >
-                  بالأجزاء ({studentCompletedJuzs.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('surahs')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    selectionMode === 'surahs' ? 'bg-emerald-700 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300'
-                  }`}
-                >
-                  بالسور ({studentCompletedSurahs.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode('pages')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
-                    selectionMode === 'pages' ? 'bg-emerald-700 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300'
-                  }`}
-                >
-                  بالصفحات
-                </button>
-              </div>
+          {/* نمط التحديد */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">طريقة تحديد المحتوى:</label>
+            <div className="flex gap-1.5 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setSelectionMode('juz')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                  selectionMode === 'juz' ? 'bg-emerald-700 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                بالأجزاء ({studentCompletedJuzs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectionMode('surahs')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                  selectionMode === 'surahs' ? 'bg-emerald-700 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                بالسور ({studentCompletedSurahs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectionMode('pages')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                  selectionMode === 'pages' ? 'bg-emerald-700 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                بالصفحات
+              </button>
             </div>
           </div>
 

@@ -74,17 +74,47 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   const [evaluationType, setEvaluationType] = useState<EvaluationType | undefined>(initialEvaluation.evaluationType);
   const [pages, setPages] = useState<number | 'not_ready' | 'review' | ''>(initialEvaluation.subject === 'mutoon' ? (initialEvaluation.evaluationType === EvaluationType.REVIEW ? 'review' : (initialEvaluation.pages === 0 ? 'not_ready' : (initialEvaluation.pages ?? ''))) : (initialEvaluation.pages ?? ''));
   const [newMemorizedPages, setNewMemorizedPages] = useState<number[]>(initialEvaluation.newMemorizedPages || []);
-  const [selectedJuzForPages, setSelectedJuzForPages] = useState<number | null>(null);
+  const [selectedJuzForPages, setSelectedJuzForPages] = useState<number | null>(() => {
+    if (initialEvaluation.subject === 'mutoon') return null;
+    
+    // 1. فحص الصفحات المحددة مسبقاً لتحديد رقم الجزء التابع لها
+    if (initialEvaluation.newMemorizedPages && initialEvaluation.newMemorizedPages.length > 0) {
+      const firstPage = initialEvaluation.newMemorizedPages[0];
+      for (let j = 1; j <= 30; j++) {
+        if (juzPagesMap[j]?.includes(firstPage)) return j;
+      }
+    }
+    // 2. فحص السور المحددة مسبقاً لتحديد رقم الجزء التابع لها
+    if (initialEvaluation.surahs && initialEvaluation.surahs.length > 0) {
+      const firstSurah = initialEvaluation.surahs[0];
+      const sId = surahNames.indexOf(firstSurah);
+      if (sId > 0 && surahJuzMap[sId] && surahJuzMap[sId].length > 0) {
+        return surahJuzMap[sId][0];
+      }
+    }
+    // 3. كقيمة افتراضية فتح الجزء 30 ليكون التبويب ظاهراً وجاهزاً
+    return 30;
+  });
   const [selectedSurahIds, setSelectedSurahIds] = useState<number[]>(() => {
     if (initialEvaluation.surahs && initialEvaluation.subject !== 'mutoon') {
       return initialEvaluation.surahs.map(name => surahNames.indexOf(name)).filter(idx => idx > 0);
     }
     return [];
   });
-  const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>('pages');
+  const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>(() => {
+    if (initialEvaluation.surahs && initialEvaluation.surahs.length > 0 && (!initialEvaluation.newMemorizedPages || initialEvaluation.newMemorizedPages.length === 0)) {
+      return 'surahs';
+    }
+    return 'pages';
+  });
   const juzPagesContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (selectedJuzForPages) {
       const timer = setTimeout(() => {
         juzPagesContainerRef.current?.scrollIntoView({
@@ -110,14 +140,16 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   }, [newMemorizedPages, selectedSurahIds, studentQuranHistory]);
 
   const getSurahHistory = (sId: number) => {
-    if (studentQuranHistory.unmemorizedSurahs.has(sId)) return 'UNMEMORIZED';
+    if (studentQuranHistory.unmemorizedFullSurahs.has(sId)) return 'UNMEM_FULL';
+    if (studentQuranHistory.unmemorizedPartialSurahs.has(sId)) return 'UNMEM_PARTIAL';
     if (studentQuranHistory.prevWeekFullSurahs.has(sId)) return 'PREV_WEEK_FULL';
     if (studentQuranHistory.priorFullSurahs.has(sId)) return 'PRIOR_FULL';
     return 'NONE';
   };
 
   const getPageHistory = (page: number) => {
-    if (studentQuranHistory.unmemorizedPages.has(page)) return 'UNMEMORIZED';
+    if (studentQuranHistory.unmemorizedFullPages.has(page)) return 'UNMEM_FULL';
+    if (studentQuranHistory.unmemorizedPartialPages.has(page)) return 'UNMEM_PARTIAL';
     if (studentQuranHistory.prevWeekFullPages.has(page)) return 'PREV_WEEK_FULL';
     if (studentQuranHistory.priorFullPages.has(page)) return 'PRIOR_FULL';
     if (studentQuranHistory.prevWeekPartialPages.has(page)) return 'PREV_WEEK_PARTIAL';
@@ -994,37 +1026,42 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             {selectedJuzForPages && (
                               <div
                                 ref={juzPagesContainerRef}
-                                className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border-2 border-indigo-100 dark:border-gray-700 space-y-3 scroll-mt-6"
+                                className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-indigo-100 dark:border-gray-700 space-y-3 shadow-xs scroll-mt-6"
                               >
-                                <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
-                                  <p className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300">محتوى الجزء {selectedJuzForPages}</p>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex bg-gray-100 dark:bg-gray-900/90 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-inner gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => setQuranSelectionTab('pages')}
-                                        className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${
-                                          quranSelectionTab === 'pages'
-                                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-2 ring-emerald-300 dark:ring-emerald-700'
-                                            : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800'
-                                        }`}
-                                      >
-                                        <span className="text-xs">📄</span>
-                                        <span>الصفحات</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setQuranSelectionTab('surahs')}
-                                        className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${
-                                          quranSelectionTab === 'surahs'
-                                            ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md ring-2 ring-indigo-300 dark:ring-indigo-700'
-                                            : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800'
-                                        }`}
-                                      >
-                                        <span className="text-xs">📜</span>
-                                        <span>السور</span>
-                                      </button>
-                                    </div>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-2.5 gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm">📖</span>
+                                    <p className="text-xs sm:text-sm font-bold text-indigo-950 dark:text-indigo-200">
+                                      محتوى الجزء {toArabicDigits(selectedJuzForPages)}
+                                    </p>
+                                  </div>
+                                  
+                                  {/* تبويب الصفحات والسور بتنسيق أنيق ومضبوط لشاشات الهاتف */}
+                                  <div className="flex bg-gray-100 dark:bg-gray-900/90 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-inner gap-1 self-stretch sm:self-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => setQuranSelectionTab('pages')}
+                                      className={`flex-1 sm:flex-initial px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer ${
+                                        quranSelectionTab === 'pages'
+                                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-black ring-1 ring-emerald-300 dark:ring-emerald-600'
+                                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800'
+                                      }`}
+                                    >
+                                      <span className="text-xs">📄</span>
+                                      <span>الصفحات</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setQuranSelectionTab('surahs')}
+                                      className={`flex-1 sm:flex-initial px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer ${
+                                        quranSelectionTab === 'surahs'
+                                          ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-xs font-black ring-1 ring-indigo-300 dark:ring-indigo-600'
+                                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800'
+                                      }`}
+                                    >
+                                      <span className="text-xs">📜</span>
+                                      <span>السور</span>
+                                    </button>
                                   </div>
                                 </div>
 
@@ -1033,7 +1070,8 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                     {juzPagesMap[selectedJuzForPages]?.map(page => {
                                       const isReviewMode = evaluationType === EvaluationType.REVIEW;
                                       const hist = getPageHistory(page);
-                                       const isUnmemorized = hist === 'UNMEMORIZED';
+                                       const isUnmemFull = hist === 'UNMEM_FULL';
+                                       const isUnmemPartial = hist === 'UNMEM_PARTIAL';
                                       const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
                                       const isPrevWeekPartial = hist === 'PREV_WEEK_PARTIAL';
                                       const isPriorFull = hist === 'PRIOR_FULL';
@@ -1062,11 +1100,13 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                           title = 'حفظ قديم';
                                         }
                                       } else {
-                                         if (isUnmemorized) {
+                                         if (isUnmemFull) {
                                            btnStyle = 'bg-red-600 hover:bg-red-700 text-white font-black shadow-sm border border-red-700 ring-2 ring-red-300 dark:ring-red-900 cursor-pointer animate-pulse-subtle';
-                                           title = 'لم يحفظ في الأسبوع السابق 🔴 (انقر لتحديدها لإعادة التقييم)';
-                                         } else
-                                        if (isPrevWeekFull) {
+                                           title = 'لم يحفظ في الأسابيع السابقة (كاملة) 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                         } else if (isUnmemPartial) {
+                                           btnStyle = 'bg-red-50 text-red-800 border-2 border-dashed border-red-600 font-bold hover:bg-red-100 dark:bg-red-950/40 dark:text-red-200 dark:border-red-500 cursor-pointer animate-pulse-subtle';
+                                           title = 'صفحة غير مكتملة - لم يحفظ في الأسابيع السابقة (منقطة الإطار) 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                         } else if (isPrevWeekFull) {
                                           btnStyle = 'bg-[#8B4513] text-white shadow-sm cursor-not-allowed border border-[#5c2e0b]';
                                           title = 'تم حفظها بالكامل في الأسبوع السابق';
                                         } else if (isPriorFull) {
@@ -1112,7 +1152,8 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                         {juzSurahsMap[selectedJuzForPages].map(sId => {
                                           const isReviewMode = evaluationType === EvaluationType.REVIEW;
                                           const hist = getSurahHistory(sId);
-                                           const isUnmemorized = hist === 'UNMEMORIZED';
+                                           const isUnmemFull = hist === 'UNMEM_FULL';
+                                           const isUnmemPartial = hist === 'UNMEM_PARTIAL';
                                           const isPrevWeekFull = hist === 'PREV_WEEK_FULL';
                                           const isPriorFull = hist === 'PRIOR_FULL';
 
@@ -1139,9 +1180,12 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                               title = 'حفظ قديم';
                                             }
                                           } else {
-                                             if (isUnmemorized) {
+                                             if (isUnmemFull) {
                                                btnStyle = 'bg-red-600 hover:bg-red-700 text-white font-black shadow-sm border border-red-700 ring-2 ring-red-300 dark:ring-red-900 cursor-pointer animate-pulse-subtle';
-                                               title = 'لم يحفظ السورة في الأسبوع السابق 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                               title = 'سورة كاملة - لم يحفظ في الأسابيع السابقة 🔴 (انقر لتحديدها لإعادة التقييم)';
+                                             } else if (isUnmemPartial) {
+                                               btnStyle = 'bg-red-50 text-red-800 border-2 border-dashed border-red-600 font-bold hover:bg-red-100 dark:bg-red-950/40 dark:text-red-200 dark:border-red-500 cursor-pointer animate-pulse-subtle';
+                                               title = 'سورة غير مكتملة - لم يحفظ في الأسابيع السابقة (منقطة الإطار) 🔴 (انقر لتحديدها لإعادة التقييم)';
                                              } else
                                             if (isPrevWeekFull) {
                                               btnStyle = 'bg-[#8B4513] text-white shadow-sm cursor-not-allowed border border-[#5c2e0b]';
