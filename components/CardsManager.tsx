@@ -141,6 +141,7 @@ interface CardConfig {
     awqafLogoCorner?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
     awqafLogoBadge?: 'white' | 'cream' | 'transparent';
     awqafLogoSize?: number;
+    studentNumberingMode?: 'halaqa_number' | 'halaqa_sequence' | 'stage_sequence';
 }
 
 const DEFAULT_CONFIG: CardConfig = {
@@ -161,7 +162,8 @@ const DEFAULT_CONFIG: CardConfig = {
     showAwqafLogo: true,
     awqafLogoCorner: 'top-right',
     awqafLogoBadge: 'transparent',
-    awqafLogoSize: 22
+    awqafLogoSize: 22,
+    studentNumberingMode: 'halaqa_number'
 };
 
 export const drawAwqafLogoOnCanvas = (
@@ -584,8 +586,35 @@ export const CardsManager: React.FC = () => {
             initialConfig.nameFontFamily = "'Tajawal', 'Cairo', sans-serif";
         }
         initialConfig.awqafLogoCorner = 'top-right';
+        initialConfig.studentNumberingMode = initialConfig.studentNumberingMode || 'halaqa_number';
         return initialConfig;
     });
+
+    const [studentNumberingMode, setStudentNumberingMode] = useState<'halaqa_number' | 'halaqa_sequence' | 'stage_sequence'>(() => {
+        if (cardConfig?.studentNumberingMode) {
+            return cardConfig.studentNumberingMode;
+        }
+        const saved = localStorage.getItem('cards_student_numbering_mode');
+        if (saved === 'halaqa_number' || saved === 'halaqa_sequence' || saved === 'stage_sequence') {
+            return saved;
+        }
+        const savedConfig = localStorage.getItem('simpleCardConfig');
+        if (savedConfig) {
+            try {
+                const parsed = JSON.parse(savedConfig);
+                if (parsed.studentNumberingMode) return parsed.studentNumberingMode;
+            } catch (e) { }
+        }
+        return 'halaqa_number';
+    });
+
+    const handleNumberingModeChange = (mode: 'halaqa_number' | 'halaqa_sequence' | 'stage_sequence') => {
+        setStudentNumberingMode(mode);
+        try {
+            localStorage.setItem('cards_student_numbering_mode', mode);
+        } catch (e) { }
+        setConfig(prev => ({ ...prev, studentNumberingMode: mode }));
+    };
 
     const [exportMode, setExportMode] = useState<'single' | 'a4' | 'a3' | 'other'>('a4');
     const [selectedOtherPaper, setSelectedOtherPaper] = useState<string>('b1_press');
@@ -1501,6 +1530,71 @@ export const CardsManager: React.FC = () => {
         if (setCardConfig) setCardConfig(config);
     }, [config, setCardConfig]);
 
+    // 1. خريطة ترقيم الحلقات حسب الترتيب باسم الحلقة (1، 2، 3 ...)
+    const halaqaNumberMap = useMemo(() => {
+        const map = new Map<number, number>();
+        const sorted = [...halaqas].sort((a, b) => 
+            (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true })
+        );
+        sorted.forEach((h, idx) => {
+            map.set(h.id, idx + 1);
+        });
+        return map;
+    }, [halaqas]);
+
+    // 2. خريطة ترقيم حلقات السرد (إن وجدت)
+    const sardHalaqaNumberMap = useMemo(() => {
+        const map = new Map<number, number>();
+        const sorted = [...sardHalaqas].sort((a, b) => 
+            (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true })
+        );
+        sorted.forEach((sh, idx) => {
+            map.set(sh.id, idx + 1);
+        });
+        return map;
+    }, [sardHalaqas]);
+
+    // 3. خريطة تسلسل الطلاب داخل كل حلقة (1، 2، 3 ...)
+    const halaqaStudentSeqMap = useMemo(() => {
+        const map = new Map<number, number>();
+        const byHalaqa: Record<string, typeof students> = {};
+        students.forEach(s => {
+            const key = s.halaqaId ? `h_${s.halaqaId}` : (s.sardHalaqaId ? `s_${s.sardHalaqaId}` : 'none');
+            if (!byHalaqa[key]) byHalaqa[key] = [];
+            byHalaqa[key].push(s);
+        });
+        Object.values(byHalaqa).forEach(list => {
+            list.sort((a, b) => (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true }));
+            list.forEach((s, idx) => {
+                map.set(s.id, idx + 1);
+            });
+        });
+        return map;
+    }, [students]);
+
+    // مقارنة لترتيب البطاقات حسب الرقم المكتوب، ثم الترتيب الهجائي للاسم
+    const compareCardItems = (a: CardTargetItem, b: CardTargetItem) => {
+        // 1. الترتيب أولاً حسب الرقم المكتوب على البطاقة
+        const numA = typeof a.stageIndex === 'number' ? a.stageIndex : parseInt(String(a.stageIndex), 10);
+        const numB = typeof b.stageIndex === 'number' ? b.stageIndex : parseInt(String(b.stageIndex), 10);
+        const isNumANaN = isNaN(numA);
+        const isNumBNaN = isNaN(numB);
+
+        if (!isNumANaN && !isNumBNaN) {
+            if (numA !== numB) return numA - numB;
+        } else if (!isNumANaN && isNumBNaN) {
+            return -1;
+        } else if (isNumANaN && !isNumBNaN) {
+            return 1;
+        } else {
+            const cmpStr = String(a.stageIndex || '').localeCompare(String(b.stageIndex || ''), 'ar', { numeric: true });
+            if (cmpStr !== 0) return cmpStr;
+        }
+
+        // 2. الترتيب ثانياً حسب الترتيب الهجائي للاسم
+        return (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true });
+    };
+
     const options = useMemo<CardTargetItem[]>(() => {
         if (activeTab === 'students') {
             let result = [...students];
@@ -1542,26 +1636,59 @@ export const CardsManager: React.FC = () => {
             let currentColor = '';
             let currentColorIndex = 1;
             
-            return result.map(s => {
+            const mappedStudents = result.map(s => {
                 const stage = getStudentDisplayStage(s);
                 const color = ((stage && effectiveStageColors[stage]) || '#059669').toUpperCase();
-                if (color !== currentColor) {
-                    currentColor = color;
-                    currentColorIndex = 1;
+                
+                let targetStageIndex: number | string = 1;
+
+                if (studentNumberingMode === 'halaqa_number') {
+                    // الخيار 1: رقم الحلقة ، حسب الترتيب باسم الحلقة (الافتراضي)
+                    if (s.halaqaId && halaqaNumberMap.has(s.halaqaId)) {
+                        targetStageIndex = halaqaNumberMap.get(s.halaqaId)!;
+                    } else if (s.sardHalaqaId && sardHalaqaNumberMap.has(s.sardHalaqaId)) {
+                        targetStageIndex = sardHalaqaNumberMap.get(s.sardHalaqaId)!;
+                    } else {
+                        targetStageIndex = '-';
+                    }
+                } else if (studentNumberingMode === 'halaqa_sequence') {
+                    // الخيار 2: التسلسل لكل حلقة
+                    targetStageIndex = halaqaStudentSeqMap.get(s.id) || 1;
+                } else {
+                    // الخيار 3: التسلسلي الرقمي لكل مرحلة دراسية
+                    if (color !== currentColor) {
+                        currentColor = color;
+                        currentColorIndex = 1;
+                    }
+                    targetStageIndex = currentColorIndex;
+                    currentColorIndex++;
                 }
-                const res: CardTargetItem = { id: s.id, name: s.name, stage, stageIndex: currentColorIndex };
-                currentColorIndex++;
-                return res;
+
+                return {
+                    id: s.id,
+                    name: s.name,
+                    stage,
+                    stageIndex: targetStageIndex
+                };
             });
+
+            // ترتيب البطاقات حسب الرقم المكتوب، ثم الترتيب الهجائي
+            mappedStudents.sort(compareCardItems);
+
+            return mappedStudents;
         } else if (activeTab === 'teachers') {
-            return users
+            const mappedTeachers = users
                 .filter(u => u.role === UserRole.TEACHER)
                 .sort((a, b) => (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true }))
                 .map((t, idx): CardTargetItem => ({ id: t.id, name: t.name, stage: null, stageIndex: idx + 1 }));
+            mappedTeachers.sort(compareCardItems);
+            return mappedTeachers;
         } else {
-            return excelData.map((e, idx): CardTargetItem => ({...e, stage: null, stageIndex: idx + 1}));
+            const mappedExcel = excelData.map((e, idx): CardTargetItem => ({...e, stage: null, stageIndex: idx + 1}));
+            mappedExcel.sort(compareCardItems);
+            return mappedExcel;
         }
-    }, [activeTab, students, users, excelData, selectedStage, stages.length, effectiveStageColors]);
+    }, [activeTab, students, users, excelData, selectedStage, stages.length, effectiveStageColors, studentNumberingMode, halaqaNumberMap, sardHalaqaNumberMap, halaqaStudentSeqMap]);
 
     const activeTargets = useMemo<CardTargetItem[]>(() => {
         const hasSpecificSelection = selectedIds && selectedIds.length > 0 && !selectedIds.includes('ALL') && !selectedIds.includes('all');
@@ -1575,7 +1702,7 @@ export const CardsManager: React.FC = () => {
                 stageIndex: customSingleCardNumber.trim()
             }];
         }
-        return list;
+        return [...list].sort(compareCardItems);
     }, [options, selectedIds, customSingleCardNumber]);
 
     const totalCardsCount = useMemo(() => {
@@ -1870,10 +1997,11 @@ export const CardsManager: React.FC = () => {
     };
 
     const saveAsDefault = () => {
-        const configToSave = { ...config, pdfGaps, pdfGapsExplicit: true };
+        const configToSave = { ...config, pdfGaps, pdfGapsExplicit: true, studentNumberingMode };
         localStorage.setItem('simpleCardConfig', JSON.stringify(configToSave));
         localStorage.setItem('cards_pdf_gaps', JSON.stringify(pdfGaps));
         localStorage.setItem('cards_pdf_gaps_user_set', 'true');
+        localStorage.setItem('cards_student_numbering_mode', studentNumberingMode);
         setHasSavedCardConfig(true);
         if (setCardConfig) {
             setCardConfig(configToSave);
@@ -1888,8 +2016,10 @@ export const CardsManager: React.FC = () => {
         localStorage.removeItem('simpleCardConfig');
         localStorage.removeItem('cards_pdf_gaps');
         localStorage.removeItem('cards_pdf_gaps_user_set');
+        localStorage.removeItem('cards_student_numbering_mode');
         setConfig(DEFAULT_CONFIG);
         setPdfGaps(false);
+        setStudentNumberingMode('halaqa_number');
         setHasSavedCardConfig(false);
         if (setCardConfig) {
             setCardConfig(null);
@@ -2419,6 +2549,97 @@ export const CardsManager: React.FC = () => {
                                 >
                                     إلغاء التصفية
                                 </button>
+                            </div>
+                        )}
+
+                        {/* خيار نظام ترقيم البطاقات التعريفية للطلاب */}
+                        {activeTab === 'students' && (
+                            <div className="mt-3.5 p-3.5 bg-gray-50/90 dark:bg-gray-750/70 border-2 border-emerald-300/60 dark:border-emerald-700/50 rounded-xl space-y-2.5 shadow-xs">
+                                <div className="flex items-center justify-between gap-1">
+                                    <div className="flex items-center gap-1.5 text-xs font-black text-gray-900 dark:text-gray-100">
+                                        <Hash className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                        <span>نظام ترقيم البطاقة:</span>
+                                    </div>
+                                    <span className="text-[10px] text-emerald-800 dark:text-emerald-200 font-black bg-emerald-100/90 dark:bg-emerald-900/60 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700">
+                                        {studentNumberingMode === 'halaqa_number' 
+                                            ? 'رقم الحلقة' 
+                                            : studentNumberingMode === 'halaqa_sequence' 
+                                                ? 'التسلسل لكل حلقة' 
+                                                : 'تسلسلي لكل مرحلة'}
+                                    </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 gap-1.5">
+                                    <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                        studentNumberingMode === 'halaqa_number'
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 shadow-xs ring-1 ring-emerald-500'
+                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                    }`}>
+                                        <input
+                                            type="radio"
+                                            name="studentNumberingMode"
+                                            value="halaqa_number"
+                                            checked={studentNumberingMode === 'halaqa_number'}
+                                            onChange={() => handleNumberingModeChange('halaqa_number')}
+                                            className="mt-0.5 text-emerald-600 focus:ring-emerald-500 shrink-0 cursor-pointer"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-black text-gray-900 dark:text-gray-100 flex items-center justify-between gap-1">
+                                                <span>رقم الحلقة</span>
+                                                <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.2 rounded shrink-0">الافتراضي</span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                                                حسب الترتيب باسم الحلقة (يكتب رقم الحلقة لكل طالب)
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                        studentNumberingMode === 'halaqa_sequence'
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 shadow-xs ring-1 ring-emerald-500'
+                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                    }`}>
+                                        <input
+                                            type="radio"
+                                            name="studentNumberingMode"
+                                            value="halaqa_sequence"
+                                            checked={studentNumberingMode === 'halaqa_sequence'}
+                                            onChange={() => handleNumberingModeChange('halaqa_sequence')}
+                                            className="mt-0.5 text-emerald-600 focus:ring-emerald-500 shrink-0 cursor-pointer"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-black text-gray-900 dark:text-gray-100">
+                                                التسلسل لكل حلقة
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                                                ترقيم تسلسلي يبدأ من 1 لطلاب كل حلقة
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                                        studentNumberingMode === 'stage_sequence'
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 dark:border-emerald-500 shadow-xs ring-1 ring-emerald-500'
+                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                    }`}>
+                                        <input
+                                            type="radio"
+                                            name="studentNumberingMode"
+                                            value="stage_sequence"
+                                            checked={studentNumberingMode === 'stage_sequence'}
+                                            onChange={() => handleNumberingModeChange('stage_sequence')}
+                                            className="mt-0.5 text-emerald-600 focus:ring-emerald-500 shrink-0 cursor-pointer"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-black text-gray-900 dark:text-gray-100">
+                                                التسلسلي الرقمي لكل مرحلة دراسية
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                                                ترقيم تسلسلي يبدأ من 1 لكل مرحلة دراسية / لون
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
                             </div>
                         )}
 
