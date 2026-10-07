@@ -1,6 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
 import Modal from './Modal';
-import { SardEvaluation, Student, SardHalaqa, SardPageRange } from '../types';
+import { SardEvaluation, Student, SardHalaqa, SardPageRange, AttendanceStatus } from '../types';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { AppContext } from '../App';
 import { getMemorizedPagesData, getCompletedJuzs, countQuranPages } from '../utils/pageUtils';
@@ -32,6 +32,12 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
   const context = useContext(AppContext);
   const [date, setDate] = useState(evaluation.date || new Date().toISOString().split('T')[0]);
   const [isMushafModalOpen, setIsMushafModalOpen] = useState(false);
+  const [attendance, setAttendance] = useState<AttendanceStatus>(() => {
+    if (evaluation.attendance && (evaluation.attendance as any) !== 'not_recorded') {
+      return evaluation.attendance;
+    }
+    return AttendanceStatus.PRESENT;
+  });
   
   // Initial mode determination
   const initialMode = useMemo<'juz' | 'surahs' | 'pages'>(() => {
@@ -328,6 +334,27 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
   };
 
   const handleSave = () => {
+    if (attendance === AttendanceStatus.ABSENT) {
+      const updated: SardEvaluation = {
+        ...evaluation,
+        date,
+        attendance: AttendanceStatus.ABSENT,
+        juzList: [],
+        surahs: [],
+        pageRanges: [],
+        pagesCount: 0,
+        hesitationErrors: 0,
+        fathErrors: 0,
+        tajweedErrors: 0,
+        totalErrors: 0,
+        grade: 'غائب',
+        notes: notes.trim() || undefined,
+        updatedAt: Date.now(),
+      };
+      onSave(updated);
+      return;
+    }
+
     if (selectionMode === 'pages') {
       if (pageRanges.every(r => r.fromPage === '' && r.toPage === '')) {
         alert('يرجى إدخال نطاق صفحات واحد على الأقل');
@@ -353,6 +380,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
     const updated: SardEvaluation = {
       ...evaluation,
       date,
+      attendance: attendance || AttendanceStatus.PRESENT,
       juzList: selectionMode === 'juz' ? selectedJuzList : [],
       surahs: selectionMode === 'surahs' ? selectedSurahNames : [],
       pageRanges: validPageRanges,
@@ -369,12 +397,14 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
     onSave(updated);
   };
 
+  const isPlaceholderItem = typeof evaluation.id === 'string' && (evaluation.id as string).startsWith('p-');
+
   return (
     <>
       <Modal 
         title={
           <div className="flex flex-col">
-            <span>{`تعديل تقييم السرد: ${student.name}`}</span>
+            <span>{`${isPlaceholderItem ? 'تقييم السرد' : 'تعديل تقييم السرد'}: ${student.name}`}</span>
             {student.isAlAmeen && (
               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal leading-tight mt-0.5">
                 (من طلاب الأمين)
@@ -409,7 +439,57 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
             )}
           </div>
 
-          {/* شريط مصحف السرد وزر تصفح صفحات التقييم المحددة */}
+          {/* شريط حالة الحضور */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+              <span>حالة الحضور:</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setAttendance(AttendanceStatus.PRESENT)}
+                className={`py-2 rounded-xl font-black border text-xs transition-all flex items-center justify-center gap-1.5 ${
+                  attendance === AttendanceStatus.PRESENT
+                    ? 'bg-emerald-50 border-emerald-600 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-500 shadow-xs ring-1 ring-emerald-500/30'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <span>حاضر</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAttendance(AttendanceStatus.LATE)}
+                className={`py-2 rounded-xl font-black border text-xs transition-all flex items-center justify-center gap-1.5 ${
+                  attendance === AttendanceStatus.LATE
+                    ? 'bg-blue-50 border-blue-600 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-500 shadow-xs ring-1 ring-blue-500/30'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <span>متأخر</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAttendance(AttendanceStatus.ABSENT)}
+                className={`py-2 rounded-xl font-black border text-xs transition-all flex items-center justify-center gap-1.5 ${
+                  attendance === AttendanceStatus.ABSENT
+                    ? 'bg-red-50 border-red-600 text-red-900 dark:bg-red-900/30 dark:text-red-300 dark:border-red-500 shadow-xs ring-1 ring-red-500/30'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <span>غائب</span>
+              </button>
+            </div>
+          </div>
+
+          {attendance === AttendanceStatus.ABSENT ? (
+            <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-2xl text-center">
+              <p className="text-sm font-bold text-red-800 dark:text-red-300">
+                تم تحديد الطالب كـ "غائب" في هذه الجلسة. سيتم حفظ التقييم بحالة غياب ولن يتم احتساب صفحات أو أخطاء.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* شريط مصحف السرد وزر تصفح صفحات التقييم المحددة */}
           <div className="flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-3 rounded-2xl shadow-sm border border-emerald-700/60">
             <div className="flex items-center gap-2.5">
               <span className="text-xl">📖</span>
@@ -829,6 +909,8 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
               <span>🔴 ضعيف: (20 فأكثر)</span>
             </div>
           </div>
+          </>
+          )}
 
           {/* ملاحظات */}
           <div>
@@ -844,13 +926,15 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
 
           {/* أزرار الإجراءات */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="py-3 px-4 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 rounded-xl font-bold transition-all text-sm"
-            >
-              حذف التقييم
-            </button>
+            {!isPlaceholderItem && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="py-3 px-4 bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 rounded-xl font-bold transition-all text-sm"
+              >
+                حذف التقييم
+              </button>
+            )}
             <div className="flex-1 flex gap-2">
               <button
                 type="button"
@@ -864,7 +948,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
                 onClick={handleSave}
                 className="flex-1 py-3 bg-emerald-700 text-white hover:bg-emerald-800 rounded-xl font-bold shadow-lg transition-all text-sm"
               >
-                حفظ التعديلات
+                {isPlaceholderItem ? 'حفظ التقييم' : 'حفظ التعديلات'}
               </button>
             </div>
           </div>

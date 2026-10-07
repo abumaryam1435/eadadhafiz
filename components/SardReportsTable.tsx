@@ -574,6 +574,29 @@ export const SardReportsTable: React.FC = () => {
 
   const handleEdit = (item: any) => {
     if (typeof item.id === 'string' && item.id.startsWith('p-')) {
+      const student = students.find(s => s.id === item.studentId);
+      const studentSardHalaqa = sardHalaqas.find(h => Number(h.id) === Number(item.sardHalaqaId || student?.sardHalaqaId));
+      const placeholderEval: any = {
+        id: item.id,
+        studentId: item.studentId,
+        sardHalaqaId: studentSardHalaqa?.id,
+        teacherId: studentSardHalaqa?.teacherId || currentUser?.id,
+        weekNumber: item.weekNumber,
+        date: new Date().toISOString().split('T')[0],
+        attendance: AttendanceStatus.PRESENT,
+        juzList: [],
+        pageRanges: [],
+        surahs: [],
+        pagesCount: 0,
+        hesitationErrors: 0,
+        fathErrors: 0,
+        tajweedErrors: 0,
+        totalErrors: 0,
+        grade: 'ممتاز مع الشرف',
+        notes: '',
+        updatedAt: Date.now()
+      };
+      setEditingEvaluation(placeholderEval);
       return;
     }
     setEditingEvaluation(item);
@@ -672,12 +695,23 @@ export const SardReportsTable: React.FC = () => {
             sardHalaqa={sardHalaqa}
             onClose={() => setEditingEvaluation(null)}
             onSave={(updated) => { 
-              updateSardEvaluation(updated);
+              if (typeof updated.id === 'string' && (updated.id as string).startsWith('p-')) {
+                const newEval = { ...updated };
+                delete (newEval as any).id;
+                if (currentUser && !newEval.teacherId) newEval.teacherId = currentUser.id;
+                if (addSardEvaluation) addSardEvaluation(newEval);
+              } else {
+                updateSardEvaluation?.(updated);
+              }
               setEditingEvaluation(null); 
-              showToast('✅ تم تحديث تقييم السرد بنجاح.'); 
+              showToast('✅ تم حفظ تقييم السرد بنجاح.'); 
             }}
             onDelete={(id) => { 
-              deleteSardEvaluation(id); 
+              if (typeof id === 'string' && (id as string).startsWith('p-')) {
+                setEditingEvaluation(null);
+                return;
+              }
+              deleteSardEvaluation?.(id); 
               setEditingEvaluation(null); 
               showToast('🗑️ تم حذف تقييم السرد بنجاح.'); 
             }}
@@ -1083,8 +1117,8 @@ export const SardReportsTable: React.FC = () => {
                       <div className="flex justify-center gap-2">
                         <button 
                           onClick={() => handleEdit(item)} 
-                          disabled={isPlaceholder || isQuickEditActive} 
-                          className={`p-2 rounded-lg transition-colors ${isPlaceholder || isQuickEditActive ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50 border border-blue-100 dark:border-gray-600 dark:hover:bg-blue-900/30'}`} 
+                          disabled={isQuickEditActive} 
+                          className={`p-2 rounded-lg transition-colors ${isQuickEditActive ? 'text-gray-300 opacity-50 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50 border border-blue-100 dark:border-gray-600 dark:hover:bg-blue-900/30'}`} 
                           title="تعديل"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>

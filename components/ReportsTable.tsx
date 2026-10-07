@@ -448,7 +448,8 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
                   studentOriginalHalaqaId: Number(s.halaqaId),
                   studentOriginalHalaqaName: studentHalaqa?.name || '-',
                   halaqaName: studentHalaqa?.name || '-', evaluatorName: studentTeacher?.name || '—',
-                  weekNumber: weekNum, attendance: NOT_RECORDED, isGuestEvaluation: false, ayahRangeDisplay: '—', evaluationDate: '—'
+                  weekNumber: weekNum, attendance: NOT_RECORDED, isGuestEvaluation: false, ayahRangeDisplay: '—', evaluationDate: '—',
+                  subject: subjectFilter
                 };
             });
             items.push(...weekItems);
@@ -677,7 +678,7 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
 
   const handleEdit = (item: any) => {
       if (typeof item.id === 'string' && item.id.startsWith('p-')) {
-          setEditingEvaluation({ ...item, attendance: null });
+          setEditingEvaluation({ ...item, subject: item.subject || subjectFilter, attendance: null });
           return;
       }
       setEditingEvaluation(item);
@@ -794,6 +795,7 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
                     const newEval = { ...v };
                     delete (newEval as any).id;
                     if (currentUser) newEval.teacherId = currentUser.id;
+                    if (subjectFilter === 'mutoon') newEval.subject = 'mutoon';
                     addEvaluation(newEval);
                 } else {
                     updateEvaluation(v); 
