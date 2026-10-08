@@ -1,6 +1,6 @@
 import React, { useState, useContext, useMemo, useEffect, useRef, useCallback } from 'react';
 import { AppContext } from '../App';
-import { Student, Evaluation, AttendanceStatus } from '../types';
+import { Student, Evaluation, AttendanceStatus, UserRole } from '../types';
 import { isSmartMatch } from '../utils/searchUtils';
 import { StudentProgressInfo } from './StudentProgressInfo';
 import MushafReaderModal from './MushafReaderModal';
@@ -41,6 +41,9 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
   const testScore = context?.testScore;
   const testName = context?.testName;
   const testDeductions = context?.testDeductions;
+  const currentUser = context?.currentUser;
+  const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
+  const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
 
   const [currentStep, setCurrentStep] = useState<'selectStudent' | 'test'>('selectStudent');
   const [selectedWeek, setSelectedWeek] = useState<number | null>(1);
@@ -566,14 +569,20 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
                     {filteredStudents.map(student => {
                         const isEvaluated = weekEvaluations.some(e => e.studentId === student.id);
                         const studentHalaqa = halaqas.find(h => h.id === student.halaqaId);
+                        const isAmeer = canSeeAmeer && studentHalaqa?.ameerStudentId === student.id;
                         const stPassagesInfo = getStudentTestPassagesInfo(student, evaluations);
                         return (
                             <button 
                                 key={student.id} 
                                 onClick={() => { setActiveStudent(student); loadExistingEvaluation(student); setCurrentStep('test'); }}
-                                className={`flex flex-col text-right p-4 rounded-2xl border-2 transition-all group hover:scale-[1.02] whitespace-nowrap overflow-hidden ${student.name.length > 35 ? 'text-[11px]' : 'text-sm'} sm:text-base ${isEvaluated ? 'bg-indigo-50/50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800' : 'bg-white border-gray-100 hover:border-indigo-300 hover:shadow-md dark:bg-gray-800 dark:border-gray-700'}`}
+                                className={`flex flex-col text-right p-4 rounded-2xl border-2 transition-all group hover:scale-[1.02] whitespace-nowrap overflow-hidden ${student.name.length > 35 ? 'text-[11px]' : 'text-sm'} sm:text-base ${isAmeer ? 'bg-amber-50/70 border-amber-300 dark:bg-amber-950/30 dark:border-amber-800' : isEvaluated ? 'bg-indigo-50/50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800' : 'bg-white border-gray-100 hover:border-indigo-300 hover:shadow-md dark:bg-gray-800 dark:border-gray-700'}`}
                             >
-                                <span className={`font-black mb-1 truncate w-full ${isEvaluated ? 'text-indigo-800 dark:text-indigo-300' : 'text-gray-800 dark:text-gray-200'}`}>{student.name}</span>
+                                <span className={`font-black mb-1 truncate w-full ${isAmeer ? 'text-amber-800 dark:text-amber-300' : isEvaluated ? 'text-indigo-800 dark:text-indigo-300' : 'text-gray-800 dark:text-gray-200'}`}>{student.name}</span>
+                                {isAmeer && (
+                                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight -mt-0.5 mb-1 text-right w-full">
+                                        (أمير الحلقة)
+                                    </span>
+                                )}
                                 {student.isAlAmeen && (
                                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight -mt-0.5 mb-1 text-right w-full">
                                         (من طلاب الأمين)
@@ -664,10 +673,21 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
                 );
             };
 
+            const activeHalaqa = halaqas.find(h => h.id === activeStudent.halaqaId);
+            const isActiveAmeer = canSeeAmeer && activeHalaqa?.ameerStudentId === activeStudent.id;
+
             return (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800">
-                    <p className="text-lg font-black text-indigo-900 dark:text-indigo-100 mb-0.5">{activeStudent.name}</p>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl">{isActiveAmeer ? '👑' : '👤'}</span>
+                        <p className={`text-lg font-black mb-0.5 ${isActiveAmeer ? 'text-amber-800 dark:text-amber-300' : 'text-indigo-900 dark:text-indigo-100'}`}>{activeStudent.name}</p>
+                    </div>
+                    {isActiveAmeer && (
+                        <p className="text-xs font-bold text-amber-700 dark:text-amber-400 -mt-0.5 mb-1">
+                            (أمير الحلقة)
+                        </p>
+                    )}
                     {activeStudent.isAlAmeen && (
                         <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">
                             (من طلاب الأمين)

@@ -3,7 +3,7 @@ import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import Modal from './Modal';
 import { AppContext } from '../App';
 import { QURAN_SURAHS } from '../constants';
-import { AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, Student, Halaqa } from '../types';
+import { AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, Student, Halaqa, UserRole } from '../types';
 import { translationMap, toArabicDigits, formatRtlRange } from '../utils/exportWord';
 import { toEnglishDigits, parseSafeNumber, safeInputNumber } from '../utils/juzUtils';
 import MushafReaderModal from './MushafReaderModal';
@@ -55,6 +55,10 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   onDelete,
 }) => {
   const context = useContext(AppContext);
+  const currentUser = context?.currentUser;
+  const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
+  const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
+  const isAmeer = canSeeAmeer && halaqa?.ameerStudentId === student.id;
 
   const studentQuranHistory = useMemo(() => {
     return analyzeStudentQuranHistory(
@@ -538,7 +542,15 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     <Modal 
       title={
         <div className="flex flex-col">
-          <span>{`تعديل: ${student.name}`}</span>
+          <div className="flex items-center gap-1.5">
+            {isAmeer && <span className="text-base">👑</span>}
+            <span className={isAmeer ? "text-amber-800 dark:text-amber-300 font-black" : ""}>{`تعديل: ${student.name}`}</span>
+          </div>
+          {isAmeer && (
+            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
+              (أمير الحلقة)
+            </span>
+          )}
           {student.isAlAmeen && (
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal leading-tight mt-0.5">
               (من طلاب الأمين)

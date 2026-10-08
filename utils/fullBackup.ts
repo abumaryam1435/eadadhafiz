@@ -131,6 +131,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
     "name",
     "teacherId",
     "testTeacherId",
+    "ameerStudentId",
     "updatedAt",
   ];
   const { headers: finalHalaqasHeaders, data: finalHalaqasData } = getDynamicSheetData(
@@ -141,6 +142,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
       h.name,
       h.teacherId,
       h.testTeacherId,
+      h.ameerStudentId ?? null,
       h.updatedAt,
     ]
   );
@@ -154,6 +156,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
       "name",
       "teacherId",
       "testTeacherId",
+      "ameerStudentId",
       "updatedAt",
     ];
     const { headers: finalSardHalaqasHeaders, data: finalSardHalaqasData } = getDynamicSheetData(
@@ -164,6 +167,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
         h.name,
         h.teacherId,
         h.testTeacherId,
+        h.ameerStudentId ?? null,
         h.updatedAt,
       ]
     );
@@ -418,6 +422,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
   addSetting("testName", data.testName);
   addSetting("lastUsedWeek", data.lastUsedWeek);
   addSetting("hijriAdjustments", data.hijriAdjustments);
+  addSetting("showAmeerToTeachers", data.showAmeerToTeachers);
 
   // بيانات إضافية من التخزين المحلي (Comprehensive)
   addSetting("reportColorMap", localStorage.getItem("halaqaReportColorMap"));
@@ -590,6 +595,7 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
           name: String(getValue(r, h, "name") || ""),
           teacherId: Number(getValue(r, h, "teacherId") || 0),
           testTeacherId: safeNum(getValue(r, h, "testTeacherId")),
+          ameerStudentId: safeNum(getValue(r, h, "ameerStudentId")) || undefined,
           updatedAt: safeNum(getValue(r, h, "updatedAt")) || Date.now(),
         }));
 
@@ -598,6 +604,7 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
           name: String(getValue(r, h, "name") || ""),
           teacherId: Number(getValue(r, h, "teacherId") || 0),
           testTeacherId: safeNum(getValue(r, h, "testTeacherId")),
+          ameerStudentId: safeNum(getValue(r, h, "ameerStudentId")) || undefined,
           updatedAt: safeNum(getValue(r, h, "updatedAt")) || Date.now(),
         }));
 
@@ -884,6 +891,10 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
               importedData.testName = getS("testName");
             if (settingsMap.has("lastUsedWeek"))
               importedData.lastUsedWeek = Number(getS("lastUsedWeek"));
+            if (settingsMap.has("showAmeerToTeachers")) {
+              importedData.showAmeerToTeachers =
+                getS("showAmeerToTeachers")?.toLowerCase() === "true";
+            }
             if (settingsMap.has("hijriAdjustments")) {
               const adj = getS("hijriAdjustments");
               try {
@@ -946,6 +957,7 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
           testName: importedData.testName || "اختبار 1",
           lastUsedWeek: importedData.lastUsedWeek || null,
           hijriAdjustments: importedData.hijriAdjustments || {},
+          showAmeerToTeachers: importedData.showAmeerToTeachers || false,
         });
       } catch (error) {
         console.error("Backup parse error:", error);

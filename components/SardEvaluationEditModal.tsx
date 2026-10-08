@@ -1,6 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
 import Modal from './Modal';
-import { SardEvaluation, Student, SardHalaqa, SardPageRange, AttendanceStatus } from '../types';
+import { SardEvaluation, Student, SardHalaqa, SardPageRange, AttendanceStatus, UserRole } from '../types';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { AppContext } from '../App';
 import { getMemorizedPagesData, getCompletedJuzs, countQuranPages } from '../utils/pageUtils';
@@ -30,6 +30,10 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
   onDelete,
 }) => {
   const context = useContext(AppContext);
+  const currentUser = context?.currentUser;
+  const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
+  const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
+  const isAmeer = canSeeAmeer && sardHalaqa?.ameerStudentId === student.id;
   const [date, setDate] = useState(evaluation.date || new Date().toISOString().split('T')[0]);
   const [isMushafModalOpen, setIsMushafModalOpen] = useState(false);
   const [attendance, setAttendance] = useState<AttendanceStatus>(() => {
@@ -404,7 +408,15 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
       <Modal 
         title={
           <div className="flex flex-col">
-            <span>{`${isPlaceholderItem ? 'تقييم السرد' : 'تعديل تقييم السرد'}: ${student.name}`}</span>
+            <div className="flex items-center gap-1.5">
+              {isAmeer && <span className="text-base">👑</span>}
+              <span className={isAmeer ? "text-amber-800 dark:text-amber-300 font-black" : ""}>{`${isPlaceholderItem ? 'تقييم السرد' : 'تعديل تقييم السرد'}: ${student.name}`}</span>
+            </div>
+            {isAmeer && (
+              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
+                (أمير الحلقة)
+              </span>
+            )}
             {student.isAlAmeen && (
               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal leading-tight mt-0.5">
                 (من طلاب الأمين)
@@ -421,7 +433,15 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
             <div>
               <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">اسم الطالب</p>
               <div className="flex flex-col">
-                <h4 className="text-lg font-black text-emerald-950 dark:text-emerald-100">{student.name}</h4>
+                <div className="flex items-center gap-1.5">
+                  {isAmeer && <span className="text-base">👑</span>}
+                  <h4 className={`text-lg font-black ${isAmeer ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-950 dark:text-emerald-100'}`}>{student.name}</h4>
+                </div>
+                {isAmeer && (
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
+                    (أمير الحلقة)
+                  </span>
+                )}
                 {student.isAlAmeen && (
                   <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
                     (من طلاب الأمين)

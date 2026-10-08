@@ -1,17 +1,16 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import legacy from '@vitejs/plugin-legacy';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       build: {
-        target: 'es2015',
+        target: 'es2020',
         outDir: 'dist',
         emptyOutDir: true,
-        chunkSizeWarningLimit: 1500,
+        chunkSizeWarningLimit: 2500,
       },
       server: {
         port: 3000,
@@ -24,7 +23,7 @@ export default defineConfig(({ mode }) => {
           injectRegister: false,
           manifest: false,
           workbox: {
-            maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MiB to cache all app bundle assets and data offline
+            maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
             globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff,woff2,ttf}'],
             cleanupOutdatedCaches: true,
             skipWaiting: true,
@@ -33,10 +32,6 @@ export default defineConfig(({ mode }) => {
             navigateFallbackDenylist: [/^\/api\//],
           }
         }),
-        legacy({
-          targets: ['defaults', 'not IE 11', 'Chrome >= 60', 'Safari >= 12', 'iOS >= 12', 'Android >= 7'],
-          modernPolyfills: true
-        })
       ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

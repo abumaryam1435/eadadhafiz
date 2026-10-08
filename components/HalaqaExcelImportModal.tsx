@@ -51,7 +51,7 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
   if (!isOpen) return null;
 
   const isSard = type === 'sard';
-  const halaqasKey = isSard ? 'حلقات السرد' : 'الحلقات الرئيسة';
+  const halaqasKey = isSard ? 'حلقات السرد' : 'حلقات الحفظ';
 
   const teachers = users.filter(u => u.role === UserRole.TEACHER);
 

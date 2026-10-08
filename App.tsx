@@ -105,6 +105,8 @@ interface AppContextType {
   setIsNewStudentTestActive: (active: boolean) => void;
   allowTeacherEditOldMemorized?: boolean;
   setAllowTeacherEditOldMemorized?: (allowed: boolean) => void;
+  showAmeerToTeachers?: boolean;
+  setShowAmeerToTeachers?: (show: boolean) => void;
   newStudentTestScore: number;
   setNewStudentTestScore: (score: number) => void;
   newStudentPassingRate: number;
@@ -300,6 +302,7 @@ const App: React.FC = () => {
   const [testDeductionsState, setTestDeductionsState] = useState<{ fath: number; tashkeel: number; tajweed: number; passageChange?: number }>(() => initialBackupData?.testDeductions ? { fath: 1, tashkeel: 1, tajweed: 0.5, passageChange: 2, ...initialBackupData.testDeductions } : { fath: 1, tashkeel: 1, tajweed: 0.5, passageChange: 2 });
   const [isNewStudentTestActiveState, setIsNewStudentTestActiveState] = useState<boolean>(() => initialBackupData?.isNewStudentTestActive ?? false);
   const [allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorizedState] = useState<boolean>(() => initialBackupData?.allowTeacherEditOldMemorized ?? false);
+  const [showAmeerToTeachersState, setShowAmeerToTeachersState] = useState<boolean>(() => initialBackupData?.showAmeerToTeachers ?? false);
   const [newStudentTestScoreState, setNewStudentTestScoreState] = useState<number>(() => initialBackupData?.newStudentTestScore ?? 100);
   const [newStudentPassingRateState, setNewStudentPassingRateState] = useState<number>(() => initialBackupData?.newStudentPassingRate ?? 70);
   const [newStudentTestDeductionsState, setNewStudentTestDeductionsState] = useState<{ fath: number; tashkeel: number; tajweed: number }>(() => initialBackupData?.newStudentTestDeductions || { fath: 1, tashkeel: 1, tajweed: 0.5 });
@@ -540,6 +543,7 @@ const App: React.FC = () => {
             if(val.newStudentPassingRate !== undefined) setNewStudentPassingRateState(val.newStudentPassingRate);
             if(val.newStudentTestDeductions !== undefined) setNewStudentTestDeductionsState(val.newStudentTestDeductions);
             if(val.allowTeacherEditOldMemorized !== undefined) setAllowTeacherEditOldMemorizedState(val.allowTeacherEditOldMemorized);
+            if(val.showAmeerToTeachers !== undefined) setShowAmeerToTeachersState(val.showAmeerToTeachers);
             if(val.lastUsedWeek !== undefined) setLastUsedWeekState(val.lastUsedWeek);
             if(val.colorMap !== undefined) setColorMapState(val.colorMap);
             if(val.saveColors !== undefined) setSaveColorsState(val.saveColors);
@@ -844,6 +848,11 @@ const App: React.FC = () => {
     writeData('config/allowTeacherEditOldMemorized', a);
   }, [writeData]);
 
+  const setShowAmeerToTeachers = useCallback((show: boolean) => {
+    setShowAmeerToTeachersState(show);
+    writeData('config/showAmeerToTeachers', show);
+  }, [writeData]);
+
   const setNewStudentTestScore = useCallback((score: number) => {
     const safe = isNaN(score) ? 100 : score;
     setNewStudentTestScoreState(safe);
@@ -1051,7 +1060,7 @@ const App: React.FC = () => {
           });
           db.ref('data').set(cleanData);
           db.ref('config').set(sanitizeForFirebase({
-              appName: d.appName, customLogo: d.customLogo, supervisorPassword: d.supervisorPassword, maghribPassword: d.maghribPassword, hijriAdjustments: d.hijriAdjustments, isTestActive: d.isTestActive, testScore: d.testScore, testName: d.testName, lastUsedWeek: d.lastUsedWeek
+              appName: d.appName, customLogo: d.customLogo, supervisorPassword: d.supervisorPassword, maghribPassword: d.maghribPassword, hijriAdjustments: d.hijriAdjustments, isTestActive: d.isTestActive, testScore: d.testScore, testName: d.testName, lastUsedWeek: d.lastUsedWeek, showAmeerToTeachers: d.showAmeerToTeachers ?? false
           }));
       }
       setData({ users: d.users, halaqas: d.halaqas, sardHalaqas: d.sardHalaqas || [], students: d.students, evaluations: d.evaluations, sardEvaluations: d.sardEvaluations || [], maghribAttendances: d.maghribAttendances || [], suggestions: d.suggestions || [], studentBehaviors: d.studentBehaviors || [], matns: d.matns || [], newStudentTests: d.newStudentTests || [] });
@@ -1065,6 +1074,7 @@ const App: React.FC = () => {
       if(d.testName !== undefined) setTestNameState(d.testName);
       if(d.testDeductions !== undefined) setTestDeductionsState(d.testDeductions);
       if(d.lastUsedWeek !== undefined) setLastUsedWeekState(d.lastUsedWeek);
+      if(d.showAmeerToTeachers !== undefined) setShowAmeerToTeachersState(d.showAmeerToTeachers);
   };
 
   // وظيفة لتحديث التعديل لشهر معين
@@ -1159,7 +1169,8 @@ const App: React.FC = () => {
           hijriAdjustments: {},
           isTestActive: false,
           testScore: 0,
-          testName: ''
+          testName: '',
+          showAmeerToTeachers: false
       });
   }, [data.users]);
 
@@ -1187,6 +1198,7 @@ const App: React.FC = () => {
     testDeductions: testDeductionsState, setTestDeductions,
     isNewStudentTestActive: isNewStudentTestActiveState, setIsNewStudentTestActive,
     allowTeacherEditOldMemorized: allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorized,
+    showAmeerToTeachers: showAmeerToTeachersState, setShowAmeerToTeachers,
     newStudentTestScore: newStudentTestScoreState, setNewStudentTestScore,
     newStudentPassingRate: newStudentPassingRateState, setNewStudentPassingRate,
     newStudentTestDeductions: newStudentTestDeductionsState, setNewStudentTestDeductions,
@@ -1215,7 +1227,7 @@ const App: React.FC = () => {
     supervisorPassword, setSupervisorPassword, maghribPassword, setMaghribPassword,
     handleLogout, isLoading, isLoadingFirebase, lastUsedWeek, setLastUsedWeek,
     isTestActiveState, setIsTestActive, testScoreState, setTestScore, testNameState, setTestName, testDeductionsState, setTestDeductions,
-    isNewStudentTestActiveState, setIsNewStudentTestActive, allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorized, newStudentTestScoreState, setNewStudentTestScore, newStudentPassingRateState, setNewStudentPassingRate, newStudentTestDeductionsState, setNewStudentTestDeductions,
+    isNewStudentTestActiveState, setIsNewStudentTestActive, allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorized, showAmeerToTeachersState, setShowAmeerToTeachers, newStudentTestScoreState, setNewStudentTestScore, newStudentPassingRateState, setNewStudentPassingRate, newStudentTestDeductionsState, setNewStudentTestDeductions,
     addNewStudentTest, updateNewStudentTest, deleteNewStudentTest, deleteAllNewStudentTests, acceptNewStudent, rejectNewStudent,
     initiateLogoutCheck, appName, setAppName, darkMode, toggleDarkMode,
     firebaseConnectionStatus, firebaseConfigState, setFirebaseConfigState,

@@ -59,6 +59,7 @@ export interface Halaqa {
   teacherId: number;
   testTeacherId?: number;
   updatedAt?: number;
+  ameerStudentId?: number; // أمير الحلقة
 }
 
 export interface Student {
@@ -86,6 +87,7 @@ export interface SardHalaqa {
   name: string;
   teacherId: number;
   updatedAt?: number;
+  ameerStudentId?: number; // أمير حلقة السرد
 }
 
 export interface SardPageRange {
@@ -279,6 +281,7 @@ export interface FullBackupData {
   manualRanks?: Record<string, number>;
   certificateConfig?: any;
   cardConfig?: any;
+  showAmeerToTeachers?: boolean;
 }
 
 export interface DocumentCategory {

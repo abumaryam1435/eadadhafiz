@@ -475,7 +475,7 @@ export const Settings: React.FC = () => {
       }
     });
 
-    showToast(`✅ تم استيراد بيانات ${isSard ? 'حلقات السرد' : 'الحلقات الرئيسة'} بنجاح: ${importedStudentsCount} طالب، ${importedHalaqasCount} حلقة.`);
+    showToast(`✅ تم استيراد بيانات ${isSard ? 'حلقات السرد' : 'حلقات الحفظ'} بنجاح: ${importedStudentsCount} طالب، ${importedHalaqasCount} حلقة.`);
   };
 
   const performAutoBackup = (reason: string) => {
@@ -513,6 +513,7 @@ export const Settings: React.FC = () => {
       manualRanks: context?.manualRanks,
       certificateConfig: context?.certificateConfig,
       cardConfig: context?.cardConfig,
+      showAmeerToTeachers: context?.showAmeerToTeachers ?? false,
     };
     exportFullBackup(backupData, `نسخة_احتياطية_شاملة_${reason}_${dateStr}`);
   };
@@ -545,6 +546,7 @@ export const Settings: React.FC = () => {
       testScore,
       testName,
       testDeductions,
+      showAmeerToTeachers,
     };
     try {
       await generateAndDownloadDistributableHtml(currentData, "snapshot");
@@ -856,16 +858,16 @@ export const Settings: React.FC = () => {
                   قوالب Excel وتصدير / استيراد بيانات الحلقات
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* الحلقات الرئيسة */}
+                  {/* حلقات الحفظ */}
                   <div className="p-4 bg-emerald-50/50 dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-slate-700 space-y-2">
                     <div className="flex items-center gap-2 font-black text-xs text-emerald-900 dark:text-emerald-300">
                       <span>🕌</span>
-                      <span>الحلقات الرئيسة (اسم الحلقة، المعلم، الطالب)</span>
+                      <span>حلقات الحفظ (اسم الحلقة، المعلم، الطالب)</span>
                     </div>
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => exportMainHalaqasTemplate("قالب_استيراد_الحلقات_الرئيسة", users, students)}
+                        onClick={() => exportMainHalaqasTemplate("قالب_استيراد_حلقات_الحفظ", users, students)}
                         className="flex-1 text-center py-2.5 bg-white dark:bg-slate-700 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl hover:bg-emerald-50 text-xs font-bold shadow-sm transition-all"
                       >
                         📄 تنزيل القالب

@@ -33,6 +33,9 @@ const StudentManagement: React.FC = () => {
     const assignTeacherToHalaqa = context?.assignTeacherToHalaqa || (async () => {});
     const showToast = context?.showToast || (() => {});
     const isTestActive = context?.isTestActive || false;
+    const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
+    const setShowAmeerToTeachers = context?.setShowAmeerToTeachers || (() => {});
+    const currentUser = context?.currentUser;
 
     const [managementTab, setManagementTab] = useState<'main' | 'sard'>('main');
     const [openHalaqaId, setOpenHalaqaId] = useState<number | null>(null);
@@ -242,7 +245,7 @@ const StudentManagement: React.FC = () => {
         let seq = 1;
         sortedHalaqas.forEach(h => {
             const teacher = users.find(u => u.id === h.teacherId);
-            const hStudents = students.filter(s => s.halaqaId === h.id);
+            const hStudents = students.filter(s => s.halaqaId === h.id).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
             if (hStudents.length === 0) {
                 exportData.push({
                     sequence: seq,
@@ -276,12 +279,12 @@ const StudentManagement: React.FC = () => {
 
     const handlePdfPrint = () => {
         const data = getMainHalaqasExportData();
-        exportToPdf(mainHalaqasExportHeaders, data, 'بيانات_الحلقات_الرئيسة', 'قائمة الحلقات الرئيسة والمعلمين والطلاب');
+        exportToPdf(mainHalaqasExportHeaders, data, 'بيانات_حلقات_الحفظ', 'قائمة حلقات الحفظ والمعلمين والطلاب');
     };
 
     const handlePdfShare = () => {
         const data = getMainHalaqasExportData();
-        sharePdfDirectly(mainHalaqasExportHeaders, data, 'بيانات_الحلقات_الرئيسة', 'قائمة الحلقات الرئيسة والمعلمين والطلاب', undefined, {}, {}, undefined, 'landscape');
+        sharePdfDirectly(mainHalaqasExportHeaders, data, 'بيانات_حلقات_الحفظ', 'قائمة حلقات الحفظ والمعلمين والطلاب', undefined, {}, {}, undefined, 'landscape');
     };
 
     const exportHalaqasToExcel = () => {
@@ -289,9 +292,9 @@ const StudentManagement: React.FC = () => {
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         worksheet['!rightToLeft'] = true;
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'الحلقات الرئيسة');
-        XLSX.writeFile(workbook, 'بيانات_الحلقات_الرئيسة_والطلاب.xlsx');
-        showToast('✅ تم تصدير بيانات الحلقات الرئيسة إلى Excel بنجاح');
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'حلقات الحفظ');
+        XLSX.writeFile(workbook, 'بيانات_حلقات_الحفظ_والطلاب.xlsx');
+        showToast('✅ تم تصدير بيانات حلقات الحفظ إلى Excel بنجاح');
     };
 
     const handleConfirmImportHalaqas = ({
@@ -521,7 +524,7 @@ const StudentManagement: React.FC = () => {
                             }`}
                         >
                             <span>🕌</span>
-                            <span>الحلقات الرئيسة</span>
+                            <span>حلقات الحفظ</span>
                         </button>
                         <button
                             type="button"
@@ -544,7 +547,7 @@ const StudentManagement: React.FC = () => {
                     <>
                         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 no-print border-b pb-4 dark:border-gray-700">
                             <div>
-                                <h3 className="text-2xl font-extrabold text-green-900 dark:text-green-300">إدارة الحلقات الرئيسة</h3>
+                                <h3 className="text-2xl font-extrabold text-green-900 dark:text-green-300">إدارة حلقات الحفظ</h3>
                                 <p className="text-xs text-gray-500 font-bold mt-1">إدارة المعلمين، الحلقات، والطلاب مع تصدير واستيراد ملفات Excel و Word و PDF</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -586,7 +589,7 @@ const StudentManagement: React.FC = () => {
                                 </button>
                                 <button 
                                     type="button"
-                                    onClick={() => exportMainHalaqasTemplate('قالب_استيراد_الحلقات_الرئيسة', users, students)}
+                                    onClick={() => exportMainHalaqasTemplate('قالب_استيراد_حلقات_الحفظ', users, students)}
                                     className="px-3 sm:px-3.5 py-2 text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-200 rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
                                     title="تنزيل قالب أكسل فارغ مع أمثلة"
                                 >
@@ -745,6 +748,30 @@ const StudentManagement: React.FC = () => {
 
                     {showHalaqas && (
                         <div className="p-6 bg-white dark:bg-gray-800 border-t dark:border-gray-700 animate-fade-in">
+                            {currentUser?.role === UserRole.SUPERVISOR && (
+                                <div className="mb-4 p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-2xl border border-amber-200/80 dark:border-amber-800/50 flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-black text-amber-950 dark:text-amber-200">إظهار لقب (أمير الحلقة) للمعلمين</p>
+                                        <p className="text-[11px] text-amber-800/80 dark:text-amber-300">يظهر لقب أمير الحلقة ولون اسمه فقط داخل استمارات التقييم عند تفعيله.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const nextVal = !showAmeerToTeachers;
+                                            setShowAmeerToTeachers(nextVal);
+                                            showToast(nextVal ? '✅ تم إظهار لقب "أمير الحلقة" للمعلمين في استمارات التقييم' : '🔒 تم إخفاء لقب "أمير الحلقة" عن المعلمين في استمارات التقييم');
+                                        }}
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer shadow-xs active:scale-95 ${
+                                            showAmeerToTeachers
+                                                ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700 ring-2 ring-amber-300'
+                                                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
+                                        }`}
+                                    >
+                                        <span>{showAmeerToTeachers ? 'ظاهر للمعلمين (مفعّل)' : 'مخفي عن المعلمين'}</span>
+                                    </button>
+                                </div>
+                            )}
+
                             <div className="relative mb-6 flex items-center">
                                 <input type="text" placeholder="بحث عن حلقة..." value={halaqaSearchTerm} onChange={(e) => setHalaqaSearchTerm(e.target.value)} className="input-style w-full pl-10 pr-4" />
                                 <svg className="absolute left-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -763,7 +790,7 @@ const StudentManagement: React.FC = () => {
                             <div className="space-y-4">
                                 {filteredHalaqasForList.map(halaqa => {
                                     const isOpen = openHalaqaId === halaqa.id;
-                                    const halaqaStudents = students.filter(s => s.halaqaId === halaqa.id);
+                                    const halaqaStudents = students.filter(s => s.halaqaId === halaqa.id).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
                                     const currentTeacher = teachers.find(t => t.id === halaqa.teacherId);
 
                                     return (
@@ -779,7 +806,26 @@ const StudentManagement: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    {/* تعيين أمير الحلقة */}
+                                                    <div className="flex items-center gap-1.5 bg-amber-50/90 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-xl border border-amber-300/80 dark:border-amber-700 shadow-2xs" title="تعيين أمير الحلقة">
+                                                        <select 
+                                                            className="text-xs font-bold text-amber-950 dark:text-amber-200 bg-transparent focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[160px] truncate"
+                                                            value={halaqa.ameerStudentId || 0}
+                                                            onChange={(e) => {
+                                                                const sid = Number(e.target.value) || undefined;
+                                                                updateHalaqa({ ...halaqa, ameerStudentId: sid });
+                                                                const ameerStudent = halaqaStudents.find(s => s.id === sid);
+                                                                showToast(sid ? `✅ تم تعيين "${ameerStudent?.name}" أميراً لـ "${halaqa.name}"` : `تم إلغاء تعيين أمير حلقة "${halaqa.name}"`);
+                                                            }}
+                                                        >
+                                                            <option value="0">أمير الحلقة: غير محدد</option>
+                                                            {halaqaStudents.map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
                                                     <select 
                                                         className="text-xs p-2 rounded-lg bg-white border-gray-200 focus:ring-green-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white border-2"
                                                         value={halaqa.teacherId}
@@ -1017,7 +1063,14 @@ const StudentManagement: React.FC = () => {
                                                                             />
                                                                         ) : (
                                                                             <div className="flex flex-col">
-                                                                                <span className="font-bold text-gray-700 dark:text-gray-200 text-sm">{student.name}</span>
+                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                    <span className={`font-bold text-sm ${student.id === halaqa.ameerStudentId ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-700 dark:text-gray-200'}`}>{student.name}</span>
+                                                                                    {student.id === halaqa.ameerStudentId && (
+                                                                                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700 inline-flex items-center">
+                                                                                            أمير الحلقة
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
                                                                                 {student.isAlAmeen && (
                                                                                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium leading-tight">
                                                                                         (من طلاب الأمين)
@@ -1027,6 +1080,25 @@ const StudentManagement: React.FC = () => {
                                                                         )}
                                                                         
                                                                         <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                            {/* زر تعيين / إلغاء أمير الحلقة */}
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const isCurrentAmeer = halaqa.ameerStudentId === student.id;
+                                                                                    const newAmeerId = isCurrentAmeer ? undefined : student.id;
+                                                                                    updateHalaqa({ ...halaqa, ameerStudentId: newAmeerId });
+                                                                                    showToast(isCurrentAmeer ? `تم إلغاء تعيين أمير حلقة "${halaqa.name}"` : `✅ تم تعيين "${student.name}" أميراً لـ "${halaqa.name}"`);
+                                                                                }}
+                                                                                className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                                                                                    student.id === halaqa.ameerStudentId 
+                                                                                        ? 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-200 ring-2 ring-amber-400 shadow-xs' 
+                                                                                        : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                                                                                }`}
+                                                                                title={student.id === halaqa.ameerStudentId ? 'إلغاء تعيينه كأمير للحلقة' : 'تعيينه أميراً للحلقة'}
+                                                                            >
+                                                                                <span className="text-[10px] font-black">{student.id === halaqa.ameerStudentId ? 'إلغاء الأمير' : 'تعيين كأمير'}</span>
+                                                                            </button>
+
                                                                             {/* Clickable Badge to move student */}
                                                                             <button 
                                                                                 onClick={() => setTransferringStudent(student)}
@@ -1123,8 +1195,8 @@ const StudentManagement: React.FC = () => {
                 onClose={() => setIsWordModalOpen(false)} 
                 onExport={(orientation, action) => {
                     const data = getMainHalaqasExportData();
-                    const fileName = 'بيانات_الحلقات_الرئيسة';
-                    const title = 'قائمة الحلقات الرئيسة والمعلمين والطلاب';
+                    const fileName = 'بيانات_حلقات_الحفظ';
+                    const title = 'قائمة حلقات الحفظ والمعلمين والطلاب';
                     if (action === 'share-pdf') {
                         sharePdfDirectly(mainHalaqasExportHeaders, data, fileName, title, undefined, {}, {}, undefined, orientation);
                     } else if (action === 'pdf') {
@@ -1140,8 +1212,8 @@ const StudentManagement: React.FC = () => {
                 onClose={() => setIsExcelModalOpen(false)} 
                 onExport={(orientation, action) => {
                     const data = getMainHalaqasExportData();
-                    const fileName = 'بيانات_الحلقات_الرئيسة';
-                    const title = 'قائمة الحلقات الرئيسة والمعلمين والطلاب';
+                    const fileName = 'بيانات_حلقات_الحفظ';
+                    const title = 'قائمة حلقات الحفظ والمعلمين والطلاب';
                     exportToExcel(mainHalaqasExportHeaders, data, fileName, title, {}, {}, undefined, orientation, action);
                 }} 
             />
