@@ -2180,6 +2180,22 @@ export const shareInteractiveCardsHtml = async (
     )
   ).sort((a, b) => a.localeCompare(b, 'ar'));
 
+  // Extract all unique teachers across all cards for the teacher filter dropdown
+  const uniqueTeachers = Array.from(
+    new Set(
+      cards.flatMap(c => {
+        const teachers: string[] = [];
+        if (c.teacherName) {
+          teachers.push(String(c.teacherName).trim());
+        }
+        if (c.role === 'معلم' && c.name) {
+          teachers.push(String(c.name).trim());
+        }
+        return teachers;
+      }).filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'ar'));
+
   // Build Cards HTML
   const cardsHtml = cards.map((card, idx) => {
     const studentNamesList = (card.studentNames || []).map(s => String(s || '').trim()).filter(Boolean);
@@ -2191,15 +2207,10 @@ export const shareInteractiveCardsHtml = async (
     const roleName = String(card.role || '').trim();
     const nameVal = String(card.name || card.title || '').trim();
 
-    const searchTokens = [
+    // Student search tokens: ONLY search in student names (if student card, nameVal is student; if halaqa card, studentNamesJoined)
+    const studentSearchTokens = [
       nameVal,
-      teacherName,
-      halaqaName,
-      studentNamesJoined,
-      stageName,
-      numberStr,
-      roleName,
-      String(idx + 1)
+      studentNamesJoined
     ].filter(Boolean).join(' ');
 
     return `
@@ -2214,7 +2225,7 @@ export const shareInteractiveCardsHtml = async (
            data-stage="${escapeAttr(stageName)}"
            data-number="${escapeAttr(numberStr)}"
            data-role="${escapeAttr(roleName)}"
-           data-search="${escapeAttr(searchTokens)}">
+           data-search="${escapeAttr(studentSearchTokens)}">
         <div class="card-box">
           <div class="card-image-container" onclick="openZoomModal(${idx})">
             <img src="${card.imageDataUrl}" alt="${escapeAttr(card.title || nameVal)}" loading="lazy" class="card-img" />
@@ -2321,81 +2332,49 @@ export const shareInteractiveCardsHtml = async (
       padding-bottom: 60px;
     }
 
-    /* Sticky Header Banner */
+    /* Simple Top Header Bar */
     .header-banner {
-      background: linear-gradient(135deg, #00563F 0%, #006A4E 50%, #004D38 100%);
-      color: white;
-      padding: 16px 20px;
+      background: #ffffff;
+      padding: 10px 16px;
       position: sticky;
       top: 0;
       z-index: 1000;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      border-bottom: 3px solid var(--gold);
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
 
     .header-container {
       max-width: 1400px;
       margin: 0 auto;
       display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-    }
-
-    .header-title-box {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .header-icon {
-      font-size: 28px;
-      background: rgba(255, 255, 255, 0.12);
-      width: 48px;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      border: 1px solid rgba(212, 175, 55, 0.4);
-    }
-
-    .header-title-main {
-      font-size: 18px;
-      font-weight: 900;
-      letter-spacing: -0.3px;
-    }
-
-    .header-subtitle {
-      font-size: 12.5px;
-      color: #a7f3d0;
-      font-weight: 600;
+      justify-content: flex-start;
     }
 
     .header-stats-bar {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      background: rgba(0, 0, 0, 0.2);
-      padding: 6px 14px;
-      border-radius: 30px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      font-size: 13px;
+      gap: 10px;
+      font-size: 13.5px;
       font-weight: 700;
+      color: #475569;
     }
 
     .stat-pill {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
+    }
+
+    .stat-dot {
+      color: #94a3b8;
+      font-size: 14px;
     }
 
     .stat-num {
-      color: var(--gold);
-      font-family: monospace;
-      font-size: 14px;
+      color: #0f172a;
       font-weight: 900;
+      font-size: 14.5px;
     }
 
     /* Main Container */
@@ -3260,19 +3239,12 @@ export const shareInteractiveCardsHtml = async (
 </head>
 <body>
 
-  <!-- Sticky Header Banner -->
+  <!-- Top Simple Header Bar -->
   <header class="header-banner">
     <div class="header-container">
-      <div class="header-title-box">
-        <div class="header-icon">🪪</div>
-        <div>
-          <div class="header-title-main">${escapeHtmlText(reportTitle)}</div>
-          <div class="header-subtitle">${escapeHtmlText(subtitle || 'مشروع إعداد حافظ')} • ${escapeHtmlText(dateLine)}</div>
-        </div>
-      </div>
       <div class="header-stats-bar">
         <span class="stat-pill">الإجمالي: <span class="stat-num" id="statTotal">${toArabicDigits(cards.length)}</span></span>
-        <span>•</span>
+        <span class="stat-dot">•</span>
         <span class="stat-pill">المعروض: <span class="stat-num" id="statVisible">${toArabicDigits(cards.length)}</span></span>
       </div>
     </div>
@@ -3290,7 +3262,7 @@ export const shareInteractiveCardsHtml = async (
             type="text" 
             id="searchInput" 
             class="search-input" 
-            placeholder="ابحث بأي جزء من اسم الطالب، المعلم، الحلقة..." 
+            placeholder="ابحث باسم الطالب (أو أي جزء من اسمه)..." 
             autocomplete="off"
             oninput="filterCards()"
             onkeyup="filterCards()"
@@ -3328,6 +3300,43 @@ export const shareInteractiveCardsHtml = async (
               ${uniqueStudents.map((name) => `
                 <label class="dropdown-option" data-student-name="${escapeAttr(name)}">
                   <input type="checkbox" class="dropdown-checkbox student-cb" value="${escapeAttr(name)}" checked onchange="handleStudentCbChange()" />
+                  <span>${escapeHtmlText(name)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>` : ''}
+
+        ${uniqueTeachers.length > 0 ? `
+        <div class="dropdown-container" id="teacherDropdownContainer">
+          <button type="button" id="teacherDropdownBtn" class="dropdown-btn" onclick="toggleTeacherDropdown(event)">
+            <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
+              <span>👨‍🏫</span>
+              <span id="teacherDropdownLabel" class="dropdown-btn-label">كل المعلمين (${toArabicDigits(uniqueTeachers.length)})</span>
+            </div>
+            <span class="dropdown-btn-arrow" id="teacherDropdownArrow">▼</span>
+          </button>
+          <div id="teacherDropdownPanel" class="dropdown-panel">
+            <div class="dropdown-search-box">
+              <span class="dropdown-search-icon">🔍</span>
+              <input 
+                type="text" 
+                id="teacherSearchInput" 
+                class="dropdown-search-input" 
+                placeholder="بحث سريع في أسماء المعلمين..." 
+                autocomplete="off"
+                oninput="filterTeacherOptions()"
+                onkeyup="filterTeacherOptions()"
+              />
+            </div>
+            <div class="dropdown-actions">
+              <button type="button" id="btnSelectAllTeachers" class="btn-action btn-select-all" onclick="selectAllTeachers(event)">تحديد الكل</button>
+              <button type="button" id="btnDeselectAllTeachers" class="btn-action btn-deselect-all" onclick="deselectAllTeachers(event)">إلغاء التحديد</button>
+            </div>
+            <div id="teacherOptionsList" class="dropdown-options-list">
+              ${uniqueTeachers.map((name) => `
+                <label class="dropdown-option" data-teacher-name="${escapeAttr(name)}">
+                  <input type="checkbox" class="dropdown-checkbox teacher-cb" value="${escapeAttr(name)}" checked onchange="handleTeacherCbChange()" />
                   <span>${escapeHtmlText(name)}</span>
                 </label>
               `).join('')}
@@ -3454,6 +3463,7 @@ export const shareInteractiveCardsHtml = async (
           if (e.preventDefault) e.preventDefault();
           if (e.stopPropagation) e.stopPropagation();
         }
+        closeTeacherDropdown();
         var panel = document.getElementById("studentDropdownPanel");
         var btn = document.getElementById("studentDropdownBtn");
         if (!panel) return;
@@ -3464,8 +3474,6 @@ export const shareInteractiveCardsHtml = async (
         } else {
           panel.classList.add("show");
           if (btn) btn.classList.add("active");
-          var input = document.getElementById("studentSearchInput");
-          if (input) setTimeout(function() { input.focus(); }, 60);
         }
       }
       window.toggleStudentDropdown = toggleStudentDropdown;
@@ -3477,6 +3485,34 @@ export const shareInteractiveCardsHtml = async (
         if (btn) btn.classList.remove("active");
       }
       window.closeStudentDropdown = closeStudentDropdown;
+
+      function toggleTeacherDropdown(e) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        closeStudentDropdown();
+        var panel = document.getElementById("teacherDropdownPanel");
+        var btn = document.getElementById("teacherDropdownBtn");
+        if (!panel) return;
+        var isOpen = panel.classList.contains("show");
+        if (isOpen) {
+          panel.classList.remove("show");
+          if (btn) btn.classList.remove("active");
+        } else {
+          panel.classList.add("show");
+          if (btn) btn.classList.add("active");
+        }
+      }
+      window.toggleTeacherDropdown = toggleTeacherDropdown;
+
+      function closeTeacherDropdown() {
+        var panel = document.getElementById("teacherDropdownPanel");
+        var btn = document.getElementById("teacherDropdownBtn");
+        if (panel) panel.classList.remove("show");
+        if (btn) btn.classList.remove("active");
+      }
+      window.closeTeacherDropdown = closeTeacherDropdown;
 
       function filterStudentOptions() {
         var input = document.getElementById("studentSearchInput");
@@ -3493,6 +3529,22 @@ export const shareInteractiveCardsHtml = async (
         }
       }
       window.filterStudentOptions = filterStudentOptions;
+
+      function filterTeacherOptions() {
+        var input = document.getElementById("teacherSearchInput");
+        var q = input ? (input.value || "") : "";
+        var options = toArray(document.querySelectorAll("#teacherOptionsList .dropdown-option"));
+        for (var i = 0; i < options.length; i++) {
+          var opt = options[i];
+          var name = opt.getAttribute("data-teacher-name") || opt.textContent || "";
+          if (!q.trim() || isSmartMatch(name, q)) {
+            opt.style.display = "flex";
+          } else {
+            opt.style.display = "none";
+          }
+        }
+      }
+      window.filterTeacherOptions = filterTeacherOptions;
 
       function selectAllStudents(e) {
         if (e) {
@@ -3528,6 +3580,40 @@ export const shareInteractiveCardsHtml = async (
       }
       window.handleStudentCbChange = handleStudentCbChange;
 
+      function selectAllTeachers(e) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        var cbs = toArray(document.querySelectorAll(".teacher-cb"));
+        for (var i = 0; i < cbs.length; i++) {
+          cbs[i].checked = true;
+        }
+        updateTeacherLabel();
+        filterCards();
+      }
+      window.selectAllTeachers = selectAllTeachers;
+
+      function deselectAllTeachers(e) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        var cbs = toArray(document.querySelectorAll(".teacher-cb"));
+        for (var i = 0; i < cbs.length; i++) {
+          cbs[i].checked = false;
+        }
+        updateTeacherLabel();
+        filterCards();
+      }
+      window.deselectAllTeachers = deselectAllTeachers;
+
+      function handleTeacherCbChange() {
+        updateTeacherLabel();
+        filterCards();
+      }
+      window.handleTeacherCbChange = handleTeacherCbChange;
+
       function updateStudentLabel() {
         var label = document.getElementById("studentDropdownLabel");
         if (!label) return;
@@ -3554,6 +3640,32 @@ export const shareInteractiveCardsHtml = async (
       }
       window.updateStudentLabel = updateStudentLabel;
 
+      function updateTeacherLabel() {
+        var label = document.getElementById("teacherDropdownLabel");
+        if (!label) return;
+        var cbs = toArray(document.querySelectorAll(".teacher-cb"));
+        var total = cbs.length;
+        var checked = 0;
+        var firstChecked = "";
+        for (var i = 0; i < total; i++) {
+          if (cbs[i].checked) {
+            checked++;
+            if (!firstChecked) firstChecked = cbs[i].value;
+          }
+        }
+
+        if (total === 0 || checked === total) {
+          label.textContent = "كل المعلمين (" + toArabicDigits(total) + ")";
+        } else if (checked === 0) {
+          label.textContent = "لم يتم اختيار أي معلم (٠)";
+        } else if (checked === 1) {
+          label.textContent = firstChecked;
+        } else {
+          label.textContent = toArabicDigits(checked) + " معلمين محددين";
+        }
+      }
+      window.updateTeacherLabel = updateTeacherLabel;
+
       function filterCards() {
         try {
           var searchInput = document.getElementById("searchInput");
@@ -3563,20 +3675,35 @@ export const shareInteractiveCardsHtml = async (
             clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
           }
 
+          // Student filter map
           var studentCbs = toArray(document.querySelectorAll(".student-cb"));
-          var totalCbs = studentCbs.length;
-          var checkedMap = {};
-          var checkedCount = 0;
-          for (var c = 0; c < totalCbs; c++) {
+          var totalStudentCbs = studentCbs.length;
+          var checkedStudentMap = {};
+          var checkedStudentCount = 0;
+          for (var c = 0; c < totalStudentCbs; c++) {
             if (studentCbs[c].checked) {
               var val = studentCbs[c].value.trim();
-              checkedMap[val] = true;
-              checkedMap[normalizeArabic(val)] = true;
-              checkedCount++;
+              checkedStudentMap[val] = true;
+              checkedStudentMap[normalizeArabic(val)] = true;
+              checkedStudentCount++;
             }
           }
+          var filterByStudent = totalStudentCbs > 0 && checkedStudentCount < totalStudentCbs;
 
-          var filterByStudent = totalCbs > 0 && checkedCount < totalCbs;
+          // Teacher filter map
+          var teacherCbs = toArray(document.querySelectorAll(".teacher-cb"));
+          var totalTeacherCbs = teacherCbs.length;
+          var checkedTeacherMap = {};
+          var checkedTeacherCount = 0;
+          for (var t = 0; t < totalTeacherCbs; t++) {
+            if (teacherCbs[t].checked) {
+              var tVal = teacherCbs[t].value.trim();
+              checkedTeacherMap[tVal] = true;
+              checkedTeacherMap[normalizeArabic(tVal)] = true;
+              checkedTeacherCount++;
+            }
+          }
+          var filterByTeacher = totalTeacherCbs > 0 && checkedTeacherCount < totalTeacherCbs;
 
           var cards = toArray(document.querySelectorAll(".card-item-wrapper"));
           var matchCount = document.getElementById("matchCount");
@@ -3587,12 +3714,11 @@ export const shareInteractiveCardsHtml = async (
           for (var i = 0; i < cards.length; i++) {
             var card = cards[i];
             var cardIdx = card.getAttribute("data-idx") || String(i);
-            var cardSearchText = card.getAttribute("data-search") || card.textContent || "";
+            var cardRole = (card.getAttribute("data-role") || "").trim();
+            var cardTeacher = (card.getAttribute("data-teacher") || "").trim();
             var cardName = (card.getAttribute("data-name") || "").trim();
 
-            var matchesQuery = !rawQuery.trim() || isSmartMatch(cardSearchText, rawQuery);
-
-            var matchesStudent = true;
+            // 1. Student name search (search ONLY in student names)
             var cardStudentNames = [];
             var studentsJsonRaw = card.getAttribute("data-students-json");
             if (studentsJsonRaw) {
@@ -3610,19 +3736,64 @@ export const shareInteractiveCardsHtml = async (
               }
             }
 
-            if (filterByStudent) {
-              if (checkedCount === 0) {
-                matchesStudent = false;
+            var matchesQuery = true;
+            if (rawQuery.trim()) {
+              if (cardRole === 'معلم') {
+                // For teacher card, search query does not match unless their students match
+                if (cardStudentNames.length > 0) {
+                  matchesQuery = cardStudentNames.some(function(st) {
+                    return isSmartMatch(st, rawQuery);
+                  });
+                } else {
+                  matchesQuery = false;
+                }
               } else if (cardStudentNames.length > 0) {
-                matchesStudent = cardStudentNames.some(function(st) {
-                  return !!checkedMap[st.trim()] || !!checkedMap[normalizeArabic(st)];
+                // For halaqa card with students list
+                matchesQuery = cardStudentNames.some(function(st) {
+                  return isSmartMatch(st, rawQuery);
                 });
               } else {
-                matchesStudent = !!checkedMap[cardName] || !!checkedMap[normalizeArabic(cardName)];
+                // For student card where cardName is student's name
+                matchesQuery = isSmartMatch(cardName, rawQuery);
               }
             }
 
-            if (matchesQuery && matchesStudent) {
+            // 2. Filter by Student dropdown
+            var matchesStudent = true;
+            if (filterByStudent) {
+              if (checkedStudentCount === 0) {
+                matchesStudent = false;
+              } else if (cardStudentNames.length > 0) {
+                matchesStudent = cardStudentNames.some(function(st) {
+                  return !!checkedStudentMap[st.trim()] || !!checkedStudentMap[normalizeArabic(st)];
+                });
+              } else {
+                matchesStudent = !!checkedStudentMap[cardName] || !!checkedStudentMap[normalizeArabic(cardName)];
+              }
+            }
+
+            // 3. Filter by Teacher dropdown
+            var matchesTeacher = true;
+            if (filterByTeacher) {
+              if (checkedTeacherCount === 0) {
+                matchesTeacher = false;
+              } else {
+                var effectiveTeachers = [];
+                if (cardTeacher) effectiveTeachers.push(cardTeacher);
+                if (cardRole === 'معلم' && cardName) effectiveTeachers.push(cardName);
+
+                if (effectiveTeachers.length > 0) {
+                  matchesTeacher = effectiveTeachers.some(function(tn) {
+                    return !!checkedTeacherMap[tn.trim()] || !!checkedTeacherMap[normalizeArabic(tn)];
+                  });
+                } else {
+                  // If card has no teacher assigned
+                  matchesTeacher = false;
+                }
+              }
+            }
+
+            if (matchesQuery && matchesStudent && matchesTeacher) {
               card.style.display = "";
               card.classList.remove("hidden-by-filter");
               visibleCount++;
@@ -3636,7 +3807,7 @@ export const shareInteractiveCardsHtml = async (
                 var normName = normalizeArabic(studentName);
 
                 var chipMatchesQuery = rawQuery.trim() && isSmartMatch(studentName, rawQuery);
-                var chipMatchesFilter = filterByStudent && (!!checkedMap[studentName.trim()] || !!checkedMap[normName]);
+                var chipMatchesFilter = filterByStudent && (!!checkedStudentMap[studentName.trim()] || !!checkedStudentMap[normName]);
 
                 if (chipMatchesQuery || chipMatchesFilter) {
                   chip.classList.add("is-matched");
@@ -3689,26 +3860,45 @@ export const shareInteractiveCardsHtml = async (
           studentSearchInput.value = "";
           filterStudentOptions();
         }
-        var cbs = toArray(document.querySelectorAll(".student-cb"));
-        for (var i = 0; i < cbs.length; i++) {
-          cbs[i].checked = true;
+        var studentCbs = toArray(document.querySelectorAll(".student-cb"));
+        for (var i = 0; i < studentCbs.length; i++) {
+          studentCbs[i].checked = true;
         }
         updateStudentLabel();
+
+        var teacherSearchInput = document.getElementById("teacherSearchInput");
+        if (teacherSearchInput) {
+          teacherSearchInput.value = "";
+          filterTeacherOptions();
+        }
+        var teacherCbs = toArray(document.querySelectorAll(".teacher-cb"));
+        for (var j = 0; j < teacherCbs.length; j++) {
+          teacherCbs[j].checked = true;
+        }
+        updateTeacherLabel();
+
         filterCards();
       }
       window.clearSearch = clearSearch;
 
       window.quickSearchHalaqa = function(halaqaName) {
-        var input = document.getElementById('searchInput');
-        if (input) input.value = halaqaName;
+        // Since searchInput now searches students, we reset and show all cards
         filterCards();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
       window.quickSearchTeacher = function(teacherName) {
-        var input = document.getElementById('searchInput');
-        if (input) input.value = teacherName;
-        filterCards();
+        // Select only this teacher in the teacher filter
+        var teacherCbs = toArray(document.querySelectorAll(".teacher-cb"));
+        if (teacherCbs.length > 0) {
+          var normT = normalizeArabic(teacherName);
+          for (var i = 0; i < teacherCbs.length; i++) {
+            var cbVal = teacherCbs[i].value;
+            teacherCbs[i].checked = (cbVal === teacherName || normalizeArabic(cbVal) === normT);
+          }
+          updateTeacherLabel();
+          filterCards();
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -3774,6 +3964,11 @@ export const shareInteractiveCardsHtml = async (
           studentSearchInput.addEventListener("input", function() { filterStudentOptions(); });
           studentSearchInput.addEventListener("keyup", function() { filterStudentOptions(); });
         }
+        var teacherSearchInput = document.getElementById("teacherSearchInput");
+        if (teacherSearchInput) {
+          teacherSearchInput.addEventListener("input", function() { filterTeacherOptions(); });
+          teacherSearchInput.addEventListener("keyup", function() { filterTeacherOptions(); });
+        }
         var btnZoomPrint = document.getElementById('btnZoomPrint');
         if (btnZoomPrint) {
           btnZoomPrint.addEventListener('click', function() {
@@ -3781,9 +3976,13 @@ export const shareInteractiveCardsHtml = async (
           });
         }
         document.addEventListener("click", function(e) {
-          var container = document.getElementById("studentDropdownContainer");
-          if (container && !container.contains(e.target)) {
+          var studentContainer = document.getElementById("studentDropdownContainer");
+          if (studentContainer && !studentContainer.contains(e.target)) {
             closeStudentDropdown();
+          }
+          var teacherContainer = document.getElementById("teacherDropdownContainer");
+          if (teacherContainer && !teacherContainer.contains(e.target)) {
+            closeTeacherDropdown();
           }
         });
       }
