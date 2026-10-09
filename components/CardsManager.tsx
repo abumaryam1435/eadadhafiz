@@ -6,8 +6,8 @@ import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import { HexColorPicker } from 'react-colorful';
 import { parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
-import { shareCardsListHtml } from '../utils/exportHtml';
-import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers, Hash, Eye, EyeOff } from 'lucide-react';
+import { shareCardsListHtml, shareInteractiveCardsHtml, InteractiveCardItem } from '../utils/exportHtml';
+import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers, Hash, Eye, EyeOff, Globe } from 'lucide-react';
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
     let cleanHex = hex.replace('#', '');
@@ -105,6 +105,7 @@ export interface UnifiedHalaqaCardItem {
     numberStr: string;
     teacherName?: string;
     color: string;
+    students?: { id: number; name: string; isAmeer?: boolean; isAlAmeen?: boolean }[];
 }
 
 export interface CardTargetItem {
@@ -333,9 +334,10 @@ export const CardsManager: React.FC = () => {
     const [mainTab, setMainTab] = useState<'id_cards' | 'halaqa_cards'>('id_cards');
 
     // State for Halaqa Cards
-    const [halaqaFilter, setHalaqaFilter] = useState<string>('all');
+    const [halaqaFilter, setHalaqaFilter] = useState<string>('memorization');
     const [selectedHalaqaIds, setSelectedHalaqaIds] = useState<string[]>([]);
     const [halaqaSearch, setHalaqaSearch] = useState('');
+    const [halaqaExportMode, setHalaqaExportMode] = useState<'a5' | 'single' | 'a4' | 'a3' | 'other'>('a5');
 
     const [hideHalaqaType, setHideHalaqaType] = useState<boolean>(() => {
         return localStorage.getItem('halaqa_card_hide_type') === 'true';
@@ -346,6 +348,20 @@ export const CardsManager: React.FC = () => {
         try {
             localStorage.setItem('halaqa_card_hide_type', String(val));
         } catch (e) {}
+    };
+
+    // خيار تمييز اسم أمير الحلقة في بطاقات قائمة أسماء الطلاب (الافتراضي هو مفعّل)
+    const [highlightAmeer, setHighlightAmeer] = useState<boolean>(() => {
+        const saved = localStorage.getItem('halaqa_card_highlight_ameer');
+        return saved !== null ? saved === 'true' : true;
+    });
+
+    const handleToggleHighlightAmeer = (val: boolean) => {
+        setHighlightAmeer(val);
+        try {
+            localStorage.setItem('halaqa_card_highlight_ameer', String(val));
+        } catch (e) {}
+        showToast(val ? '👑 تم تفعيل تمييز اسم أمير الحلقة' : '⚪ تم إزالة تمييز اسم أمير الحلقة');
     };
 
     const [genericCardsCount, setGenericCardsCount] = useState<number>(() => {
@@ -440,6 +456,19 @@ export const CardsManager: React.FC = () => {
     const [halaqaPreviewIndex, setHalaqaPreviewIndex] = useState(0);
     const [halaqaPreviewUrl, setHalaqaPreviewUrl] = useState<string>('');
 
+    // Option for Halaqa Cards: 'number_only' (رقم الحلقة فقط كلاسيكي) or 'with_students' (رقم الحلقة كعنوان في الأعلى مع قائمة الطلاب)
+    const [halaqaCardMode, setHalaqaCardMode] = useState<'number_only' | 'with_students'>(() => {
+        return (localStorage.getItem('halaqaCardMode') as 'number_only' | 'with_students') || 'number_only';
+    });
+
+    const handleHalaqaCardModeChange = (mode: 'number_only' | 'with_students') => {
+        setHalaqaCardMode(mode);
+        try {
+            localStorage.setItem('halaqaCardMode', mode);
+        } catch (_) {}
+        showToast(mode === 'with_students' ? '📋 تم تفعيل وضع بطاقة الحلقة مع أسماء الطلاب' : '🔢 تم تفعيل وضع بطاقة رقم الحلقة فقط');
+    };
+
     const [activeTab, setActiveTab] = useState<'students' | 'teachers' | 'excel'>('students');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [selectedStage, setSelectedStage] = useState<string[]>([]);
@@ -474,6 +503,15 @@ export const CardsManager: React.FC = () => {
 
         halaqas.forEach(h => {
             const numStr = extractNumber(h.name, h.id);
+            const hStudents = (students || [])
+                .filter(s => Number(s.halaqaId) === Number(h.id))
+                .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
+                .map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    isAmeer: h.ameerStudentId === s.id,
+                    isAlAmeen: !!s.isAlAmeen
+                }));
             items.push({
                 id: `mem_${h.id}`,
                 originalId: h.id,
@@ -482,12 +520,22 @@ export const CardsManager: React.FC = () => {
                 typeName: 'حلقة حفظ',
                 numberStr: numStr,
                 teacherName: getTeacherName(h.teacherId),
-                color: memorizationColor
+                color: memorizationColor,
+                students: hStudents
             });
         });
 
         sardHalaqas.forEach(sh => {
             const numStr = extractNumber(sh.name, sh.id);
+            const shStudents = (students || [])
+                .filter(s => Number(s.sardHalaqaId) === Number(sh.id))
+                .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
+                .map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    isAmeer: sh.ameerStudentId === s.id,
+                    isAlAmeen: !!s.isAlAmeen
+                }));
             items.push({
                 id: `sard_${sh.id}`,
                 originalId: sh.id,
@@ -496,7 +544,8 @@ export const CardsManager: React.FC = () => {
                 typeName: 'حلقة سرد',
                 numberStr: numStr,
                 teacherName: getTeacherName(sh.teacherId),
-                color: sardColor
+                color: sardColor,
+                students: shStudents
             });
         });
 
@@ -511,7 +560,8 @@ export const CardsManager: React.FC = () => {
                     typeName: '',
                     numberStr: String(n),
                     teacherName: '',
-                    color: genericCardsColor
+                    color: genericCardsColor,
+                    students: []
                 });
             }
         }
@@ -531,13 +581,14 @@ export const CardsManager: React.FC = () => {
                     typeName: title,
                     numberStr: String(n),
                     teacherName: '',
-                    color: color
+                    color: color,
+                    students: []
                 });
             }
         });
 
         return items;
-    }, [halaqas, sardHalaqas, users, memorizationColor, sardColor, customHalaqaTypes, genericCardsCount, genericCardsColor]);
+    }, [halaqas, sardHalaqas, users, students, memorizationColor, sardColor, customHalaqaTypes, genericCardsCount, genericCardsColor]);
 
     const filteredHalaqaItems = useMemo(() => {
         let result = allHalaqaItems;
@@ -648,6 +699,7 @@ export const CardsManager: React.FC = () => {
     });
     const [isGenerating, setIsGenerating] = useState(false);
     const [isGeneratingList, setIsGeneratingList] = useState(false);
+    const [isGeneratingHtml, setIsGeneratingHtml] = useState(false);
 
     const exportPdfList = async () => {
         setIsGeneratingList(true);
@@ -921,24 +973,29 @@ export const CardsManager: React.FC = () => {
     }, [exportMode, selectedOtherPaper, customPaperWidth, customPaperHeight, customPaperUnit, customPaperOrientation, config.width, config.height, config.unit, pdfGaps]);
 
     const estimatedHalaqaCardsPerPage = useMemo(() => {
-        let docW = 210;
-        let docH = 297;
-        if (exportMode === 'a4') {
-            docW = 210; docH = 297;
-        } else if (exportMode === 'a3') {
-            docW = 297; docH = 420;
-        } else if (exportMode === 'single') {
-            return 1;
-        } else if (exportMode === 'other') {
-            const dims = getOtherPaperDimensionsMM();
-            docW = dims.width;
-            docH = dims.height;
-        }
-
         let cardW = halaqaConfig.width;
         let cardH = halaqaConfig.height;
         if (halaqaConfig.unit === 'cm') { cardW *= 10; cardH *= 10; }
         else if (halaqaConfig.unit === 'in') { cardW *= 25.4; cardH *= 25.4; }
+
+        const isA5Card = (Math.abs(cardW - 148) < 3 && Math.abs(cardH - 210) < 3) ||
+                         (Math.abs(cardW - 210) < 3 && Math.abs(cardH - 148) < 3);
+
+        if (halaqaExportMode === 'a5' || halaqaExportMode === 'single' || isA5Card) {
+            return 1;
+        }
+
+        let docW = 210;
+        let docH = 297;
+        if (halaqaExportMode === 'a4') {
+            docW = 210; docH = 297;
+        } else if (halaqaExportMode === 'a3') {
+            docW = 297; docH = 420;
+        } else if (halaqaExportMode === 'other') {
+            const dims = getOtherPaperDimensionsMM();
+            docW = dims.width;
+            docH = dims.height;
+        }
 
         const gap = pdfGaps ? 6 : 2;
         const availW = Math.max(0, docW - 16);
@@ -946,13 +1003,13 @@ export const CardsManager: React.FC = () => {
         const cols = Math.max(1, Math.floor((availW + gap) / (cardW + gap)));
         const rows = Math.max(1, Math.floor((availH + gap) / (cardH + gap)));
         return cols * rows;
-    }, [exportMode, selectedOtherPaper, customPaperWidth, customPaperHeight, customPaperUnit, customPaperOrientation, halaqaConfig.width, halaqaConfig.height, halaqaConfig.unit, pdfGaps]);
+    }, [halaqaExportMode, selectedOtherPaper, customPaperWidth, customPaperHeight, customPaperUnit, customPaperOrientation, halaqaConfig.width, halaqaConfig.height, halaqaConfig.unit, pdfGaps]);
 
     const estimatedHalaqaTotalSheets = useMemo(() => {
         if (activeHalaqaTargets.length === 0) return 0;
-        if (exportMode === 'single') return activeHalaqaTargets.length;
+        if (halaqaExportMode === 'a5' || halaqaExportMode === 'single') return activeHalaqaTargets.length;
         return Math.ceil(activeHalaqaTargets.length / Math.max(1, estimatedHalaqaCardsPerPage));
-    }, [activeHalaqaTargets.length, exportMode, estimatedHalaqaCardsPerPage]);
+    }, [activeHalaqaTargets.length, halaqaExportMode, estimatedHalaqaCardsPerPage]);
 
     const isHalaqaPresetActive = (preset: typeof HALAQA_SIZE_PRESETS[0]) => {
         let currentW_MM = halaqaConfig.width;
@@ -1033,7 +1090,9 @@ export const CardsManager: React.FC = () => {
         logoImg: HTMLImageElement | null,
         cardWMM: number = 148,
         cardHMM: number = 210,
-        isTypeHidden: boolean = hideHalaqaType
+        isTypeHidden: boolean = hideHalaqaType,
+        cardMode: 'number_only' | 'with_students' = halaqaCardMode,
+        isAmeerHighlighted: boolean = highlightAmeer
     ) => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -1042,6 +1101,410 @@ export const CardsManager: React.FC = () => {
         const height = Math.round((cardHMM / cardWMM) * width);
         canvas.width = width;
         canvas.height = height;
+
+        // MODE 2: WITH STUDENTS LIST (رقم الحلقة كعنوان في الأعلى مع قائمة أسماء الطلاب باللون الأخضر الافتراضي)
+        if (cardMode === 'with_students') {
+            const drawRoundRect = (x: number, y: number, w: number, h: number, r: number) => {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+            };
+
+            // 1. Background Gradient - Emerald Quranic Theme (اللون الأخضر الافتراضي)
+            const greenThemeHex = target.color || (target.type === 'memorization' ? memorizationColor : (target.type === 'sard' ? sardColor : '#059669'));
+            const rgbTheme = hexToRgb(greenThemeHex) || { r: 5, g: 150, b: 105 };
+
+            const darkR = Math.max(0, Math.round(rgbTheme.r * 0.32));
+            const darkG = Math.max(0, Math.round(rgbTheme.g * 0.32));
+            const darkB = Math.max(0, Math.round(rgbTheme.b * 0.32));
+
+            const gradient = ctx.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, `rgb(${rgbTheme.r}, ${rgbTheme.g}, ${rgbTheme.b})`);
+            gradient.addColorStop(0.5, `rgb(${Math.round(rgbTheme.r * 0.68)}, ${Math.round(rgbTheme.g * 0.68)}, ${Math.round(rgbTheme.b * 0.68)})`);
+            gradient.addColorStop(1, `rgb(${darkR}, ${darkG}, ${darkB})`);
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Pattern Overlay
+            ctx.save();
+            ctx.globalAlpha = 0.06;
+            ctx.fillStyle = '#FFFFFF';
+            const patternSize = 48;
+            for (let x = 0; x < width; x += patternSize) {
+                for (let y = 0; y < height; y += patternSize) {
+                    ctx.beginPath();
+                    ctx.arc(x + patternSize / 2, y + patternSize / 2, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+
+            // 3. Radial Top Light
+            ctx.save();
+            const radialGlow = ctx.createRadialGradient(width / 2, height * 0.12, 10, width / 2, height * 0.12, width * 0.6);
+            radialGlow.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+            radialGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = radialGlow;
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+
+            // 4. Golden Frame Border
+            ctx.save();
+            const margin = Math.round(width * 0.035);
+            const frameW = width - margin * 2;
+            const frameH = height - margin * 2;
+
+            ctx.strokeStyle = '#D4AF37';
+            ctx.lineWidth = Math.round(width * 0.01);
+            ctx.strokeRect(margin, margin, frameW, frameH);
+
+            const innerMargin = margin + 11;
+            ctx.strokeStyle = '#F3E5AB';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(innerMargin, innerMargin, width - innerMargin * 2, height - innerMargin * 2);
+
+            ctx.fillStyle = '#D4AF37';
+            const corners = [
+                [margin, margin],
+                [margin + frameW, margin],
+                [margin, margin + frameH],
+                [margin + frameW, margin + frameH]
+            ];
+            corners.forEach(([cx, cy]) => {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+
+            // 5. Program Logo (Top center)
+            const logoRadius = Math.round(width * 0.065);
+            const logoCenterX = width / 2;
+            const logoCenterY = margin + logoRadius + 14;
+
+            if (logoImg) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(logoCenterX, logoCenterY, logoRadius + 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#D4AF37';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(logoCenterX, logoCenterY, logoRadius + 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(logoCenterX, logoCenterY, logoRadius, 0, Math.PI * 2);
+                ctx.clip();
+
+                const imgAspect = logoImg.width / logoImg.height;
+                let drawW = logoRadius * 2;
+                let drawH = drawW / imgAspect;
+                if (drawH < logoRadius * 2) {
+                    drawH = logoRadius * 2;
+                    drawW = drawH * imgAspect;
+                }
+                ctx.drawImage(logoImg, logoCenterX - drawW / 2, logoCenterY - drawH / 2, drawW, drawH);
+                ctx.restore();
+            }
+
+            // Project Title text below logo
+            ctx.save();
+            ctx.font = 'bold 20px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#FDF7E3';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 5;
+            const projectTitleY = logoCenterY + logoRadius + 8;
+            ctx.fillText('✦ مشروع إعداد حافظ ✦', logoCenterX, projectTitleY);
+            ctx.restore();
+
+            // 6. Header Banner (رقم الحلقة كعنوان في الأعلى)
+            const bannerX = margin + 14;
+            const bannerW = width - (margin + 14) * 2;
+            const bannerY = projectTitleY + 32;
+            const bannerH = 136;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 14;
+            ctx.shadowOffsetY = 4;
+            drawRoundRect(bannerX, bannerY, bannerW, bannerH, 16);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+            ctx.shadowColor = 'transparent';
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#D4AF37';
+            ctx.stroke();
+
+            // Inner subtle border
+            drawRoundRect(bannerX + 4, bannerY + 4, bannerW - 8, bannerH - 8, 13);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+            ctx.stroke();
+
+            // Banner Title: Halaqa Number & Type
+            const titleY = bannerY + 42;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            let bannerTitleText = '';
+            if (isTypeHidden || !target.typeName) {
+                bannerTitleText = `حلقة رقم ( ${target.numberStr} )`;
+            } else {
+                bannerTitleText = `${target.typeName}  •  رقم ( ${target.numberStr} )`;
+            }
+
+            ctx.font = '900 36px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#065F46'; // Emerald
+            ctx.fillText(bannerTitleText, width / 2, titleY);
+
+            // Gold divider in banner
+            const divY = bannerY + 76;
+            ctx.beginPath();
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(bannerX + 24, divY);
+            ctx.lineTo(bannerX + bannerW - 24, divY);
+            ctx.stroke();
+
+            // Sub info inside banner: Teacher & Students Count
+            const infoY = bannerY + 106;
+            const teacherTxt = target.teacherName ? `معلم الحلقة: ${target.teacherName}` : 'معلم الحلقة: غير محدد';
+            const studentsCountTxt = `عدد الطلاب: ${(target.students || []).length} طالب`;
+
+            // Right side: Teacher
+            ctx.textAlign = 'right';
+            ctx.font = 'bold 20px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#374151';
+            ctx.fillText(`👤  ${teacherTxt}`, bannerX + bannerW - 24, infoY);
+
+            // Left side: Student count
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 20px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#059669';
+            ctx.fillText(`👥  ${studentsCountTxt}`, bannerX + 24, infoY);
+            ctx.restore();
+
+            // 7. Students List Container (وقائمة الطلاب في تلك الحلقة)
+            const listY = bannerY + bannerH + 14;
+            const bottomFooterY = height - margin - 24;
+            const listH = bottomFooterY - listY - 14;
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 14;
+            ctx.shadowOffsetY = 4;
+            drawRoundRect(bannerX, listY, bannerW, listH, 16);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+            ctx.fill();
+            ctx.shadowColor = 'transparent';
+
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#D4AF37';
+            ctx.stroke();
+
+            // List Header Ribbon
+            const ribbonH = 42;
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(bannerX + 16, listY);
+            ctx.lineTo(bannerX + bannerW - 16, listY);
+            ctx.quadraticCurveTo(bannerX + bannerW, listY, bannerX + bannerW, listY + 16);
+            ctx.lineTo(bannerX + bannerW, listY + ribbonH);
+            ctx.lineTo(bannerX, listY + ribbonH);
+            ctx.lineTo(bannerX, listY + 16);
+            ctx.quadraticCurveTo(bannerX, listY, bannerX + 16, listY);
+            ctx.closePath();
+            ctx.fillStyle = '#E6F4EA'; // Soft mint/emerald
+            ctx.fill();
+            ctx.strokeStyle = '#A7F3D0';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.font = 'bold 20px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#065F46';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`📋  أسماء طلاب الحلقة (${(target.students || []).length} طالب)`, width / 2, listY + ribbonH / 2);
+            ctx.restore();
+
+            // Students Content
+            const studentsList = target.students || [];
+            const contentTop = listY + ribbonH + 12;
+            const contentH = listH - ribbonH - 24;
+
+            if (studentsList.length > 0) {
+                // ALWAYS Vertical single column: كل صف فيه اسم واحد فقط وبحجم أكبر وواضح
+                const colPadding = 14;
+                const colW = bannerW - colPadding * 2;
+                const colX = bannerX + colPadding;
+                const rowCount = studentsList.length;
+
+                // Dynamic row height & gaps optimized for single column
+                const rowGap = rowCount > 14 ? 3 : (rowCount > 10 ? 5 : 8);
+                const maxRowH = 70;
+                const minRowH = 34;
+                const calcRowH = Math.floor((contentH - (rowCount - 1) * rowGap) / rowCount);
+                const rowH = Math.min(maxRowH, Math.max(minRowH, calcRowH));
+
+                // Vertically center or add slight top padding if list is short
+                const totalBlockH = rowCount * rowH + (rowCount - 1) * rowGap;
+                const startY = contentTop + Math.max(0, Math.min(20, Math.floor((contentH - totalBlockH) / 3)));
+
+                // Font size significantly increased for maximum readability
+                const fontSize = Math.min(32, Math.max(19, Math.round(rowH * 0.44)));
+
+                studentsList.forEach((st, idx) => {
+                    const itemY = startY + idx * (rowH + rowGap);
+                    const shouldHighlightAmeer = isAmeerHighlighted && !!st.isAmeer;
+                    
+                    // Item container (full width, single student per row)
+                    drawRoundRect(colX, itemY, colW, rowH, 10);
+                    ctx.fillStyle = shouldHighlightAmeer ? '#FFFBEB' : (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC');
+                    ctx.fill();
+                    ctx.lineWidth = shouldHighlightAmeer ? 1.8 : 1.2;
+                    ctx.strokeStyle = shouldHighlightAmeer ? '#F59E0B' : '#E2E8F0';
+                    ctx.stroke();
+
+                    // Circular number badge on the right
+                    const numBadgeRadius = Math.min(19, Math.max(13, Math.round(rowH * 0.30)));
+                    const numCenterX = colX + colW - 24;
+                    const numCenterY = itemY + rowH / 2;
+
+                    ctx.beginPath();
+                    ctx.arc(numCenterX, numCenterY, numBadgeRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = shouldHighlightAmeer ? '#D97706' : '#059669';
+                    ctx.fill();
+
+                    ctx.font = `bold ${Math.round(numBadgeRadius * 1.05)}px Tajawal, Cairo, sans-serif`;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(String(idx + 1), numCenterX, numCenterY);
+
+                    // Student Name (large, bold, crystal clear)
+                    const nameX = numCenterX - numBadgeRadius - 16;
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = `bold ${fontSize}px Tajawal, Cairo, sans-serif`;
+                    ctx.fillStyle = shouldHighlightAmeer ? '#92400E' : '#0F172A';
+
+                    // Available width for the student name
+                    const badgeAllowance = shouldHighlightAmeer ? 120 : (st.isAlAmeen ? 90 : 20);
+                    const maxNameW = colW - (numBadgeRadius * 2 + 56) - badgeAllowance;
+                    let displayName = st.name;
+                    if (ctx.measureText(displayName).width > maxNameW) {
+                        while (displayName.length > 5 && ctx.measureText(displayName + '...').width > maxNameW) {
+                            displayName = displayName.slice(0, -1);
+                        }
+                        displayName += '...';
+                    }
+                    ctx.fillText(displayName, nameX, itemY + rowH / 2);
+
+                    // Badges on left side
+                    if (shouldHighlightAmeer) {
+                        const badgeW = Math.max(96, Math.min(115, Math.round(colW * 0.14)));
+                        const badgeH = Math.min(30, Math.max(22, rowH - 10));
+                        const badgeX = colX + 16;
+                        const badgeY = itemY + (rowH - badgeH) / 2;
+
+                        drawRoundRect(badgeX, badgeY, badgeW, badgeH, 6);
+                        ctx.fillStyle = '#FEF3C7';
+                        ctx.fill();
+                        ctx.lineWidth = 1.2;
+                        ctx.strokeStyle = '#F59E0B';
+                        ctx.stroke();
+
+                        ctx.font = `bold ${Math.min(14, Math.round(badgeH * 0.52))}px Tajawal, Cairo, sans-serif`;
+                        ctx.fillStyle = '#92400E';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('أمير الحلقة', badgeX + badgeW / 2, badgeY + badgeH / 2);
+                    } else if (st.isAlAmeen) {
+                        const badgeW = 82;
+                        const badgeH = Math.min(28, Math.max(20, rowH - 12));
+                        const badgeX = colX + 16;
+                        const badgeY = itemY + (rowH - badgeH) / 2;
+
+                        drawRoundRect(badgeX, badgeY, badgeW, badgeH, 6);
+                        ctx.fillStyle = '#ECFDF5';
+                        ctx.fill();
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#10B981';
+                        ctx.stroke();
+
+                        ctx.font = `bold ${Math.min(13, Math.round(badgeH * 0.52))}px Tajawal, Cairo, sans-serif`;
+                        ctx.fillStyle = '#065F46';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('الأمين', badgeX + badgeW / 2, badgeY + badgeH / 2);
+                    }
+                });
+            } else {
+                // Empty lines for handwritten registration (single column vertical)
+                const lineCount = 12;
+                const rowH = Math.min(48, Math.floor(contentH / lineCount));
+                
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 16px Tajawal, Cairo, sans-serif';
+                ctx.fillStyle = '#6B7280';
+                ctx.fillText('كشف تسجيل أسماء طلاب الحلقة (مساحة للكتابة اليدوية)', width / 2, contentTop + 14);
+
+                for (let i = 0; i < lineCount; i++) {
+                    const rowY = contentTop + 40 + i * (rowH + 4);
+                    // Number badge
+                    const numBadgeRadius = 12;
+                    const numCenterX = bannerX + bannerW - 35;
+                    const numCenterY = rowY;
+
+                    ctx.beginPath();
+                    ctx.arc(numCenterX, numCenterY, numBadgeRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#E5E7EB';
+                    ctx.fill();
+
+                    ctx.font = 'bold 12px Tajawal, sans-serif';
+                    ctx.fillStyle = '#4B5563';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(String(i + 1), numCenterX, numCenterY);
+
+                    // Writing line
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#D1D5DB';
+                    ctx.lineWidth = 1.2;
+                    ctx.setLineDash([4, 4]);
+                    ctx.moveTo(bannerX + 35, rowY + 6);
+                    ctx.lineTo(numCenterX - numBadgeRadius - 15, rowY + 6);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+            ctx.restore();
+
+            // 8. Footer Ornamentation
+            ctx.save();
+            ctx.fillStyle = 'rgba(212, 175, 55, 0.9)';
+            ctx.font = 'bold 18px Tajawal, Cairo, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('❖   مشروع إعداد حافظ لتلاوة وحفظ القرآن الكريم   ❖', width / 2, bottomFooterY);
+            ctx.restore();
+
+            return;
+        }
 
         const baseColor = target.color || (target.type === 'memorization' ? memorizationColor : (target.type === 'sard' ? sardColor : (target.type === 'generic' ? genericCardsColor : '#8B4513')));
 
@@ -1316,14 +1779,14 @@ export const CardsManager: React.FC = () => {
         if (!currentItem) return;
 
         const canvas = document.createElement('canvas');
-        drawHalaqaCardOnCanvas(currentItem, canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType)
+        drawHalaqaCardOnCanvas(currentItem, canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType, halaqaCardMode, highlightAmeer)
             .then(() => {
                 setHalaqaPreviewUrl(canvas.toDataURL('image/png'));
             })
             .catch(err => {
                 console.error('Error drawing halaqa card preview:', err);
             });
-    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor, customHalaqaTypes, hideHalaqaType, genericCardsCount, genericCardsColor]);
+    }, [mainTab, activeHalaqaTargets, safeHalaqaPreviewIndex, appLogo, halaqaConfig, memorizationColor, sardColor, customHalaqaTypes, hideHalaqaType, genericCardsCount, genericCardsColor, halaqaCardMode, highlightAmeer]);
 
     const generateHalaqaPDF = async () => {
         if (activeHalaqaTargets.length === 0) {
@@ -1335,21 +1798,35 @@ export const CardsManager: React.FC = () => {
         try {
             const { jsPDF } = await import('jspdf');
 
+            let cardWMM = halaqaConfig.width;
+            let cardHMM = halaqaConfig.height;
+            if (halaqaConfig.unit === 'cm') { cardWMM *= 10; cardHMM *= 10; }
+            else if (halaqaConfig.unit === 'in') { cardWMM *= 25.4; cardHMM *= 25.4; }
+
+            const isA5Card = (Math.abs(cardWMM - 148) < 3 && Math.abs(cardHMM - 210) < 3) ||
+                             (Math.abs(cardWMM - 210) < 3 && Math.abs(cardHMM - 148) < 3);
+
+            // إذا كانت البطاقات مقاس A5 أو تم اختيار نمط A5: يتم التصدير بحجم A5 وبدون هوامش فارغة
+            const isA5Export = halaqaExportMode === 'a5' || isA5Card;
+
             let docW = 210;
             let docH = 297;
             let pdfOrientation: 'portrait' | 'landscape' = 'portrait';
 
-            if (exportMode === 'a4') {
+            if (isA5Export) {
+                // مقاس A5 القياسي الدقيق (148 × 210 مم) بدون أي هوامش
+                docW = cardWMM > cardHMM ? 210 : 148;
+                docH = cardWMM > cardHMM ? 148 : 210;
+                pdfOrientation = cardWMM > cardHMM ? 'landscape' : 'portrait';
+            } else if (halaqaExportMode === 'a4') {
                 docW = 210; docH = 297; pdfOrientation = 'portrait';
-            } else if (exportMode === 'a3') {
+            } else if (halaqaExportMode === 'a3') {
                 docW = 297; docH = 420; pdfOrientation = 'portrait';
-            } else if (exportMode === 'single') {
-                docW = halaqaConfig.width;
-                docH = halaqaConfig.height;
-                if (halaqaConfig.unit === 'cm') { docW *= 10; docH *= 10; }
-                else if (halaqaConfig.unit === 'in') { docW *= 25.4; docH *= 25.4; }
+            } else if (halaqaExportMode === 'single') {
+                docW = cardWMM;
+                docH = cardHMM;
                 pdfOrientation = docW > docH ? 'landscape' : 'portrait';
-            } else if (exportMode === 'other') {
+            } else if (halaqaExportMode === 'other') {
                 const dims = getOtherPaperDimensionsMM();
                 docW = dims.width;
                 docH = dims.height;
@@ -1359,24 +1836,20 @@ export const CardsManager: React.FC = () => {
             const pdf = new jsPDF({
                 orientation: pdfOrientation,
                 unit: 'mm',
-                format: exportMode === 'single' ? [docW, docH] : (exportMode === 'other' ? [docW, docH] : exportMode as any)
+                format: isA5Export ? [docW, docH] : (halaqaExportMode === 'single' ? [docW, docH] : (halaqaExportMode === 'other' ? [docW, docH] : halaqaExportMode as any))
             });
 
             // Enforce Actual Size (100% scale) when printed directly from PDF readers
             pdf.viewerPreferences({ PrintScaling: 'None' }, true);
 
-            let cardWMM = halaqaConfig.width;
-            let cardHMM = halaqaConfig.height;
-            if (halaqaConfig.unit === 'cm') { cardWMM *= 10; cardHMM *= 10; }
-            else if (halaqaConfig.unit === 'in') { cardWMM *= 25.4; cardHMM *= 25.4; }
-
-            if (exportMode === 'single') {
+            if (isA5Export || halaqaExportMode === 'single') {
                 const canvas = document.createElement('canvas');
                 for (let i = 0; i < activeHalaqaTargets.length; i++) {
-                    if (i > 0) pdf.addPage([cardWMM, cardHMM], cardWMM > cardHMM ? 'landscape' : 'portrait');
-                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType);
+                    if (i > 0) pdf.addPage([docW, docH], pdfOrientation);
+                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType, halaqaCardMode, highlightAmeer);
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    pdf.addImage(imgData, 'JPEG', 0, 0, cardWMM, cardHMM);
+                    // رسم البطاقة على كامل حجم الصفحة بدون أي هوامش فارغة
+                    pdf.addImage(imgData, 'JPEG', 0, 0, docW, docH);
                 }
             } else {
                 const gap = pdfGaps ? 6 : 2;
@@ -1393,7 +1866,7 @@ export const CardsManager: React.FC = () => {
 
                 for (let i = 0; i < activeHalaqaTargets.length; i++) {
                     if (i > 0 && i % cardsPerPage === 0) {
-                        pdf.addPage(exportMode === 'other' ? [docW, docH] : exportMode as any, pdfOrientation);
+                        pdf.addPage(halaqaExportMode === 'other' ? [docW, docH] : halaqaExportMode as any, pdfOrientation);
                     }
 
                     const pageIndex = i % cardsPerPage;
@@ -1405,7 +1878,7 @@ export const CardsManager: React.FC = () => {
                     const x = startX + colRTL * (cardWMM + gap);
                     const y = startY + row * (cardHMM + gap);
 
-                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType);
+                    await drawHalaqaCardOnCanvas(activeHalaqaTargets[i], canvas, appLogo, halaqaConfig.width, halaqaConfig.height, hideHalaqaType, halaqaCardMode, highlightAmeer);
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
                     pdf.addImage(imgData, 'JPEG', x, y, cardWMM, cardHMM);
 
@@ -1416,14 +1889,118 @@ export const CardsManager: React.FC = () => {
                 }
             }
 
-            pdf.save('بطاقات_الحلقات.pdf');
-            showToast('✅ تم إنشاء وتنزيل ملف PDF لبطاقات الحلقات بنجاح');
+            // تسمية الملف بدقة وإدراج a5 عند التصدير بحجم a5
+            let baseName = 'بطاقات_الحلقات';
+            if (halaqaFilter === 'memorization') {
+                baseName = 'بطاقات_حلقات_الحفظ';
+            } else if (halaqaFilter === 'sard') {
+                baseName = 'بطاقات_حلقات_السرد';
+            }
+
+            let fileName = '';
+            if (isA5Export || isA5Card) {
+                fileName = `${baseName}_A5.pdf`;
+            } else if (halaqaExportMode === 'a4') {
+                fileName = `${baseName}_A4.pdf`;
+            } else if (halaqaExportMode === 'a3') {
+                fileName = `${baseName}_A3.pdf`;
+            } else {
+                fileName = `${baseName}_${Math.round(cardWMM)}x${Math.round(cardHMM)}mm.pdf`;
+            }
+
+            pdf.save(fileName);
+            showToast(`✅ تم إنشاء وتنزيل ملف PDF (${fileName}) بنجاح`);
         } catch (err) {
             console.error('Error generating Halaqa PDF:', err);
             showToast('❌ حدث خطأ أثناء إصدار ملف PDF');
         } finally {
             setIsGenerating(false);
         }
+    };
+
+    const generateHalaqaHTML = async () => {
+        if (activeHalaqaTargets.length === 0) {
+            showToast('⚠️ لا توجد حلقات محددة لإصدار البطاقات');
+            return;
+        }
+
+        setIsGeneratingHtml(true);
+        showToast('⏳ جاري إنشاء بطاقات الحلقات بصيغة HTML التفاعلية...');
+
+        setTimeout(async () => {
+            try {
+                await document.fonts.ready;
+                const items = activeHalaqaTargets;
+                const interactiveCards: InteractiveCardItem[] = [];
+
+                let cardWMM = halaqaConfig.width;
+                let cardHMM = halaqaConfig.height;
+                if (halaqaConfig.unit === 'cm') { cardWMM *= 10; cardHMM *= 10; }
+                else if (halaqaConfig.unit === 'in') { cardWMM *= 25.4; cardHMM *= 25.4; }
+
+                const isA5Card = (Math.abs(cardWMM - 148) < 3 && Math.abs(cardHMM - 210) < 3) ||
+                                 (Math.abs(cardWMM - 210) < 3 && Math.abs(cardHMM - 148) < 3);
+                const isA5 = halaqaExportMode === 'a5' || isA5Card;
+
+                for (let i = 0; i < items.length; i++) {
+                    const target = items[i];
+                    const canvas = document.createElement('canvas');
+                    await drawHalaqaCardOnCanvas(
+                        target,
+                        canvas,
+                        appLogo,
+                        cardWMM,
+                        cardHMM,
+                        hideHalaqaType,
+                        halaqaCardMode,
+                        highlightAmeer
+                    );
+                    const imgData = canvas.toDataURL('image/jpeg', 0.88);
+
+                    const studentNames = (target.students || []).map(s => s.name);
+
+                    interactiveCards.push({
+                        id: target.id,
+                        title: target.name,
+                        name: target.name,
+                        role: target.typeName || (target.type === 'memorization' ? 'حلقة حفظ' : target.type === 'sard' ? 'حلقة سرد' : 'حلقة'),
+                        studentNames: studentNames,
+                        teacherName: target.teacherName || '',
+                        halaqaName: target.name,
+                        number: target.numberStr,
+                        imageDataUrl: imgData,
+                        aspectRatio: cardWMM / cardHMM
+                    });
+                }
+
+                let baseName = 'بطاقات_الحلقات';
+                if (halaqaFilter === 'memorization') {
+                    baseName = 'بطاقات_حلقات_الحفظ';
+                } else if (halaqaFilter === 'sard') {
+                    baseName = 'بطاقات_حلقات_السرد';
+                }
+
+                const fileName = isA5 ? `${baseName}_A5_HTML` : `${baseName}_HTML`;
+                const reportTitle = halaqaCardMode === 'with_students' 
+                    ? `${baseName.replace(/_/g, ' ')} مع قوائم الطلاب` 
+                    : `${baseName.replace(/_/g, ' ')}`;
+                const subtitle = `بطاقات الحلقات التفاعلية مع خاصية البحث بالطلاب والمعلمين والحلقات (${interactiveCards.length} بطاقة)`;
+
+                await shareInteractiveCardsHtml(
+                    interactiveCards,
+                    fileName,
+                    reportTitle,
+                    subtitle,
+                    context?.hijriAdjustments || {}
+                );
+                showToast(`✅ تم إنشاء وتجهيز ملف HTML التفاعلي للبطاقات بنجاح`);
+            } catch (error) {
+                console.error('Error generating Halaqa HTML:', error);
+                showToast('❌ حدث خطأ أثناء إنشاء ملف HTML للبطاقات');
+            } finally {
+                setIsGeneratingHtml(false);
+            }
+        }, 80);
     };
 
     const handleStageColorChange = (stage: string, color: string | null) => {
@@ -2416,6 +2993,252 @@ export const CardsManager: React.FC = () => {
         }, 100);
     };
 
+    const generateIdCardsHTML = async () => {
+        const targets = activeTargets;
+        if (targets.length === 0) {
+            showToast('⚠️ لا يوجد أشخاص محددين لإصدار البطاقات لهم');
+            return;
+        }
+
+        setIsGeneratingHtml(true);
+        showToast('⏳ جاري تجهيز البطاقات بصيغة HTML التفاعلية...');
+
+        setTimeout(async () => {
+            try {
+                await document.fonts.ready;
+
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                if (config.templateImage) {
+                    img.src = config.templateImage;
+                    await new Promise((resolve) => {
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                    });
+                }
+
+                let activeAwqafLogo = awqafLogo;
+                if (!activeAwqafLogo && config.showAwqafLogo !== false) {
+                    activeAwqafLogo = await new Promise<HTMLImageElement | null>((resolve) => {
+                        const temp = new Image();
+                        temp.crossOrigin = 'anonymous';
+                        temp.src = '/awqaf_logo.png';
+                        temp.onload = () => resolve(temp);
+                        temp.onerror = () => resolve(null);
+                    });
+                }
+
+                let cardWidthMM = config.width;
+                let cardHeightMM = config.height;
+                if (config.unit === 'cm') {
+                    cardWidthMM = config.width * 10;
+                    cardHeightMM = config.height * 10;
+                } else if (config.unit === 'in') {
+                    cardWidthMM = config.width * 25.4;
+                    cardHeightMM = config.height * 25.4;
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = cardWidthMM * 10;
+                canvas.height = cardHeightMM * 10;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) throw new Error('Could not create canvas context');
+
+                const interactiveCards: InteractiveCardItem[] = [];
+
+                for (let i = 0; i < targets.length; i++) {
+                    const target = targets[i];
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    if (config.templateImage) {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    } else {
+                        const stage = target.stage;
+                        const baseColor = (stage && effectiveStageColors[stage]) || '#059669';
+
+                        let r = parseInt(baseColor.slice(1,3), 16) || 5;
+                        let g = parseInt(baseColor.slice(3,5), 16) || 150;
+                        let b = parseInt(baseColor.slice(5,7), 16) || 105;
+                        const darkerColor = "#" + Math.floor(r * 0.5).toString(16).padStart(2,'0') + Math.floor(g * 0.5).toString(16).padStart(2,'0') + Math.floor(b * 0.5).toString(16).padStart(2,'0');
+
+                        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                        grad.addColorStop(0, baseColor);
+                        grad.addColorStop(1, darkerColor);
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        ctx.save();
+                        const radialGlow2 = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.45, 0, canvas.width * 0.5, canvas.height * 0.45, canvas.width * 0.7);
+                        radialGlow2.addColorStop(0.0, 'rgba(255, 255, 255, 0.16)');
+                        radialGlow2.addColorStop(0.6, 'rgba(255, 255, 255, 0.05)');
+                        radialGlow2.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+                        ctx.fillStyle = radialGlow2;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.restore();
+
+                        const borderWidth = canvas.width * 0.015;
+                        ctx.strokeStyle = '#D4AF37';
+                        ctx.lineWidth = borderWidth;
+                        ctx.strokeRect(borderWidth, borderWidth, canvas.width - borderWidth * 2, canvas.height - borderWidth * 2);
+
+                        ctx.lineWidth = borderWidth * 0.2;
+                        ctx.strokeRect(borderWidth * 1.5, borderWidth * 1.5, canvas.width - borderWidth * 3, canvas.height - borderWidth * 3);
+
+                        if (appLogo) {
+                            const logoSize = Math.min(canvas.width, canvas.height) * 0.35;
+                            const logoX = (canvas.width - logoSize) / 2;
+                            const logoY = canvas.height * 0.08;
+
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+                            ctx.closePath();
+                            ctx.clip();
+                            ctx.drawImage(appLogo, logoX, logoY, logoSize, logoSize);
+                            ctx.restore();
+
+                            ctx.beginPath();
+                            ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+                            ctx.strokeStyle = '#D4AF37';
+                            ctx.lineWidth = Math.max(2, logoSize * 0.03);
+                            ctx.stroke();
+
+                            ctx.font = `800 ${logoSize * 0.17}px Cairo, Alexandria, Tajawal, "IBM Plex Sans Arabic", sans-serif`;
+                            ctx.fillStyle = '#D4AF37';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('✦ مشروع إعداد حافظ ✦', canvas.width / 2, logoY + logoSize + logoSize * 0.2);
+                        }
+                    }
+
+                    if (config.showAwqafLogo !== false && activeAwqafLogo) {
+                        drawAwqafLogoOnCanvas(
+                            ctx,
+                            canvas.width,
+                            canvas.height,
+                            activeAwqafLogo,
+                            config.awqafLogoCorner || 'top-right',
+                            config.awqafLogoBadge || 'white',
+                            config.awqafLogoSize || 22
+                        );
+                    }
+
+                    if (target?.stageIndex !== undefined) {
+                        ctx.save();
+                        const radius = canvas.width * 0.055;
+                        const padding = canvas.width * 0.03;
+                        const x = radius + padding;
+                        const y = radius + padding;
+
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                        ctx.fill();
+                        ctx.lineWidth = radius * 0.15;
+                        ctx.strokeStyle = '#D4AF37';
+                        ctx.stroke();
+
+                        const numStr = target.stageIndex.toString();
+                        const fontScale = numStr.length > 3 ? 0.55 : numStr.length > 2 ? 0.72 : 0.9;
+                        ctx.font = `bold ${radius * fontScale}px Arial, sans-serif`;
+                        const idCardBaseColor = (target.stage && effectiveStageColors[target.stage]) || config.nameColor || '#059669';
+                        ctx.fillStyle = getDarkToneFromBaseColor(idCardBaseColor);
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(numStr, x, y + radius * 0.08);
+                        ctx.restore();
+                    }
+
+                    let fontSizePx = config.nameFontSize * 3.5277;
+                    ctx.font = `${config.nameItalic ? 'italic ' : ''}${config.nameBold ? 'bold ' : ''}${fontSizePx}px ${config.nameFontFamily}`;
+                    ctx.fillStyle = config.nameColor;
+                    ctx.textAlign = config.nameAlign;
+                    ctx.textBaseline = 'middle';
+                    ctx.direction = 'rtl';
+
+                    const x = (config.nameX / config.width) * canvas.width;
+                    const y = (config.nameY / config.height) * canvas.height;
+                    const maxTextWidth = canvas.width * 0.85;
+
+                    const measuredName = ctx.measureText(target.name);
+                    if (measuredName.width > maxTextWidth && measuredName.width > 0) {
+                        const scale = maxTextWidth / measuredName.width;
+                        fontSizePx = Math.max(8, fontSizePx * scale);
+                        ctx.font = `${config.nameItalic ? 'italic ' : ''}${config.nameBold ? 'bold ' : ''}${fontSizePx}px ${config.nameFontFamily}`;
+                    }
+
+                    ctx.fillText(target.name, x, y);
+
+                    const imgData = canvas.toDataURL('image/jpeg', 0.88);
+
+                    let studentHalaqa = '';
+                    let studentTeacher = '';
+                    let studentNames: string[] = [];
+                    const roleStr = activeTab === 'students' ? 'طالب' : activeTab === 'teachers' ? 'معلم' : 'مخصص';
+
+                    if (activeTab === 'students') {
+                        studentNames = [target.name];
+                        const sObj = students.find(s => s.id === target.id);
+                        if (sObj) {
+                            if (sObj.halaqaId) {
+                                const h = halaqas.find(item => item.id === sObj.halaqaId);
+                                if (h) {
+                                    studentHalaqa = h.name;
+                                    const t = users.find(u => Number(u.id) === Number(h.teacherId));
+                                    if (t) studentTeacher = t.name;
+                                }
+                            } else if (sObj.sardHalaqaId) {
+                                const sh = sardHalaqas.find(item => item.id === sObj.sardHalaqaId);
+                                if (sh) {
+                                    studentHalaqa = sh.name;
+                                    const t = users.find(u => Number(u.id) === Number(sh.teacherId));
+                                    if (t) studentTeacher = t.name;
+                                }
+                            }
+                        }
+                    } else if (activeTab === 'teachers') {
+                        studentTeacher = target.name;
+                        const teacherHalaqasList = halaqas.filter(h => Number(h.teacherId) === Number(target.id));
+                        studentHalaqa = teacherHalaqasList.map(h => h.name).join('، ');
+                        studentNames = students.filter(s => teacherHalaqasList.some(h => h.id === s.halaqaId)).map(s => s.name);
+                    }
+
+                    interactiveCards.push({
+                        id: target.id,
+                        title: `بطاقة ${roleStr}: ${target.name}`,
+                        name: target.name,
+                        role: roleStr,
+                        studentNames: studentNames,
+                        teacherName: studentTeacher,
+                        halaqaName: studentHalaqa,
+                        stage: target.stage || undefined,
+                        number: target.stageIndex,
+                        imageDataUrl: imgData,
+                        aspectRatio: cardWidthMM / cardHeightMM
+                    });
+                }
+
+                const prefix = activeTab === 'students' ? 'بطاقات_الطلاب' : activeTab === 'teachers' ? 'بطاقات_المعلمين' : 'البطاقات_التعريفية';
+                const fileName = `${prefix}_HTML`;
+                const reportTitle = `${prefix.replace(/_/g, ' ')} التفاعلية`;
+                const subtitle = `بطاقات تفاعلية مع ميزة البحث بالطالب أو المعلم أو الحلقة (${interactiveCards.length} بطاقة)`;
+
+                await shareInteractiveCardsHtml(
+                    interactiveCards,
+                    fileName,
+                    reportTitle,
+                    subtitle,
+                    context?.hijriAdjustments || {}
+                );
+                showToast('✅ تم إنشاء وتجهيز ملف HTML التفاعلي للبطاقات بنجاح');
+            } catch (error) {
+                console.error('Error generating ID Cards HTML:', error);
+                showToast('❌ حدث خطأ أثناء إنشاء ملف HTML للبطاقات');
+            } finally {
+                setIsGeneratingHtml(false);
+            }
+        }, 80);
+    };
+
 
     const movePosition = (dx: number, dy: number) => {
         setConfig(prev => ({
@@ -3073,23 +3896,46 @@ export const CardsManager: React.FC = () => {
                             </div>
                         </div>
 
-                        <button 
-                            onClick={generatePDF}
-                            disabled={isGenerating}
-                            className="w-full bg-green-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
-                        >
-                            {isGenerating ? (
-                                <>
-                                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    جاري الإصدار...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                    إصدار البطاقات
-                                </>
-                            )}
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <button 
+                                type="button"
+                                onClick={generatePDF}
+                                disabled={isGenerating || isGeneratingHtml || activeTargets.length === 0}
+                                className="w-full bg-green-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-green-700 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span>جاري الإصدار...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Printer className="w-5 h-5 shrink-0" />
+                                        <span>إصدار البطاقات (PDF)</span>
+                                    </>
+                                )}
+                            </button>
+
+                            <button 
+                                type="button"
+                                onClick={generateIdCardsHTML}
+                                disabled={isGenerating || isGeneratingHtml || activeTargets.length === 0}
+                                className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-3 rounded-xl font-bold active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                                title="تصدير البطاقات بصيغة HTML تفاعلية مع ميزة البحث بالطالب أو المعلم أو الحلقة"
+                            >
+                                {isGeneratingHtml ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span>جاري التصدير...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Globe className="w-5 h-5 shrink-0" />
+                                        <span>تصدير البطاقات (HTML)</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
                             <button 
@@ -3401,6 +4247,101 @@ export const CardsManager: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Left Column: Filters & Export Controls */}
                         <div className="lg:col-span-1 space-y-6 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            {/* خيارات نوع محتوى بطاقة الحلقة (رقم فقط أو رقم مع أسماء الطلاب) */}
+                            <div className="p-3.5 bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-emerald-50/80 dark:from-gray-700/80 dark:via-gray-800 dark:to-gray-700/80 rounded-2xl border-2 border-emerald-300 dark:border-gray-600 shadow-sm space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Layers className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                                        <h4 className="text-xs font-black text-emerald-950 dark:text-emerald-200">
+                                            محتوى وتنسيق بطاقة الحلقة:
+                                        </h4>
+                                    </div>
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-200/80 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 border border-emerald-400/60">
+                                        {halaqaCardMode === 'with_students' ? 'الرقم + أسماء الطلاب' : 'رقم الحلقة فقط'}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    {/* الخيار 1: رقم الحلقة فقط */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleHalaqaCardModeChange('number_only')}
+                                        className={`p-2.5 rounded-xl border-2 text-right transition-all flex flex-col gap-1 cursor-pointer relative ${
+                                            halaqaCardMode === 'number_only'
+                                                ? 'border-emerald-600 bg-white dark:bg-gray-800 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-300 shadow-sm'
+                                                : 'border-gray-200 dark:border-gray-600 bg-white/60 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-white hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className="text-xs font-black">رقم الحلقة فقط</span>
+                                            <span className="text-sm">🔢</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                                            رقم الحلقة بحجم كبير في منتصف دائرة البطاقة (النمط الكلاسيكي)
+                                        </p>
+                                        {halaqaCardMode === 'number_only' && (
+                                            <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-emerald-500"></div>
+                                        )}
+                                    </button>
+
+                                    {/* الخيار 2: رقم الحلقة وأسماء الطلاب */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleHalaqaCardModeChange('with_students')}
+                                        className={`p-2.5 rounded-xl border-2 text-right transition-all flex flex-col gap-1 cursor-pointer relative ${
+                                            halaqaCardMode === 'with_students'
+                                                ? 'border-emerald-600 bg-white dark:bg-gray-800 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-300 shadow-sm'
+                                                : 'border-gray-200 dark:border-gray-600 bg-white/60 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-white hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className="text-xs font-black text-emerald-800 dark:text-emerald-300">الرقم + أسماء الطلاب</span>
+                                            <span className="text-sm">📋</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                                            رقم الحلقة كعنوان في الأعلى مع قائمة الطلاب عمودياً (اسم واحد لكل صف بحجم كبير وواضح)
+                                        </p>
+                                        {halaqaCardMode === 'with_students' && (
+                                            <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-emerald-500"></div>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* خيار فرعي: تمييز أمير الحلقة أو إزالة التمييز عند اختيار قائمة أسماء الطلاب */}
+                                {halaqaCardMode === 'with_students' && (
+                                    <div className="mt-2.5 p-3 bg-amber-50/80 dark:bg-gray-700/60 border border-amber-200 dark:border-gray-600 rounded-xl transition-all shadow-2xs animate-fade-in">
+                                        <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-base mt-0.5">👑</span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+                                                        <span>تمييز اسم أمير الحلقة</span>
+                                                        <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 px-1.5 py-0.2 rounded font-normal">
+                                                            الافتراضي
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
+                                                        {highlightAmeer
+                                                            ? 'مفعّل: يظهر أمير الحلقة بلون مُميّز وشارة «أمير الحلقة» (افتراضي)'
+                                                            : 'معطّل: يظهر اسم أمير الحلقة كبقية الطلاب بدون أي تمييز'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="relative shrink-0">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only"
+                                                    checked={highlightAmeer}
+                                                    onChange={(e) => handleToggleHighlightAmeer(e.target.checked)}
+                                                />
+                                                <div className={`block w-10 h-5 rounded-full transition-colors ${highlightAmeer ? 'bg-amber-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                                                <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform duration-200 shadow-xs ${highlightAmeer ? 'transform translate-x-5' : ''}`}></div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* 1. Filter by Halaqa Type */}
                             <div>
                                 <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
@@ -3410,17 +4351,17 @@ export const CardsManager: React.FC = () => {
                                 <div className="flex flex-wrap gap-1.5 mb-4">
                                     <button
                                         type="button"
+                                        onClick={() => { setHalaqaFilter('memorization'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
+                                        className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'memorization' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
+                                    >
+                                        حلقات الحفظ ({allHalaqaItems.filter(i => i.type === 'memorization').length})
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => { setHalaqaFilter('all'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
                                         className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
                                     >
                                         الكل ({allHalaqaItems.length})
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setHalaqaFilter('memorization'); setSelectedHalaqaIds([]); setHalaqaPreviewIndex(0); }}
-                                        className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all border text-center ${halaqaFilter === 'memorization' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-100'}`}
-                                    >
-                                        الحفظ ({allHalaqaItems.filter(i => i.type === 'memorization').length})
                                     </button>
                                     <button
                                         type="button"
@@ -3717,17 +4658,44 @@ export const CardsManager: React.FC = () => {
                                         </label>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         <label className="cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="halaqaExportMode"
                                                 className="peer hidden"
-                                                checked={exportMode === 'a4'}
-                                                onChange={() => setExportMode('a4')}
+                                                checked={halaqaExportMode === 'a5'}
+                                                onChange={() => setHalaqaExportMode('a5')}
+                                            />
+                                            <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
+                                                A5 (بدون هوامش)
+                                                <span className="block text-[10px] font-normal text-emerald-600 dark:text-emerald-400">صفحة كاملة (افتراضي)</span>
+                                            </div>
+                                        </label>
+                                        <label className="cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="halaqaExportMode"
+                                                className="peer hidden"
+                                                checked={halaqaExportMode === 'single'}
+                                                onChange={() => setHalaqaExportMode('single')}
+                                            />
+                                            <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
+                                                المقاس الفعلي
+                                                <span className="block text-[10px] font-normal text-gray-500">بطاقة لكل صفحة</span>
+                                            </div>
+                                        </label>
+                                        <label className="cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="halaqaExportMode"
+                                                className="peer hidden"
+                                                checked={halaqaExportMode === 'a4'}
+                                                onChange={() => setHalaqaExportMode('a4')}
                                             />
                                             <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
                                                 تجميع في A4
+                                                <span className="block text-[10px] font-normal text-gray-500">أوراق مكتبية</span>
                                             </div>
                                         </label>
                                         <label className="cursor-pointer">
@@ -3735,23 +4703,12 @@ export const CardsManager: React.FC = () => {
                                                 type="radio"
                                                 name="halaqaExportMode"
                                                 className="peer hidden"
-                                                checked={exportMode === 'a3'}
-                                                onChange={() => setExportMode('a3')}
+                                                checked={halaqaExportMode === 'a3'}
+                                                onChange={() => setHalaqaExportMode('a3')}
                                             />
                                             <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
                                                 تجميع في A3
-                                            </div>
-                                        </label>
-                                        <label className="cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="halaqaExportMode"
-                                                className="peer hidden"
-                                                checked={exportMode === 'single'}
-                                                onChange={() => setExportMode('single')}
-                                            />
-                                            <div className="text-center p-2 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 peer-checked:text-emerald-700 dark:peer-checked:text-emerald-300 font-bold text-xs transition-all">
-                                                كل بطاقة في صفحة
+                                                <span className="block text-[10px] font-normal text-gray-500">أوراق كبيرة</span>
                                             </div>
                                         </label>
                                     </div>
@@ -3761,15 +4718,15 @@ export const CardsManager: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                if (exportMode !== 'other') {
-                                                    setExportMode('other');
+                                                if (halaqaExportMode !== 'other') {
+                                                    setHalaqaExportMode('other');
                                                     setIsOtherPaperDropdownOpen(true);
                                                 } else {
                                                     setIsOtherPaperDropdownOpen(prev => !prev);
                                                 }
                                             }}
                                             className={`w-full p-2.5 rounded-lg border-2 flex items-center justify-between text-xs font-bold transition-all shadow-sm ${
-                                                exportMode === 'other'
+                                                halaqaExportMode === 'other'
                                                     ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                                                     : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300'
                                             }`}
@@ -3780,13 +4737,13 @@ export const CardsManager: React.FC = () => {
                                                 </span>
                                                 <div className="truncate">
                                                     <div className="truncate">
-                                                        {exportMode === 'other' ? (
+                                                        {halaqaExportMode === 'other' ? (
                                                             <span>حجم مخصص: <strong className="text-emerald-800 dark:text-emerald-200">{currentOtherPaper.name}</strong></span>
                                                         ) : (
                                                             'أحجام ورق أخرى ومقاسات المطابع...'
                                                         )}
                                                     </div>
-                                                    {exportMode === 'other' && currentOtherPaper.id !== 'custom' && (
+                                                    {halaqaExportMode === 'other' && currentOtherPaper.id !== 'custom' && (
                                                         <div className="text-[10px] font-normal text-gray-500 dark:text-gray-400 truncate">
                                                             {currentOtherPaper.widthMM / 10} × {currentOtherPaper.heightMM / 10} سم • {currentOtherPaper.notes}
                                                         </div>
@@ -3794,7 +4751,7 @@ export const CardsManager: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1.5 shrink-0">
-                                                {exportMode === 'other' && (
+                                                {halaqaExportMode === 'other' && (
                                                     <span className="text-[10px] bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.5 rounded font-bold">
                                                         مفعّل
                                                     </span>
@@ -3821,11 +4778,11 @@ export const CardsManager: React.FC = () => {
                                                                 type="button"
                                                                 onClick={() => {
                                                                     setSelectedOtherPaper(preset.id);
-                                                                    setExportMode('other');
+                                                                    setHalaqaExportMode('other');
                                                                     setIsOtherPaperDropdownOpen(false);
                                                                 }}
                                                                 className={`w-full text-right p-2 rounded-lg transition-colors flex items-center justify-between ${
-                                                                    exportMode === 'other' && selectedOtherPaper === preset.id
+                                                                    halaqaExportMode === 'other' && selectedOtherPaper === preset.id
                                                                         ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-300 dark:border-emerald-700'
                                                                         : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                                                                 }`}
@@ -3834,7 +4791,7 @@ export const CardsManager: React.FC = () => {
                                                                     <div className="font-bold">{preset.name}</div>
                                                                     <div className="text-[10px] text-gray-500 dark:text-gray-400">{preset.notes}</div>
                                                                 </div>
-                                                                {exportMode === 'other' && selectedOtherPaper === preset.id && (
+                                                                {halaqaExportMode === 'other' && selectedOtherPaper === preset.id && (
                                                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
                                                                 )}
                                                             </button>
@@ -3855,11 +4812,11 @@ export const CardsManager: React.FC = () => {
                                                                 type="button"
                                                                 onClick={() => {
                                                                     setSelectedOtherPaper(preset.id);
-                                                                    setExportMode('other');
+                                                                    setHalaqaExportMode('other');
                                                                     setIsOtherPaperDropdownOpen(false);
                                                                 }}
                                                                 className={`w-full text-right p-2 rounded-lg transition-colors flex items-center justify-between ${
-                                                                    exportMode === 'other' && selectedOtherPaper === preset.id
+                                                                    halaqaExportMode === 'other' && selectedOtherPaper === preset.id
                                                                         ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 font-bold border border-emerald-300 dark:border-emerald-700'
                                                                         : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                                                                 }`}
@@ -3868,7 +4825,7 @@ export const CardsManager: React.FC = () => {
                                                                     <div className="font-bold">{preset.name}</div>
                                                                     <div className="text-[10px] text-gray-500 dark:text-gray-400">{preset.notes}</div>
                                                                 </div>
-                                                                {exportMode === 'other' && selectedOtherPaper === preset.id && (
+                                                                {halaqaExportMode === 'other' && selectedOtherPaper === preset.id && (
                                                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
                                                                 )}
                                                             </button>
@@ -3882,11 +4839,11 @@ export const CardsManager: React.FC = () => {
                                                         type="button"
                                                         onClick={() => {
                                                             setSelectedOtherPaper('custom');
-                                                            setExportMode('other');
+                                                            setHalaqaExportMode('other');
                                                             setIsOtherPaperDropdownOpen(false);
                                                         }}
                                                         className={`w-full text-right p-2.5 rounded-lg transition-colors flex items-center justify-between ${
-                                                            exportMode === 'other' && selectedOtherPaper === 'custom'
+                                                            halaqaExportMode === 'other' && selectedOtherPaper === 'custom'
                                                                 ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-900 dark:text-emerald-100 font-bold border border-emerald-400 dark:border-emerald-600'
                                                                 : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border border-dashed border-gray-300 dark:border-gray-500'
                                                         }`}
@@ -3898,7 +4855,7 @@ export const CardsManager: React.FC = () => {
                                                                 <div className="text-[10px] text-gray-500 dark:text-gray-400">إدخال مقاس الورقة المخصص وتحديد الوحدة</div>
                                                             </div>
                                                         </div>
-                                                        {exportMode === 'other' && selectedOtherPaper === 'custom' && (
+                                                        {halaqaExportMode === 'other' && selectedOtherPaper === 'custom' && (
                                                             <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">✓</span>
                                                         )}
                                                     </button>
@@ -3908,7 +4865,7 @@ export const CardsManager: React.FC = () => {
                                     </div>
 
                                     {/* لوحة إدخال الحجم يدوياً عند اختيار أخرى */}
-                                    {exportMode === 'other' && selectedOtherPaper === 'custom' && (
+                                    {halaqaExportMode === 'other' && selectedOtherPaper === 'custom' && (
                                         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-300 dark:border-emerald-700 space-y-2.5 shadow-sm">
                                             <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300 border-b border-gray-100 dark:border-gray-700 pb-1.5">
                                                 <span className="flex items-center gap-1.5">
@@ -3996,7 +4953,7 @@ export const CardsManager: React.FC = () => {
                                     )}
 
                                     {/* اتجاه الورقة لأحجام المطابع الجاهزة */}
-                                    {exportMode === 'other' && selectedOtherPaper !== 'custom' && (
+                                    {halaqaExportMode === 'other' && selectedOtherPaper !== 'custom' && (
                                         <div className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-[11px] shadow-sm">
                                             <div className="text-gray-600 dark:text-gray-300">
                                                 <span className="font-bold text-emerald-800 dark:text-emerald-300 ml-1">الاتجاه:</span>
@@ -4034,10 +4991,10 @@ export const CardsManager: React.FC = () => {
                                         <div className="flex items-center justify-between">
                                             <span>السعة التقديرية للورقة:</span>
                                             <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                                                {exportMode === 'single' ? 'بطاقة واحدة لكل صفحة' : `~ ${estimatedHalaqaCardsPerPage} بطاقة / ورقة`}
+                                                {halaqaExportMode === 'a5' ? 'بطاقة واحدة لكل صفحة A5 (بدون هوامش)' : (halaqaExportMode === 'single' ? 'بطاقة واحدة لكل صفحة (المقاس الفعلي)' : `~ ${estimatedHalaqaCardsPerPage} بطاقة / ورقة`)}
                                             </span>
                                         </div>
-                                        {activeHalaqaTargets.length > 0 && exportMode !== 'single' && (
+                                        {activeHalaqaTargets.length > 0 && halaqaExportMode !== 'a5' && halaqaExportMode !== 'single' && (
                                             <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-700 text-[10px]">
                                                 <span>إجمالي الأوراق التقديري:</span>
                                                 <span className="font-bold text-gray-800 dark:text-gray-200">
@@ -4061,16 +5018,29 @@ export const CardsManager: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* PDF Generation Button */}
-                                <button
-                                    type="button"
-                                    onClick={generateHalaqaPDF}
-                                    disabled={isGenerating || activeHalaqaTargets.length === 0}
-                                    className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99]"
-                                >
-                                    <Printer className="w-5 h-5" />
-                                    <span>{isGenerating ? 'جاري الإصدار...' : `إصدار PDF (${activeHalaqaTargets.length} بطاقة)`}</span>
-                                </button>
+                                {/* Generation Buttons: PDF and HTML */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={generateHalaqaPDF}
+                                        disabled={isGenerating || isGeneratingHtml || activeHalaqaTargets.length === 0}
+                                        className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99] cursor-pointer"
+                                    >
+                                        <Printer className="w-5 h-5 shrink-0" />
+                                        <span>{isGenerating ? 'جاري الإصدار...' : `إصدار PDF (${activeHalaqaTargets.length})`}</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={generateHalaqaHTML}
+                                        disabled={isGenerating || isGeneratingHtml || activeHalaqaTargets.length === 0}
+                                        className="w-full py-3 bg-gradient-to-r from-teal-600 to-emerald-700 hover:from-teal-700 hover:to-emerald-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99] cursor-pointer"
+                                        title="تصدير بطاقات الحلقات كملف HTML تفاعلي مع خاصية البحث بالطالب أو المعلم أو الحلقة"
+                                    >
+                                        <Globe className="w-5 h-5 shrink-0" />
+                                        <span>{isGeneratingHtml ? 'جاري التصدير...' : `تصدير HTML (${activeHalaqaTargets.length})`}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -4083,8 +5053,10 @@ export const CardsManager: React.FC = () => {
                                             <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
                                             معاينة بطاقات الحلقات
                                         </h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            التصميم الرسمي المعتمد لبطاقة الحلقة ببرنامج إعداد حافظ
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold mt-0.5">
+                                            {halaqaCardMode === 'with_students'
+                                                ? `📋 النمط: رقم الحلقة كعنوان + قائمة الطلاب عمودياً (${highlightAmeer ? 'مع تمييز أمير الحلقة 👑' : 'بدون تمييز لأمير الحلقة'})`
+                                                : '🔢 النمط: رقم الحلقة بحجم كبير في المنتصف'}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
@@ -4122,6 +5094,9 @@ export const CardsManager: React.FC = () => {
                                                                 height: preset.height,
                                                                 unit: preset.unit
                                                             }));
+                                                            if (preset.id === 'a5') {
+                                                                setHalaqaExportMode('a5');
+                                                            }
                                                             showToast(`📐 تم ضبط مقاس البطاقة على ${preset.name} (${preset.width} × ${preset.height} مم)`);
                                                         }}
                                                         className={`p-2 rounded-lg text-xs font-bold transition-all border text-center flex flex-col items-center justify-center gap-0.5 ${

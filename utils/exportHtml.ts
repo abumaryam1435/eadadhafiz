@@ -2028,3 +2028,1182 @@ export const shareCardsListHtml = async (
 
   showExportDialog(htmlContent, fileName, reportTitle, 'cards');
 };
+
+export interface InteractiveCardItem {
+  id: string | number;
+  title: string;
+  name: string;
+  role?: string;
+  studentNames?: string[];
+  teacherName?: string;
+  halaqaName?: string;
+  stage?: string;
+  number?: string | number;
+  imageDataUrl: string;
+  aspectRatio?: number;
+  badgeColor?: string;
+}
+
+/**
+ * Generates and shares an interactive standalone HTML file for cards
+ * featuring a search bar by student, teacher, or halaqa with instant filtering and printing.
+ */
+export const shareInteractiveCardsHtml = async (
+  cards: InteractiveCardItem[],
+  fileName: string = 'بطاقات_تفاعلية_HTML',
+  reportTitle: string = 'بطاقات الحلقات والطلاب التفاعلية',
+  subtitle?: string,
+  adjustments: Record<string, number> = {}
+) => {
+  const today = new Date();
+  const dateLine = gregorianToHijriFormatted(today, adjustments);
+
+  // Build Cards HTML
+  const cardsHtml = cards.map((card, idx) => {
+    const studentNamesList = (card.studentNames || []).map(s => String(s || '').trim()).filter(Boolean);
+    const studentNamesJoined = studentNamesList.join(' ');
+    const teacherName = String(card.teacherName || '').trim();
+    const halaqaName = String(card.halaqaName || '').trim();
+    const stageName = String(card.stage || '').trim();
+    const numberStr = card.number !== undefined && card.number !== null ? String(card.number).trim() : '';
+    const roleName = String(card.role || '').trim();
+    const nameVal = String(card.name || card.title || '').trim();
+
+    const searchTokens = [
+      nameVal,
+      teacherName,
+      halaqaName,
+      studentNamesJoined,
+      stageName,
+      numberStr,
+      roleName,
+      String(idx + 1)
+    ].filter(Boolean).join(' ');
+
+    return `
+      <div class="card-item-wrapper"
+           id="card-wrapper-${idx}"
+           data-idx="${idx}"
+           data-name="${escapeAttr(nameVal)}"
+           data-students="${escapeAttr(studentNamesJoined)}"
+           data-teacher="${escapeAttr(teacherName)}"
+           data-halaqa="${escapeAttr(halaqaName)}"
+           data-stage="${escapeAttr(stageName)}"
+           data-number="${escapeAttr(numberStr)}"
+           data-role="${escapeAttr(roleName)}"
+           data-search="${escapeAttr(searchTokens)}">
+        <div class="card-box">
+          <div class="card-image-container" onclick="openZoomModal(${idx})">
+            <img src="${card.imageDataUrl}" alt="${escapeAttr(card.title || nameVal)}" loading="lazy" class="card-img" />
+            <div class="card-zoom-overlay">
+              <span class="zoom-icon">🔍 تكبير البطاقة</span>
+            </div>
+          </div>
+          
+          <div class="card-meta-panel">
+            <div class="card-meta-header">
+              <span class="card-number-badge">#${toArabicDigits(numberStr || idx + 1)}</span>
+              <span class="card-title-text" title="${escapeAttr(nameVal)}">${escapeHtmlText(nameVal)}</span>
+              ${roleName ? `<span class="card-role-badge">${escapeHtmlText(roleName)}</span>` : ''}
+            </div>
+
+            <div class="card-meta-details">
+              ${halaqaName ? `
+                <div class="meta-row">
+                  <span class="meta-label">🕌 الحلقة:</span>
+                  <span class="meta-val meta-halaqa-val" onclick="quickSearchHalaqa('${escapeAttr(halaqaName)}')">${escapeHtmlText(halaqaName)}</span>
+                </div>` : ''}
+              ${teacherName ? `
+                <div class="meta-row">
+                  <span class="meta-label">👨‍🏫 المعلم:</span>
+                  <span class="meta-val meta-teacher-val" onclick="quickSearchTeacher('${escapeAttr(teacherName)}')">${escapeHtmlText(teacherName)}</span>
+                </div>` : ''}
+              ${stageName ? `
+                <div class="meta-row">
+                  <span class="meta-label">🏷️ المرحلة:</span>
+                  <span class="meta-val">${escapeHtmlText(stageName)}</span>
+                </div>` : ''}
+              ${studentNamesList.length > 0 && halaqaName ? `
+                <div class="meta-row meta-students-summary">
+                  <span class="meta-label">👥 الطلاب:</span>
+                  <span class="meta-val text-xs text-gray-500">${toArabicDigits(studentNamesList.length)} طالب</span>
+                </div>` : ''}
+            </div>
+
+            <div class="card-actions-row">
+              <button type="button" class="btn-card-action btn-print-single" onclick="printSingleCard(${idx})">
+                <span>🖨️ طباعة البطاقة</span>
+              </button>
+              <button type="button" class="btn-card-action btn-zoom-single" onclick="openZoomModal(${idx})">
+                <span>🔍 تكبير</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const htmlContent = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtmlText(reportTitle)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #006A4E;
+      --primary-dark: #004D38;
+      --primary-light: #ecfdf5;
+      --gold: #D4AF37;
+      --gold-dark: #b89726;
+      --bg-page: #f8fafc;
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Tajawal', 'Cairo', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      direction: rtl;
+      text-align: right;
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+
+    /* Sticky Header Banner */
+    .header-banner {
+      background: linear-gradient(135deg, #00563F 0%, #006A4E 50%, #004D38 100%);
+      color: white;
+      padding: 16px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      border-bottom: 3px solid var(--gold);
+    }
+
+    .header-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-icon {
+      font-size: 28px;
+      background: rgba(255, 255, 255, 0.12);
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.4);
+    }
+
+    .header-title-main {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.3px;
+    }
+
+    .header-subtitle {
+      font-size: 12.5px;
+      color: #a7f3d0;
+      font-weight: 600;
+    }
+
+    .header-stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 6px 14px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-num {
+      color: var(--gold);
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    /* Main Container */
+    .main-wrapper {
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+
+    /* Search & Filter Toolbar */
+    .search-panel {
+      background: white;
+      border-radius: 18px;
+      padding: 18px 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+      border: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+
+    .search-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .search-input-wrapper {
+      flex: 1;
+      min-width: 260px;
+      position: relative;
+    }
+
+    .search-input-icon {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 13px 44px 13px 14px;
+      border: 2px solid #cbd5e1;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      color: var(--text-main);
+      background: #f8fafc;
+      transition: all 0.2s;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(0, 106, 78, 0.12);
+    }
+
+    .btn-search-main {
+      background: linear-gradient(135deg, #006A4E, #004D38);
+      color: white;
+      border: none;
+      padding: 13px 24px;
+      border-radius: 12px;
+      font-size: 14.5px;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0, 106, 78, 0.2);
+      transition: all 0.15s;
+    }
+
+    .btn-search-main:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0, 106, 78, 0.25);
+    }
+
+    .btn-search-main:active {
+      transform: translateY(0);
+    }
+
+    .btn-clear-search {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      padding: 13px 18px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-clear-search:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .btn-print-all {
+      background: #ffffff;
+      color: #006A4E;
+      border: 2px solid #006A4E;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: auto;
+      transition: all 0.15s;
+    }
+
+    .btn-print-all:hover {
+      background: var(--primary-light);
+    }
+
+    /* Filter mode selector tabs */
+    .filter-mode-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .filter-label {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #475569;
+      margin-left: 6px;
+    }
+
+    .filter-btn {
+      background: #f8fafc;
+      color: #475569;
+      border: 1.5px solid #cbd5e1;
+      padding: 7px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+
+    .filter-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .filter-btn.active {
+      background: #006A4E;
+      color: #ffffff;
+      border-color: #006A4E;
+      box-shadow: 0 2px 8px rgba(0, 106, 78, 0.2);
+    }
+
+    /* Active Search Notification Banner */
+    .search-alert-bar {
+      display: none;
+      background: #ecfdf5;
+      border: 1.5px solid #a7f3d0;
+      color: #065f46;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .search-alert-bar.visible {
+      display: flex;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 22px;
+    }
+
+    .card-item-wrapper {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card-item-wrapper.hidden-by-filter {
+      display: none !important;
+    }
+
+    .card-item-wrapper.highlight-match .card-box {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.45), 0 10px 25px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .card-box {
+      background: white;
+      border-radius: 16px;
+      border: 1.5px solid var(--border-color);
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      transition: all 0.2s;
+    }
+
+    .card-box:hover {
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+      border-color: #cbd5e1;
+      transform: translateY(-2px);
+    }
+
+    .card-image-container {
+      position: relative;
+      background: #f1f5f9;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .card-img {
+      width: 100%;
+      height: auto;
+      max-height: 480px;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s;
+    }
+
+    .card-image-container:hover .card-img {
+      transform: scale(1.01);
+    }
+
+    .card-zoom-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .card-image-container:hover .card-zoom-overlay {
+      opacity: 1;
+    }
+
+    .zoom-icon {
+      background: white;
+      color: #006A4E;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-meta-panel {
+      padding: 14px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 10px;
+    }
+
+    .card-meta-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-number-badge {
+      background: #f1f5f9;
+      color: #006A4E;
+      font-weight: 900;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .card-title-text {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-role-badge {
+      background: rgba(212, 175, 55, 0.15);
+      color: #92400e;
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .card-meta-details {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 13px;
+      background: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid #f1f5f9;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta-label {
+      color: #64748b;
+      font-weight: 700;
+      font-size: 12px;
+      min-width: 58px;
+    }
+
+    .meta-val {
+      color: #1e293b;
+      font-weight: 700;
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta-halaqa-val, .meta-teacher-val {
+      cursor: pointer;
+      color: #006A4E;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .meta-halaqa-val:hover, .meta-teacher-val:hover {
+      color: #004D38;
+      font-weight: 800;
+    }
+
+    .card-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 6px;
+    }
+
+    .btn-card-action {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .btn-print-single {
+      background: #006A4E;
+      color: white;
+      border: none;
+    }
+
+    .btn-print-single:hover {
+      background: #004D38;
+    }
+
+    .btn-zoom-single {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-zoom-single:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: none;
+      background: white;
+      border-radius: 18px;
+      padding: 48px 24px;
+      text-align: center;
+      border: 1.5px dashed #cbd5e1;
+      margin: 40px auto;
+      max-width: 500px;
+    }
+
+    .empty-state.visible {
+      display: block;
+    }
+
+    .empty-icon {
+      font-size: 42px;
+      margin-bottom: 12px;
+    }
+
+    .empty-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    .empty-desc {
+      font-size: 13.5px;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+
+    /* Modal / Lightbox */
+    .zoom-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 99999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      direction: rtl;
+    }
+
+    .zoom-modal.visible {
+      display: flex;
+    }
+
+    .zoom-content {
+      background: white;
+      border-radius: 20px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+      border: 2px solid var(--gold);
+    }
+
+    .zoom-header {
+      background: #006A4E;
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .zoom-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .zoom-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .zoom-body {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+      flex: 1;
+    }
+
+    .zoom-img {
+      max-width: 100%;
+      max-height: 72vh;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .zoom-footer {
+      padding: 12px 20px;
+      background: white;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Print Stylesheet */
+    @media print {
+      body {
+        background: white !important;
+        padding: 0 !important;
+      }
+
+      .header-banner,
+      .search-panel,
+      .search-alert-bar,
+      .card-actions-row,
+      .card-zoom-overlay,
+      .zoom-modal {
+        display: none !important;
+      }
+
+      .main-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
+      }
+
+      .cards-grid {
+        display: block !important;
+      }
+
+      .card-item-wrapper {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-bottom: 20px !important;
+      }
+
+      .card-item-wrapper.hidden-by-filter {
+        display: none !important;
+      }
+
+      /* Single card print mode */
+      body.printing-single-mode .card-item-wrapper:not(.print-this-card-now) {
+        display: none !important;
+      }
+
+      .card-box {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+
+      .card-image-container {
+        background: transparent !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+
+      .card-img {
+        max-height: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+      }
+
+      .card-meta-panel {
+        display: none !important;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Header Banner -->
+  <header class="header-banner">
+    <div class="header-container">
+      <div class="header-title-box">
+        <div class="header-icon">🪪</div>
+        <div>
+          <div class="header-title-main">${escapeHtmlText(reportTitle)}</div>
+          <div class="header-subtitle">${escapeHtmlText(subtitle || 'مشروع إعداد حافظ')} • ${escapeHtmlText(dateLine)}</div>
+        </div>
+      </div>
+      <div class="header-stats-bar">
+        <span class="stat-pill">الإجمالي: <span class="stat-num" id="statTotal">${toArabicDigits(cards.length)}</span></span>
+        <span>•</span>
+        <span class="stat-pill">المعروض: <span class="stat-num" id="statVisible">${toArabicDigits(cards.length)}</span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-wrapper">
+
+    <!-- Search & Filter Controls -->
+    <section class="search-panel">
+      <div class="search-row">
+        <div class="search-input-wrapper">
+          <span class="search-input-icon">🔍</span>
+          <input type="text"
+                 id="cardsSearchInput"
+                 class="search-input"
+                 placeholder="ابحث باسم الطالب، أو المعلم، أو الحلقة، أو رقم البطاقة..."
+                 autocomplete="off" />
+        </div>
+        <button type="button" id="btnSearchSubmit" class="btn-search-main">
+          <span>🔍 بحث</span>
+        </button>
+        <button type="button" id="btnClearSearch" class="btn-clear-search">
+          <span>✕ مسح البحث</span>
+        </button>
+        <button type="button" id="btnPrintVisible" class="btn-print-all">
+          <span>🖨️ طباعة البطاقات المعروضة</span>
+        </button>
+      </div>
+
+      <!-- Filter Mode Selector -->
+      <div class="filter-mode-row">
+        <span class="filter-label">نوع البحث:</span>
+        <button type="button" class="filter-btn active" data-mode="all">
+          <span>🔘 الكل</span>
+        </button>
+        <button type="button" class="filter-btn" data-mode="student">
+          <span>👤 بحث بالطالب</span>
+        </button>
+        <button type="button" class="filter-btn" data-mode="teacher">
+          <span>👨‍🏫 بحث بالمعلم</span>
+        </button>
+        <button type="button" class="filter-btn" data-mode="halaqa">
+          <span>🕌 بحث بالحلقة</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Search feedback banner -->
+    <div id="searchAlertBar" class="search-alert-bar">
+      <div>
+        <span id="searchAlertText"></span>
+      </div>
+      <button type="button" class="btn-clear-search" style="padding: 6px 12px; font-size: 12px;" onclick="resetSearch()">
+        إظهار جميع البطاقات
+      </button>
+    </div>
+
+    <!-- Cards Grid -->
+    <div id="cardsGrid" class="cards-grid">
+      ${cardsHtml}
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon">🔎</div>
+      <div class="empty-title">لم يتم العثور على أي بطاقة مطابقة</div>
+      <div class="empty-desc">تأكد من كتابة الاسم أو رقم الحلقة بشكل صحيح، أو جرب تغيير نوع البحث.</div>
+      <button type="button" class="btn-search-main" style="margin: 0 auto;" onclick="resetSearch()">
+        <span>إظهار جميع البطاقات</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- Zoom Lightbox Modal -->
+  <div id="zoomModal" class="zoom-modal" onclick="closeZoomModal(event)">
+    <div class="zoom-content" onclick="event.stopPropagation()">
+      <div class="zoom-header">
+        <span id="zoomTitle" class="zoom-title">معاينة البطاقة</span>
+        <button type="button" class="zoom-close" onclick="closeZoomModal()">✕</button>
+      </div>
+      <div class="zoom-body">
+        <img id="zoomImg" src="" alt="معاينة البطاقة" class="zoom-img" />
+      </div>
+      <div class="zoom-footer">
+        <button type="button" id="btnZoomPrint" class="btn-card-action btn-print-single" style="padding: 10px 20px;">
+          <span>🖨️ طباعة هذه البطاقة</span>
+        </button>
+        <button type="button" class="btn-card-action btn-zoom-single" onclick="closeZoomModal()">
+          <span>إغلاق</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var currentMode = 'all';
+      var currentZoomIdx = 0;
+      var cardsData = ${JSON.stringify(cards.map((c, i) => ({
+        idx: i,
+        title: c.title || c.name,
+        name: c.name,
+        imageDataUrl: c.imageDataUrl
+      })))};
+
+      function normalizeArabic(text) {
+        if (!text) return '';
+        return String(text)
+          .trim()
+          .toLowerCase()
+          .replace(/[\\u064B-\\u065F\\u0670]/g, '') // Tashkeel
+          .replace(/[إأآا]/g, 'ا')
+          .replace(/ة/g, 'ه')
+          .replace(/[ىي]/g, 'ي')
+          .replace(/ؤ/g, 'و')
+          .replace(/ئ/g, 'ي')
+          .replace(/[-_،,]/g, ' ')
+          .replace(/\\s+/g, ' ');
+      }
+
+      function toArabicDigits(num) {
+        if (num === null || num === undefined) return '';
+        var id = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+        return String(num).replace(/[0-9]/g, function(w) { return id[+w]; });
+      }
+
+      function doSearch() {
+        var input = document.getElementById('cardsSearchInput');
+        var query = normalizeArabic(input ? input.value : '');
+        var wrappers = document.querySelectorAll('.card-item-wrapper');
+        var visibleCount = 0;
+        var totalCount = wrappers.length;
+
+        for (var i = 0; i < wrappers.length; i++) {
+          var el = wrappers[i];
+          el.classList.remove('highlight-match');
+
+          if (!query) {
+            el.classList.remove('hidden-by-filter');
+            visibleCount++;
+            continue;
+          }
+
+          var match = false;
+          if (currentMode === 'student') {
+            var studentField = normalizeArabic(el.getAttribute('data-students') || '') + ' ' + normalizeArabic(el.getAttribute('data-name') || '');
+            if (studentField.indexOf(query) !== -1) match = true;
+          } else if (currentMode === 'teacher') {
+            var teacherField = normalizeArabic(el.getAttribute('data-teacher') || '');
+            if (teacherField.indexOf(query) !== -1) match = true;
+          } else if (currentMode === 'halaqa') {
+            var halaqaField = normalizeArabic(el.getAttribute('data-halaqa') || '') + ' ' + normalizeArabic(el.getAttribute('data-number') || '');
+            if (halaqaField.indexOf(query) !== -1) match = true;
+          } else {
+            // all
+            var searchField = normalizeArabic(el.getAttribute('data-search') || '');
+            if (searchField.indexOf(query) !== -1) match = true;
+          }
+
+          if (match) {
+            el.classList.remove('hidden-by-filter');
+            visibleCount++;
+            if (query.length >= 2) {
+              el.classList.add('highlight-match');
+            }
+          } else {
+            el.classList.add('hidden-by-filter');
+          }
+        }
+
+        // Update stats
+        var statVisible = document.getElementById('statVisible');
+        if (statVisible) statVisible.textContent = toArabicDigits(visibleCount);
+
+        // Update alert bar
+        var alertBar = document.getElementById('searchAlertBar');
+        var alertText = document.getElementById('searchAlertText');
+        var emptyState = document.getElementById('emptyState');
+
+        if (query) {
+          if (alertBar && alertText) {
+            var modeLabel = currentMode === 'student' ? 'بالطالب' : currentMode === 'teacher' ? 'بالمعلم' : currentMode === 'halaqa' ? 'بالحلقة' : 'شامل';
+            alertText.textContent = '🔍 نتائج البحث (' + modeLabel + ') عن: "' + (input ? input.value : '') + '" — تم العثور على ' + toArabicDigits(visibleCount) + ' بطاقة';
+            alertBar.classList.add('visible');
+          }
+        } else {
+          if (alertBar) alertBar.classList.remove('visible');
+        }
+
+        if (emptyState) {
+          if (visibleCount === 0) {
+            emptyState.classList.add('visible');
+          } else {
+            emptyState.classList.remove('visible');
+          }
+        }
+      }
+
+      window.resetSearch = function() {
+        var input = document.getElementById('cardsSearchInput');
+        if (input) input.value = '';
+        doSearch();
+      };
+
+      window.quickSearchHalaqa = function(halaqaName) {
+        var input = document.getElementById('cardsSearchInput');
+        if (input) input.value = halaqaName;
+        setMode('halaqa');
+        doSearch();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      window.quickSearchTeacher = function(teacherName) {
+        var input = document.getElementById('cardsSearchInput');
+        if (input) input.value = teacherName;
+        setMode('teacher');
+        doSearch();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      function setMode(mode) {
+        currentMode = mode;
+        var btns = document.querySelectorAll('.filter-btn');
+        for (var i = 0; i < btns.length; i++) {
+          if (btns[i].getAttribute('data-mode') === mode) {
+            btns[i].classList.add('active');
+          } else {
+            btns[i].classList.remove('active');
+          }
+        }
+        var input = document.getElementById('cardsSearchInput');
+        if (input) {
+          if (mode === 'student') input.placeholder = 'ابحث باسم الطالب...';
+          else if (mode === 'teacher') input.placeholder = 'ابحث باسم المعلم...';
+          else if (mode === 'halaqa') input.placeholder = 'ابحث باسم أو رقم الحلقة...';
+          else input.placeholder = 'ابحث باسم الطالب، أو المعلم، أو الحلقة، أو رقم البطاقة...';
+        }
+        doSearch();
+      }
+
+      window.openZoomModal = function(idx) {
+        var data = cardsData[idx];
+        if (!data) return;
+        currentZoomIdx = idx;
+        var modal = document.getElementById('zoomModal');
+        var img = document.getElementById('zoomImg');
+        var title = document.getElementById('zoomTitle');
+        if (img) img.src = data.imageDataUrl;
+        if (title) title.textContent = data.title;
+        if (modal) modal.classList.add('visible');
+      };
+
+      window.closeZoomModal = function(e) {
+        if (e && e.target && e.target.id !== 'zoomModal' && !e.target.classList.contains('zoom-close')) return;
+        var modal = document.getElementById('zoomModal');
+        if (modal) modal.classList.remove('visible');
+      };
+
+      window.printSingleCard = function(idx) {
+        var wrapper = document.getElementById('card-wrapper-' + idx);
+        if (!wrapper) return;
+        wrapper.classList.add('print-this-card-now');
+        document.body.classList.add('printing-single-mode');
+
+        window.print();
+
+        setTimeout(function() {
+          wrapper.classList.remove('print-this-card-now');
+          document.body.classList.remove('printing-single-mode');
+        }, 1000);
+      };
+
+      document.addEventListener('DOMContentLoaded', function() {
+        var input = document.getElementById('cardsSearchInput');
+        if (input) {
+          input.addEventListener('input', function() { doSearch(); });
+          input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') doSearch();
+          });
+        }
+
+        var btnSearch = document.getElementById('btnSearchSubmit');
+        if (btnSearch) {
+          btnSearch.addEventListener('click', function() { doSearch(); });
+        }
+
+        var btnClear = document.getElementById('btnClearSearch');
+        if (btnClear) {
+          btnClear.addEventListener('click', function() { resetSearch(); });
+        }
+
+        var btnPrintVisible = document.getElementById('btnPrintVisible');
+        if (btnPrintVisible) {
+          btnPrintVisible.addEventListener('click', function() {
+            window.print();
+          });
+        }
+
+        var filterBtns = document.querySelectorAll('.filter-btn');
+        for (var i = 0; i < filterBtns.length; i++) {
+          filterBtns[i].addEventListener('click', function(e) {
+            var mode = this.getAttribute('data-mode') || 'all';
+            setMode(mode);
+          });
+        }
+
+        var btnZoomPrint = document.getElementById('btnZoomPrint');
+        if (btnZoomPrint) {
+          btnZoomPrint.addEventListener('click', function() {
+            printSingleCard(currentZoomIdx);
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>`;
+
+  showExportDialog(htmlContent, fileName, reportTitle, 'cards');
+};

@@ -546,7 +546,7 @@ export const Settings: React.FC = () => {
       testScore,
       testName,
       testDeductions,
-      showAmeerToTeachers,
+      showAmeerToTeachers: context?.showAmeerToTeachers ?? false,
     };
     try {
       await generateAndDownloadDistributableHtml(currentData, "snapshot");
