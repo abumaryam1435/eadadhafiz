@@ -27,6 +27,27 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [forceUpdate, setForceUpdate] = useState(0); // To trigger re-render on storage clear
   
   const passwordInputRef = useRef<HTMLInputElement>(null);
+  const teacherSearchInputRef = useRef<HTMLInputElement>(null);
+  const teacherSectionRef = useRef<HTMLDivElement>(null);
+  const mainWrapperRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const scrollSearchToTop = () => {
+    const doScroll = () => {
+      if (teacherSectionRef.current) {
+        teacherSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (mainWrapperRef.current) {
+        const offset = teacherSectionRef.current?.offsetTop || 0;
+        mainWrapperRef.current.scrollTo({ top: Math.max(0, offset - 20), behavior: 'smooth' });
+      }
+      window.scrollTo({ top: teacherSectionRef.current?.offsetTop || 0, behavior: 'smooth' });
+    };
+
+    doScroll();
+    setTimeout(doScroll, 120);
+    setTimeout(doScroll, 320);
+  };
 
   const teachers = useMemo(() => users.filter(u => u.role === UserRole.TEACHER), [users]);
 
@@ -65,9 +86,29 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         // Auto-login if teacher is saved
         if (savedTeacher) {
             onLogin(savedTeacher);
+        } else {
+            setTimeout(() => {
+                scrollSearchToTop();
+            }, 80);
         }
     }
   }, [mode, savedTeacher, onLogin]);
+
+  // Keep search box scrolled to top when mobile keyboard opens
+  useEffect(() => {
+    if (mode !== 'teacher') return;
+    const handleViewportResize = () => {
+      if (document.activeElement === teacherSearchInputRef.current) {
+        teacherSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+      return () => {
+        window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      };
+    }
+  }, [mode]);
 
   const handleLoginAttempt = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +149,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   if (!context) return null;
   return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] p-1 sm:p-8 bg-green-50 dark:bg-slate-950 transition-colors duration-500 overflow-hidden">
+    <div ref={mainWrapperRef} className="flex flex-col items-center justify-center min-h-[100dvh] p-2 sm:p-8 bg-green-50 dark:bg-slate-950 transition-colors duration-500 overflow-y-auto overflow-x-hidden">
       {isLoadingFirebase && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md flex items-center justify-center">
               <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-2xl flex flex-col items-center gap-4 border border-green-600/20">
@@ -125,18 +166,35 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         {darkMode ? '☀️' : '🌙'}
       </button>
 
-      <div className="w-full max-w-md p-6 sm:p-10 bg-white rounded-[2.5rem] text-center shadow-2xl golden-frame dark:bg-slate-900 animate-fade-in relative flex flex-col justify-center min-h-[98dvh] sm:min-h-fit mb-0 sm:mb-auto">
-        <div className="flex-grow flex flex-col justify-center">
-            <Logo className="h-24 w-24 sm:h-28 sm:w-28 mx-auto mb-3 drop-shadow-2xl" />
+      <div 
+        ref={cardRef}
+        className={`w-full max-w-md p-5 sm:p-10 bg-white rounded-[2.5rem] text-center shadow-2xl golden-frame dark:bg-slate-900 animate-fade-in relative flex flex-col transition-all duration-300 ${
+          mode === 'teacher' 
+            ? 'justify-start pt-4 sm:pt-8 min-h-0 my-auto' 
+            : 'justify-center min-h-[98dvh] sm:min-h-fit mb-0 sm:mb-auto'
+        }`}
+      >
+        <div className={`flex flex-col transition-all duration-300 ${mode === 'teacher' ? 'justify-start' : 'flex-grow justify-center'}`}>
+            <Logo className={`transition-all duration-300 mx-auto drop-shadow-2xl ${
+              mode === 'teacher' 
+                ? 'h-14 w-14 sm:h-20 sm:w-20 mb-2' 
+                : 'h-24 w-24 sm:h-28 sm:w-28 mb-3'
+            }`} />
             <h1 
-              className="text-xl sm:text-2xl font-[900] text-green-900 dark:text-green-400 mb-3 flex items-center justify-center gap-1.5 tracking-wide"
+              className={`font-[900] text-green-900 dark:text-green-400 flex items-center justify-center gap-1.5 tracking-wide transition-all duration-300 ${
+                mode === 'teacher' ? 'text-lg sm:text-xl mb-1' : 'text-xl sm:text-2xl mb-3'
+              }`}
               style={{ fontFamily: "'Cairo', 'Tajawal', 'Alexandria', 'IBM Plex Sans Arabic', sans-serif" }}
             >
               <span className="text-xs sm:text-sm text-gold opacity-80 select-none">✦</span>
               <span>{appName && appName !== 'إعداد حافظ' ? appName : 'مشروع إعداد حافظ'}</span>
               <span className="text-xs sm:text-sm text-gold opacity-80 select-none">✦</span>
             </h1>
-            <p className="font-amiri text-xl sm:text-2xl golden-text mb-8 italic">"خيركم من تعلم القرآن وعلمه"</p>
+            <p className={`font-amiri golden-text transition-all duration-300 italic ${
+              mode === 'teacher' 
+                ? 'hidden sm:block text-sm sm:text-lg mb-3' 
+                : 'text-xl sm:text-2xl mb-8'
+            }`}>"خيركم من تعلم القرآن وعلمه"</p>
 
             {mode === 'initial' && (
             <div className="space-y-4 w-full">
@@ -206,14 +264,30 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             )}
 
             {mode === 'teacher' && (
-            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300 flex flex-col w-full">
+            <div ref={teacherSectionRef} className="space-y-3 sm:space-y-4 animate-in slide-in-from-right-4 duration-300 flex flex-col w-full scroll-mt-2">
                 <div className="relative flex items-center">
-                <input type="text" placeholder="ابحث عن اسمك..." value={teacherSearchTerm} onChange={e => setTeacherSearchTerm(e.target.value)} className="input-style pr-12 pl-10 font-bold py-4 w-full" disabled={isLoadingFirebase} />
-                <svg className="absolute right-4 top-4.5 h-6 w-6 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input 
+                  ref={teacherSearchInputRef}
+                  type="text" 
+                  placeholder="ابحث عن اسمك..." 
+                  value={teacherSearchTerm} 
+                  onChange={e => {
+                    setTeacherSearchTerm(e.target.value);
+                    scrollSearchToTop();
+                  }}
+                  onFocus={scrollSearchToTop}
+                  onClick={scrollSearchToTop}
+                  className="input-style pr-12 pl-10 font-bold py-3.5 sm:py-4 w-full shadow-xs focus:ring-2 focus:ring-green-600 transition-all text-right" 
+                  disabled={isLoadingFirebase} 
+                />
+                <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 {teacherSearchTerm && (
                   <button
                     type="button"
-                    onClick={() => setTeacherSearchTerm('')}
+                    onClick={() => {
+                      setTeacherSearchTerm('');
+                      if (teacherSearchInputRef.current) teacherSearchInputRef.current.focus();
+                    }}
                     className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
                     title="مسح البحث"
                   >
@@ -222,13 +296,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 )}
                 </div>
                 
-                <div className="max-h-[40dvh] overflow-y-auto border-2 border-gray-100 rounded-[1.5rem] p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700 custom-scrollbar shadow-inner">
+                <div className="max-h-[46dvh] sm:max-h-[40dvh] overflow-y-auto border-2 border-gray-100 rounded-[1.5rem] p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700 custom-scrollbar shadow-inner">
                 {filteredTeachers.map(t => (
-                    <button key={t.id} onClick={() => handleTeacherSelect(t)} className="w-full text-right p-4 hover:bg-green-600 hover:text-white dark:hover:bg-green-700 rounded-2xl border-b dark:border-slate-700 last:border-0 font-black text-lg transition-all active:scale-[0.98]">
+                    <button key={t.id} onClick={() => handleTeacherSelect(t)} className="w-full text-right p-3.5 sm:p-4 hover:bg-green-600 hover:text-white dark:hover:bg-green-700 rounded-2xl border-b dark:border-slate-700 last:border-0 font-black text-base sm:text-lg transition-all active:scale-[0.98]">
                     {t.name}
                     </button>
                 ))}
-                {filteredTeachers.length === 0 && !isLoadingFirebase && <p className="p-10 text-gray-400 font-bold">لا يوجد معلم بهذا الاسم</p>}
+                {filteredTeachers.length === 0 && !isLoadingFirebase && <p className="p-8 text-gray-400 font-bold">لا يوجد معلم بهذا الاسم</p>}
                 </div>
 
                 <div className="flex items-center gap-2 mt-2">

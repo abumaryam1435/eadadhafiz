@@ -361,6 +361,7 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
           title="تأكيد تعديل المحفوظ السابق"
           onClose={() => !isSaving && setShowConfirmModal(false)}
           maxWidth="max-w-md"
+          zIndex="z-[10020]"
         >
           <div className="p-4 sm:p-5 space-y-4">
             <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-950/40 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-800">
@@ -416,6 +417,307 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
         </Modal>
       )}
 
+      {/* نافذة مستقلة لتعديل المحفوظ القديم للطالب */}
+      {allowTeacherEditOldMemorized && isEditingRanges && (
+        <Modal
+          isOpen={isEditingRanges}
+          onClose={() => {
+            parseCurrentStudentRanges();
+            setIsEditingRanges(false);
+          }}
+          title={
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📖</span>
+              <div>
+                <h3 className="font-black text-sm sm:text-base text-emerald-950 dark:text-emerald-100 leading-tight">
+                  تعديل المحفوظ القديم
+                </h3>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold leading-tight mt-0.5">
+                  الطالب: {student.name}
+                </p>
+              </div>
+            </div>
+          }
+          maxWidth="max-w-2xl sm:max-w-3xl"
+          zIndex="z-[10010]"
+          footer={
+            <div className="flex items-center justify-between w-full gap-2">
+              <div className="text-xs font-bold text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
+                <span>📊 المجموع المحدد:</span>
+                <span className="bg-emerald-100 dark:bg-emerald-900/60 px-2.5 py-1 rounded-md text-emerald-800 dark:text-emerald-200 font-black">
+                  {countQuranPages(activePagesSet)} صفحة
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    parseCurrentStudentRanges();
+                    setIsEditingRanges(false);
+                  }}
+                  className="px-4 py-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenConfirm}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <span>💾</span>
+                  <span>حفظ التعديل</span>
+                </button>
+              </div>
+            </div>
+          }
+        >
+          <div className="p-3.5 sm:p-5 space-y-4">
+            {/* ملخص الوضع الحالي */}
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-800 dark:text-emerald-300 font-bold">المحفوظ القديم الحالي:</span>
+                <span className="font-black bg-white dark:bg-slate-800 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100">
+                  {pagesData.oldStr || 'لا يوجد'}
+                </span>
+              </div>
+              {oldCompletedJuzs.length > 0 && (
+                <div className="flex items-center gap-1 text-[11px] text-emerald-800 dark:text-emerald-300">
+                  <span className="font-bold">الأجزاء المكتملة:</span>
+                  <span className="font-extrabold">{oldJuzsFormatted.formatted} (العدد: {oldJuzsFormatted.count})</span>
+                </div>
+              )}
+            </div>
+
+            {/* التبويبات الثلاثة المترابطة مع ملاءمة شاشات الهواتف */}
+            <div className="grid grid-cols-3 gap-1 bg-emerald-200/50 dark:bg-slate-800 p-1 rounded-xl border border-emerald-300/60 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setActiveTab('ranges')}
+                className={`py-2 px-1 text-[11px] sm:text-xs font-black rounded-lg transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  activeTab === 'ranges'
+                    ? 'bg-white dark:bg-emerald-700 text-emerald-900 dark:text-white shadow-sm'
+                    : 'text-emerald-800 dark:text-gray-300 hover:bg-emerald-100/60 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span className="text-sm">🔢</span>
+                <span>النطاقات</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setActiveTab('juzs')}
+                className={`py-2 px-1 text-[11px] sm:text-xs font-black rounded-lg transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  activeTab === 'juzs'
+                    ? 'bg-white dark:bg-emerald-700 text-emerald-900 dark:text-white shadow-sm'
+                    : 'text-emerald-800 dark:text-gray-300 hover:bg-emerald-100/60 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span className="text-sm">📚</span>
+                <span>الأجزاء (1-30)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('surahs')}
+                className={`py-2 px-1 text-[11px] sm:text-xs font-black rounded-lg transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  activeTab === 'surahs'
+                    ? 'bg-white dark:bg-emerald-700 text-emerald-900 dark:text-white shadow-sm'
+                    : 'text-emerald-800 dark:text-gray-300 hover:bg-emerald-100/60 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span className="text-sm">📜</span>
+                <span>السور (1-114)</span>
+              </button>
+            </div>
+
+            {/* 1. تبويب النطاقات (الصفحات) */}
+            {activeTab === 'ranges' && (
+              <div className="space-y-2.5">
+                <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
+                  أدخل بداية ونهاية كل نطاق (1 - 604):
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto p-1">
+                  {ranges.map((range, index) => (
+                    <div key={index} className="flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-slate-800 p-2 sm:p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-700 shadow-sm">
+                      <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 min-w-[46px] sm:min-w-[55px] shrink-0">
+                        نطاق {index + 1}:
+                      </span>
+                      
+                      <div className="flex-1 flex items-center gap-1 sm:gap-1.5">
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={range.start}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => handleRangeChange(index, 'start', e.target.value)}
+                            placeholder="من"
+                            className="w-full text-center px-1 sm:px-2 py-2 text-sm sm:text-xs font-bold rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none touch-manipulation"
+                          />
+                        </div>
+                        <span className="text-gray-400 font-normal text-xs px-0.5 shrink-0">إلى</span>
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={range.end}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => handleRangeChange(index, 'end', e.target.value)}
+                            placeholder="إلى"
+                            className="w-full text-center px-1 sm:px-2 py-2 text-sm sm:text-xs font-bold rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none touch-manipulation"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRange(index)}
+                        className="p-2 sm:p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all shrink-0 active:scale-90"
+                        title="حذف هذا النطاق"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddRange}
+                  className="w-full sm:w-auto px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 touch-manipulation"
+                >
+                  <span>➕</span>
+                  <span>إضافة نطاق آخر</span>
+                </button>
+              </div>
+            )}
+
+            {/* 2. تبويب التحديد السريع بالأجزاء (1 - 30) */}
+            {activeTab === 'juzs' && (
+              <div className="space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
+                    انقر على الجزء لتحديده أو إلغاء تحديده:
+                  </span>
+                  <div className="flex gap-1.5 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllJuzs}
+                      className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg transition-all shadow-sm active:scale-95 touch-manipulation cursor-pointer"
+                    >
+                      تحديد الكل (30 جزء)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearAllPages}
+                      className="text-[10px] bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 text-gray-700 dark:text-gray-300 font-bold px-2.5 py-1 rounded-lg transition-all active:scale-95 touch-manipulation cursor-pointer"
+                    >
+                      تفريغ الكل
+                    </button>
+                  </div>
+                </div>
+
+                {/* شبكة الأجزاء 1 إلى 30 المتجاوبة مع شاشات الهواتف */}
+                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1 sm:gap-1.5 max-h-64 overflow-y-auto p-1 bg-white/70 dark:bg-slate-900/50 rounded-xl border border-emerald-200 dark:border-emerald-800/60 touch-manipulation">
+                  {Array.from({ length: 30 }, (_, i) => i + 1).map(juzNum => {
+                    const jPages = getJuzPages(juzNum);
+                    const selectedCount = jPages.filter(p => activePagesSet.has(p)).length;
+                    const isFull = selectedCount === jPages.length;
+                    const isPartial = selectedCount > 0 && selectedCount < jPages.length;
+
+                    return (
+                      <button
+                        key={juzNum}
+                        type="button"
+                        onClick={() => handleToggleJuz(juzNum)}
+                        className={`py-2 px-1 min-h-[46px] rounded-lg text-xs font-black transition-all flex flex-col items-center justify-center border active:scale-95 select-none cursor-pointer ${
+                          isFull
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                            : isPartial
+                            ? 'bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-950/60 dark:text-amber-200'
+                            : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="text-[11px] leading-tight">جـ {juzNum}</span>
+                        <span className="text-[9px] font-normal opacity-85 mt-0.5">
+                          {isFull ? 'مكتمل' : isPartial ? `${selectedCount}ص` : '—'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 3. تبويب التحديد بالسور (1 - 114) */}
+            {activeTab === 'surahs' && (
+              <div className="space-y-2.5">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5">
+                  <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
+                    اختر السور لتحديد صفحاتها تلقائياً:
+                  </span>
+                  <div className="relative flex items-center w-full sm:w-56">
+                    <input
+                      type="text"
+                      value={surahSearch}
+                      onChange={(e) => setSurahSearch(e.target.value)}
+                      placeholder="🔍 ابحث عن سورة بالاسم أو الرقم..."
+                      className="w-full px-2.5 pl-7 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-emerald-500 touch-manipulation"
+                    />
+                    {surahSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setSurahSearch('')}
+                        className="absolute left-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                        title="مسح البحث"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* شبكة السور المتجاوبة مع الهواتف */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-64 overflow-y-auto p-1 bg-white/70 dark:bg-slate-900/50 rounded-xl border border-emerald-200 dark:border-emerald-800/60 touch-manipulation">
+                  {filteredSurahsList.map(surah => {
+                    const sPages = surah.pages;
+                    const selectedCount = sPages.filter(p => activePagesSet.has(p)).length;
+                    const isFull = sPages.length > 0 && selectedCount === sPages.length;
+                    const isPartial = selectedCount > 0 && selectedCount < sPages.length;
+
+                    return (
+                      <button
+                        key={surah.id}
+                        type="button"
+                        onClick={() => handleToggleSurah(surah.id)}
+                        className={`p-2 min-h-[42px] rounded-lg text-xs font-bold transition-all text-right flex items-center justify-between border active:scale-95 select-none cursor-pointer ${
+                          isFull
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+                            : isPartial
+                            ? 'bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-950/60 dark:text-amber-200'
+                            : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className="truncate flex-1 pl-1">
+                          <span className="text-[10px] opacity-70 ml-1">#{surah.id}</span>
+                          {surah.name}
+                        </span>
+                        <span className="text-[10px] font-mono shrink-0 mr-1">
+                          {isFull ? '✓' : isPartial ? `${selectedCount}ص` : ''}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
       <div className="flex flex-col gap-2.5 my-2 bg-gray-50/90 dark:bg-gray-800/60 p-3 sm:p-3.5 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs">
           <div className="flex items-center justify-between pb-1.5 border-b border-gray-200/70 dark:border-gray-700/70">
             <div className="flex items-center gap-2">
@@ -428,18 +730,12 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
               <button
                 type="button"
                 onClick={() => {
-                  if (!isEditingRanges) {
-                    parseCurrentStudentRanges();
-                  }
-                  setIsEditingRanges(!isEditingRanges);
+                  parseCurrentStudentRanges();
+                  setIsEditingRanges(true);
                 }}
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 touch-manipulation ${
-                  isEditingRanges 
-                    ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200' 
-                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 hover:bg-emerald-200 border border-emerald-300 dark:border-emerald-700'
-                }`}
+                className="text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 touch-manipulation bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 hover:bg-emerald-200 border border-emerald-300 dark:border-emerald-700"
               >
-                <span>{isEditingRanges ? '✖ إغلاق' : '✏️ تعديل المحفوظ القديم'}</span>
+                <span>✏️ تعديل المحفوظ القديم</span>
               </button>
             )}
           </div>
@@ -452,16 +748,16 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
                         <span>📖</span>
                         <span>الحفظ القديم</span>
                       </span>
-                      {allowTeacherEditOldMemorized && !isEditingRanges && (
+                      {allowTeacherEditOldMemorized && (
                         <button
                           type="button"
                           onClick={() => {
                             parseCurrentStudentRanges();
                             setIsEditingRanges(true);
                           }}
-                          className="text-[10px] bg-emerald-200/70 hover:bg-emerald-200 dark:bg-emerald-800/50 dark:hover:bg-emerald-800 text-emerald-900 dark:text-emerald-100 px-2 py-0.5 rounded font-bold transition-all cursor-pointer active:scale-95"
+                          className="text-[10px] bg-emerald-200/70 hover:bg-emerald-200 dark:bg-emerald-800/50 dark:hover:bg-emerald-800 text-emerald-900 dark:text-emerald-100 px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer active:scale-95 shadow-2xs"
                         >
-                          تعديل النطاقات
+                          ✏️ تعديل النطاقات
                         </button>
                       )}
                   </div>
@@ -481,272 +777,7 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
                           </span>
                       </div>
                   )}
-
-                      {/* محرر المحفوظ القديم التفاعلي المشترك (النطاقات - الأجزاء - السور) */}
-                      {allowTeacherEditOldMemorized && isEditingRanges && (
-                        <div className="mt-3 pt-2.5 border-t-2 border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/70 dark:bg-emerald-950/40 p-3 rounded-xl space-y-3 animate-fadeIn">
-                          
-                          {/* التبويبات الثلاثة المترابطة مع ملاءمة شاشات الهواتف */}
-                          <div className="grid grid-cols-3 gap-1 bg-emerald-200/50 dark:bg-slate-800 p-1 rounded-xl border border-emerald-300/60 dark:border-slate-700">
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab('ranges')}
-                              className={`py-2 px-1 text-[11px] sm:text-xs font-black rounded-lg transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
-                                activeTab === 'ranges'
-                                  ? 'bg-white dark:bg-emerald-700 text-emerald-900 dark:text-white shadow-sm'
-                                  : 'text-emerald-800 dark:text-gray-300 hover:bg-emerald-100/60 dark:hover:bg-slate-700'
-                              }`}
-                            >
-                              <span className="text-sm">🔢</span>
-                              <span>النطاقات</span>
-                            </button>
-                            
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab('juzs')}
-                              className={`py-2 px-1 text-[11px] sm:text-xs font-black rounded-lg transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
-                                activeTab === 'juzs'
-                                  ? 'bg-white dark:bg-emerald-700 text-emerald-900 dark:text-white shadow-sm'
-                                  : 'text-emerald-800 dark:text-gray-300 hover:bg-emerald-100/60 dark:hover:bg-slate-700'
-                              }`}
-                            >
-                              <span className="text-sm">📚</span>
-                              <span>الأجزاء (1-30)</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab('surahs')}
-                              className={`py-2 px-1 text-[11px] sm:text-xs font-black rounded-lg transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
-                                activeTab === 'surahs'
-                                  ? 'bg-white dark:bg-emerald-700 text-emerald-900 dark:text-white shadow-sm'
-                                  : 'text-emerald-800 dark:text-gray-300 hover:bg-emerald-100/60 dark:hover:bg-slate-700'
-                              }`}
-                            >
-                              <span className="text-sm">📜</span>
-                              <span>السور (1-114)</span>
-                            </button>
-                          </div>
-
-                          {/* 1. تبويب النطاقات (الصفحات) */}
-                          {activeTab === 'ranges' && (
-                            <div className="space-y-2.5">
-                              <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
-                                أدخل بداية ونهاية كل نطاق (1 - 604):
-                              </div>
-
-                              <div className="space-y-2">
-                                {ranges.map((range, index) => (
-                                  <div key={index} className="flex items-center gap-1.5 sm:gap-2 bg-white dark:bg-slate-800 p-2 sm:p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-700 shadow-sm">
-                                    <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 min-w-[46px] sm:min-w-[55px] shrink-0">
-                                      نطاق {index + 1}:
-                                    </span>
-                                    
-                                    <div className="flex-1 flex items-center gap-1 sm:gap-1.5">
-                                      <div className="flex-1 min-w-0">
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          value={range.start}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={(e) => handleRangeChange(index, 'start', e.target.value)}
-                                          placeholder="من"
-                                          className="w-full text-center px-1 sm:px-2 py-2 text-sm sm:text-xs font-bold rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none touch-manipulation"
-                                        />
-                                      </div>
-                                      <span className="text-gray-400 font-normal text-xs px-0.5 shrink-0">إلى</span>
-                                      <div className="flex-1 min-w-0">
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          value={range.end}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={(e) => handleRangeChange(index, 'end', e.target.value)}
-                                          placeholder="إلى"
-                                          className="w-full text-center px-1 sm:px-2 py-2 text-sm sm:text-xs font-bold rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder:font-normal placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none touch-manipulation"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveRange(index)}
-                                      className="p-2 sm:p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all shrink-0 active:scale-90"
-                                      title="حذف هذا النطاق"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={handleAddRange}
-                                className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 touch-manipulation"
-                              >
-                                <span>➕</span>
-                                <span>إضافة نطاق آخر</span>
-                              </button>
-                            </div>
-                          )}
-
-                          {/* 2. تبويب التحديد السريع بالأجزاء (1 - 30) */}
-                          {activeTab === 'juzs' && (
-                            <div className="space-y-2.5">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
-                                  انقر على الجزء لتحديده أو إلغاء تحديده:
-                                </span>
-                                <div className="flex gap-1.5 self-end sm:self-auto">
-                                  <button
-                                    type="button"
-                                    onClick={handleSelectAllJuzs}
-                                    className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg transition-all shadow-sm active:scale-95 touch-manipulation"
-                                  >
-                                    تحديد الكل (30 جزء)
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleClearAllPages}
-                                    className="text-[10px] bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 text-gray-700 dark:text-gray-300 font-bold px-2 py-1 rounded-lg transition-all active:scale-95 touch-manipulation"
-                                  >
-                                    تفريغ الكل
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* شبكة الأجزاء 1 إلى 30 المتجاوبة مع شاشات الهواتف */}
-                              <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1 sm:gap-1.5 max-h-60 overflow-y-auto p-1 bg-white/70 dark:bg-slate-900/50 rounded-xl border border-emerald-200 dark:border-emerald-800/60 touch-manipulation">
-                                {Array.from({ length: 30 }, (_, i) => i + 1).map(juzNum => {
-                                  const jPages = getJuzPages(juzNum);
-                                  const selectedCount = jPages.filter(p => activePagesSet.has(p)).length;
-                                  const isFull = selectedCount === jPages.length;
-                                  const isPartial = selectedCount > 0 && selectedCount < jPages.length;
-
-                                  return (
-                                    <button
-                                      key={juzNum}
-                                      type="button"
-                                      onClick={() => handleToggleJuz(juzNum)}
-                                      className={`py-2 px-1 min-h-[46px] rounded-lg text-xs font-black transition-all flex flex-col items-center justify-center border active:scale-95 select-none ${
-                                        isFull
-                                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                                          : isPartial
-                                          ? 'bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-950/60 dark:text-amber-200'
-                                          : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
-                                      }`}
-                                    >
-                                      <span className="text-[11px] leading-tight">جـ {juzNum}</span>
-                                      <span className="text-[9px] font-normal opacity-85 mt-0.5">
-                                        {isFull ? 'مكتمل' : isPartial ? `${selectedCount}ص` : '—'}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 3. تبويب التحديد بالسور (1 - 114) */}
-                          {activeTab === 'surahs' && (
-                            <div className="space-y-2.5">
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5">
-                                <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
-                                  اختر السور لتحديد صفحاتها تلقائياً:
-                                </span>
-                                <div className="relative flex items-center w-full sm:w-56">
-                                  <input
-                                    type="text"
-                                    value={surahSearch}
-                                    onChange={(e) => setSurahSearch(e.target.value)}
-                                    placeholder="🔍 ابحث عن سورة بالاسم أو الرقم..."
-                                    className="w-full px-2.5 pl-7 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-emerald-500 touch-manipulation"
-                                  />
-                                  {surahSearch && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setSurahSearch('')}
-                                      className="absolute left-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                      title="مسح البحث"
-                                    >
-                                      ✕
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* شبكة السور المتجاوبة مع الهواتف */}
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-60 overflow-y-auto p-1 bg-white/70 dark:bg-slate-900/50 rounded-xl border border-emerald-200 dark:border-emerald-800/60 touch-manipulation">
-                                {filteredSurahsList.map(surah => {
-                                  const sPages = surah.pages;
-                                  const selectedCount = sPages.filter(p => activePagesSet.has(p)).length;
-                                  const isFull = sPages.length > 0 && selectedCount === sPages.length;
-                                  const isPartial = selectedCount > 0 && selectedCount < sPages.length;
-
-                                  return (
-                                    <button
-                                      key={surah.id}
-                                      type="button"
-                                      onClick={() => handleToggleSurah(surah.id)}
-                                      className={`p-2 min-h-[42px] rounded-lg text-xs font-bold transition-all text-right flex items-center justify-between border active:scale-95 select-none ${
-                                        isFull
-                                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                                          : isPartial
-                                          ? 'bg-amber-100 text-amber-900 border-amber-400 dark:bg-amber-950/60 dark:text-amber-200'
-                                          : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
-                                      }`}
-                                    >
-                                      <span className="truncate flex-1 pl-1">
-                                        <span className="text-[10px] opacity-70 ml-1">#{surah.id}</span>
-                                        {surah.name}
-                                      </span>
-                                      <span className="text-[10px] font-mono shrink-0 mr-1">
-                                        {isFull ? '✓' : isPartial ? `${selectedCount}ص` : ''}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* ملخص الصفحات المحددة حالياً وشريط الإجراءات */}
-                          <div className="pt-2.5 border-t border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-                            <div className="text-xs font-bold text-emerald-950 dark:text-emerald-100 flex items-center justify-between sm:justify-start gap-2">
-                              <span>📊 المجموع المحدد:</span>
-                              <span className="bg-white dark:bg-slate-800 px-2.5 py-1 rounded-md border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">
-                                {countQuranPages(activePagesSet)} صفحة
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  parseCurrentStudentRanges();
-                                  setIsEditingRanges(false);
-                                }}
-                                className="flex-1 sm:flex-none px-3.5 py-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 rounded-lg text-xs font-bold transition-all text-center active:scale-95 touch-manipulation"
-                              >
-                                إلغاء
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleOpenConfirm}
-                                className="flex-2 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-black shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 touch-manipulation"
-                              >
-                                <span>💾</span>
-                                <span>حفظ التعديل</span>
-                              </button>
-                            </div>
-                          </div>
-
-                        </div>
-                      )}
-                  </div>
+              </div>
 
                   {/* صندوق الحفظ الجديد */}
                   <div className="bg-blue-50/90 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 p-3 rounded-xl font-bold border border-blue-200 dark:border-blue-800/80 text-xs leading-relaxed break-words whitespace-normal space-y-1.5 shadow-2xs">

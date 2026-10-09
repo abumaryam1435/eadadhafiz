@@ -56,18 +56,21 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
 }) => {
   const context = useContext(AppContext);
   const currentUser = context?.currentUser;
+  const currentStudent = useMemo(() => {
+    return context?.students?.find(s => s.id === student.id) || student;
+  }, [context?.students, student]);
   const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
   const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
-  const isAmeer = canSeeAmeer && halaqa?.ameerStudentId === student.id;
+  const isAmeer = canSeeAmeer && halaqa?.ameerStudentId === currentStudent.id;
 
   const studentQuranHistory = useMemo(() => {
     return analyzeStudentQuranHistory(
-      student,
+      currentStudent,
       context?.evaluations,
       initialEvaluation.weekNumber,
       initialEvaluation.id
     );
-  }, [student, context?.evaluations, initialEvaluation.weekNumber, initialEvaluation.id]);
+  }, [currentStudent, context?.evaluations, initialEvaluation.weekNumber, initialEvaluation.id]);
 
   const completedJuzsSet = studentQuranHistory.allFullJuzs;
   const previousWeekPages = studentQuranHistory.prevWeekFullPages;
@@ -564,7 +567,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     >
       {step === 'edit' ? (
       <form onSubmit={handlePreview} className="flex flex-col gap-3.5 animate-in slide-in-from-bottom-2 duration-500">
-        <StudentProgressInfo student={student} subject={initialEvaluation.subject} />
+        <StudentProgressInfo student={currentStudent} subject={initialEvaluation.subject} />
         {error && <div className="bg-red-50 text-red-700 p-2.5 rounded-lg border border-red-200 text-[10px] font-black animate-pulse flex items-center gap-2">
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
             {error}

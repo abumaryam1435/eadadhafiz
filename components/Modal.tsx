@@ -9,9 +9,19 @@ interface ModalProps {
   hideDefaultCloseButton?: boolean; 
   maxWidth?: string;
   isOpen?: boolean;
+  zIndex?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ title, onClose, children, footer, hideDefaultCloseButton = false, maxWidth, isOpen = true }) => {
+const Modal: React.FC<ModalProps> = ({ 
+  title, 
+  onClose, 
+  children, 
+  footer, 
+  hideDefaultCloseButton = false, 
+  maxWidth, 
+  isOpen = true,
+  zIndex = 'z-[10000]'
+}) => {
   // منع التمرير في الخلفية عند فتح النافذة
   useEffect(() => {
     if (!isOpen) return;
@@ -26,7 +36,7 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, footer, hideDef
 
   return (
     <div 
-      className="fixed inset-0 z-[10000] flex justify-center items-center p-3 sm:p-6 overflow-hidden animate-in fade-in duration-300" 
+      className={`fixed inset-0 ${zIndex} flex justify-center items-center p-3 sm:p-6 overflow-hidden animate-in fade-in duration-300`} 
       role="dialog"
       aria-modal="true"
     >
@@ -39,7 +49,7 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, footer, hideDef
       
       {/* حاوية المودال الأساسية - استخدام وحدات dvh لضمان دقة الارتفاع */}
       <div 
-        className={`relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_30px_90px_rgba(0,0,0,0.6)] w-[95%] sm:w-full ${maxWidth || 'max-w-[420px] sm:max-w-md md:max-w-lg'} flex flex-col transition-all duration-500 ease-out animate-in zoom-in-95 slide-in-from-bottom-12 border border-white/20 z-[10001] overflow-hidden`}
+        className={`relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_30px_90px_rgba(0,0,0,0.6)] w-[95%] sm:w-full ${maxWidth || 'max-w-[420px] sm:max-w-md md:max-w-lg'} flex flex-col transition-all duration-500 ease-out animate-in zoom-in-95 slide-in-from-bottom-12 border border-white/20 z-10 overflow-hidden`}
         style={{ 
           maxHeight: 'min(92dvh, 850px)',
           marginBottom: 'env(safe-area-inset-bottom)' 

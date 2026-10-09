@@ -170,6 +170,105 @@ const showExportDialog = (
     }
   };
 
+  const openAppsShareModal = () => {
+    const appsModal = document.createElement('div');
+    appsModal.id = 'html-apps-share-modal';
+    appsModal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(5px);
+      z-index: 100001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      direction: rtl;
+      font-family: 'Tajawal', sans-serif;
+      animation: fadeIn 0.2s ease-out;
+    `;
+
+    appsModal.innerHTML = `
+      <div style="background: white; border-radius: 20px; padding: 26px 22px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.3); width: 360px; max-width: 92%; direction: rtl;">
+        <div style="display: flex; justify-content: center; margin-bottom: 14px;">
+          <div style="width: 56px; height: 56px; background-color: #ecfdf5; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #a7f3d0;">
+            <span style="font-size: 26px;">📲</span>
+          </div>
+        </div>
+        <h3 style="color: #006A4E; font-size: 18px; font-weight: 800; margin: 0 0 6px 0;">مشاركة ملف HTML عبر التطبيقات</h3>
+        <p style="color: #64748b; font-size: 12.5px; margin: 0 0 16px 0; font-weight: 600; line-height: 1.5;">
+          اختر التطبيق لمشاركة ملف البطاقات التفاعلية معه:
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button id="btn-app-whatsapp" style="background: #25D366; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,211,102,0.3);">
+            <svg style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+            <span>مشاركة عبر واتساب (WhatsApp)</span>
+          </button>
+
+          <button id="btn-app-telegram" style="background: #229ED9; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(34,158,217,0.3);">
+            <svg style="width: 20px; height: 20px;" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.942z"/></svg>
+            <span>مشاركة عبر تيليجرام (Telegram)</span>
+          </button>
+
+          <button id="btn-app-download" style="background: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; padding: 11px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>تنزيل الملف وإرفاقه يدوياً كمستند</span>
+          </button>
+        </div>
+
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 9px 12px; margin-top: 14px; text-align: right;">
+          <p style="color: #166534; font-size: 11.5px; line-height: 1.55; margin: 0;">
+            💡 <strong>ملاحظة:</strong> يتم حفظ ملف HTML بجهازك لتقوم بإرساله كمستند في المحادثة مباشرة.
+          </p>
+        </div>
+
+        <button id="btn-app-close" style="background: transparent; color: #64748b; border: none; padding: 8px; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 8px;">رجوع للنافذة السابقة</button>
+      </div>
+    `;
+
+    document.body.appendChild(appsModal);
+
+    const btnWa = appsModal.querySelector('#btn-app-whatsapp') as HTMLButtonElement;
+    const btnTg = appsModal.querySelector('#btn-app-telegram') as HTMLButtonElement;
+    const btnDl = appsModal.querySelector('#btn-app-download') as HTMLButtonElement;
+    const btnCl = appsModal.querySelector('#btn-app-close') as HTMLButtonElement;
+
+    if (btnWa) {
+      btnWa.onclick = () => {
+        downloadFile();
+        const textMsg = `مرفق ملف تفاعلي: ${reportTitle || fileName}`;
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textMsg)}`;
+        window.open(waUrl, '_blank');
+      };
+    }
+
+    if (btnTg) {
+      btnTg.onclick = () => {
+        downloadFile();
+        const textMsg = `مرفق ملف تفاعلي: ${reportTitle || fileName}`;
+        const tgUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(textMsg)}`;
+        window.open(tgUrl, '_blank');
+      };
+    }
+
+    if (btnDl) {
+      btnDl.onclick = () => {
+        downloadFile();
+      };
+    }
+
+    if (btnCl) {
+      btnCl.onclick = () => {
+        if (document.body.contains(appsModal)) {
+          document.body.removeChild(appsModal);
+        }
+      };
+    }
+  };
+
   // Main Options Modal
   const overlay = document.createElement('div');
   overlay.style.cssText = `
@@ -189,84 +288,95 @@ const showExportDialog = (
     animation: fadeIn 0.2s ease-out;
   `;
 
-  const hasNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
   const isCards = dialogType === 'cards';
-  const headingText = isCards ? 'تم تجهيز قائمة البطاقات التفاعلية!' : 'تم تجهيز التقرير التفاعلي!';
-  const descText = isCards
-    ? 'ملف HTML تفاعلي ذكي يفتح بنقرة على Google Chrome و Edge وجميع الأجهزة ويدعم البحث الفوري وتصفية المراحل والطباعة:'
-    : 'ملف HTML تفاعلي ذكي يفتح بنقرة على Google Chrome و Edge وجميع الأجهزة ويدعم البحث الفوري وتصفية الطلاب والطباعة:';
 
   overlay.innerHTML = `
-    <div style="background: white; border-radius: 20px; padding: 28px 24px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); width: 370px; max-width: 92%; direction: rtl;">
+    <div style="background: white; border-radius: 16px; padding: 28px 24px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.25); width: 340px; max-width: 92%; direction: rtl;">
       <div style="display: flex; justify-content: center; margin-bottom: 16px;">
-        <div style="width: 60px; height: 60px; background-color: #ecfdf5; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #a7f3d0;">
-          <span style="font-size: 30px;">🌐</span>
+        <div style="width: 56px; height: 56px; background-color: #ecfdf5; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <svg style="width: 32px; height: 32px; color: #006A4E;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+          </svg>
         </div>
       </div>
-      <h3 style="color: #006A4E; font-size: 19px; font-weight: 900; margin: 0 0 6px 0;">${headingText}</h3>
-      <p style="color: #64748b; font-size: 12.5px; margin: 0 0 20px 0; font-weight: 600; line-height: 1.45;">
-        ${descText}
-      </p>
+      <h3 style="color: #006A4E; font-size: 18px; font-weight: 800; margin: 0 0 8px 0;">تم تجهيز ${isCards ? 'البطاقات التفاعلية' : 'التقرير'} بنجاح!</h3>
+      <p style="color: #6b7280; font-size: 12px; margin: 0 0 20px 0; font-weight: 600;">يمكنك مشاركة الملف مباشرة أو تنزيله لجهازك:</p>
       <div style="display: flex; flex-direction: column; gap: 10px;">
-        ${hasNativeShare ? `
-        <button id="btn-share-html" style="background: #006A4E; color: white; border: none; padding: 13px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,106,78,0.25);">
-          <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-          مشاركة عبر الواتساب والتطبيقات
-        </button>` : ''}
-        <button id="btn-preview-html" style="background: #0284c7; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(2,132,199,0.25);">
-          <span>معاينة وتجربة الملف الآن 👁️</span>
+        <button id="btn-share-native" style="background: #006A4E; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,106,78,0.3);">
+          <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          مشاركة عبر التطبيقات (واتساب / بريد)
         </button>
-        <button id="btn-download-html" style="background: #f1f5f9; color: #1e293b; border: 1.5px solid #cbd5e1; padding: 11px; border-radius: 12px; font-weight: 800; cursor: pointer; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-          <span>تنزيل وحفظ ملف HTML 📥</span>
+
+        <button id="btn-download-native" style="background: #2563eb; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(37,99,235,0.25);">
+          <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          تنزيل وحفظ ملف HTML
         </button>
-        <button id="btn-close-html" style="background: transparent; color: #94a3b8; border: none; padding: 8px; font-weight: 700; cursor: pointer; font-size: 13px; margin-top: 2px;">إغلاق النافذة</button>
+
+        <button id="btn-preview-native" style="background: #0284c7; color: white; border: none; padding: 11px; border-radius: 10px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(2,132,199,0.25);">
+          <span>👁️ معاينة وتجربة الملف الآن</span>
+        </button>
+
+        <button id="btn-close-native" style="background: transparent; color: #6b7280; border: none; padding: 8px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 13px; margin-top: 4px;">إغلاق النافذة</button>
       </div>
     </div>
   `;
 
   document.body.appendChild(overlay);
 
-  const btnShare = overlay.querySelector('#btn-share-html') as HTMLButtonElement | null;
-  const btnPreview = overlay.querySelector('#btn-preview-html') as HTMLButtonElement;
-  const btnDownload = overlay.querySelector('#btn-download-html') as HTMLButtonElement;
-  const btnClose = overlay.querySelector('#btn-close-html') as HTMLButtonElement;
+  const btnShare = overlay.querySelector('#btn-share-native') as HTMLButtonElement | null;
+  const btnDownload = overlay.querySelector('#btn-download-native') as HTMLButtonElement | null;
+  const btnPreview = overlay.querySelector('#btn-preview-native') as HTMLButtonElement | null;
+  const btnClose = overlay.querySelector('#btn-close-native') as HTMLButtonElement | null;
 
   if (btnShare) {
     btnShare.onclick = async () => {
       try {
-        const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
-        if (canShareFiles) {
-          await navigator.share({
-            files: [file],
-            title: reportTitle || fileName,
-            text: `${reportTitle || fileName}`
-          });
-        } else {
-          downloadFile();
-          if (navigator.share) {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+          let shareFile = new File([blobWithBom], finalFileName, { type: 'text/html' });
+          if (navigator.canShare) {
+            if (!navigator.canShare({ files: [shareFile] })) {
+              const fallbackFile = new File([blobWithBom], finalFileName, { type: 'text/plain' });
+              if (navigator.canShare({ files: [fallbackFile] })) {
+                shareFile = fallbackFile;
+              }
+            }
+          }
+
+          try {
             await navigator.share({
+              files: [shareFile],
               title: reportTitle || fileName,
-              text: `${reportTitle || fileName}`
+              text: isCards ? `بطاقات تفاعلية: ${reportTitle || fileName}` : `تقرير: ${reportTitle || fileName}`
             });
+            return;
+          } catch (shareErr: any) {
+            if (shareErr.name === 'AbortError') {
+              // User dismissed native share sheet
+              return;
+            }
+            console.warn('Native share failed, showing apps options:', shareErr);
           }
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          downloadFile();
-        }
+        console.warn('Share error:', err);
       }
-    };
-  }
 
-  if (btnPreview) {
-    btnPreview.onclick = () => {
-      openInteractivePreviewModal();
+      // If native sharing is unsupported or threw an error:
+      // Show the dedicated Apps Sheet (WhatsApp / Telegram / Download)
+      // DO NOT silently download the file!
+      openAppsShareModal();
     };
   }
 
   if (btnDownload) {
     btnDownload.onclick = () => {
       downloadFile();
+    };
+  }
+
+  if (btnPreview) {
+    btnPreview.onclick = () => {
+      openInteractivePreviewModal();
     };
   }
 
@@ -2058,6 +2168,18 @@ export const shareInteractiveCardsHtml = async (
   const today = new Date();
   const dateLine = gregorianToHijriFormatted(today, adjustments);
 
+  // Extract all unique students across all cards for the student filter dropdown
+  const uniqueStudents = Array.from(
+    new Set(
+      cards.flatMap(c => {
+        if (c.studentNames && c.studentNames.length > 0) {
+          return c.studentNames.map(s => String(s || '').trim());
+        }
+        return [String(c.name || '').trim()];
+      }).filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'ar'));
+
   // Build Cards HTML
   const cardsHtml = cards.map((card, idx) => {
     const studentNamesList = (card.studentNames || []).map(s => String(s || '').trim()).filter(Boolean);
@@ -2086,6 +2208,7 @@ export const shareInteractiveCardsHtml = async (
            data-idx="${idx}"
            data-name="${escapeAttr(nameVal)}"
            data-students="${escapeAttr(studentNamesJoined)}"
+           data-students-json="${escapeAttr(JSON.stringify(studentNamesList))}"
            data-teacher="${escapeAttr(teacherName)}"
            data-halaqa="${escapeAttr(halaqaName)}"
            data-stage="${escapeAttr(stageName)}"
@@ -2123,11 +2246,25 @@ export const shareInteractiveCardsHtml = async (
                   <span class="meta-label">🏷️ المرحلة:</span>
                   <span class="meta-val">${escapeHtmlText(stageName)}</span>
                 </div>` : ''}
-              ${studentNamesList.length > 0 && halaqaName ? `
+              ${studentNamesList.length > 0 ? `
                 <div class="meta-row meta-students-summary">
                   <span class="meta-label">👥 الطلاب:</span>
-                  <span class="meta-val text-xs text-gray-500">${toArabicDigits(studentNamesList.length)} طالب</span>
+                  <button type="button" class="btn-toggle-students" onclick="toggleStudentsList(${idx})" title="عرض أو إخفاء أسماء طلاب الحلقة">
+                    <span>${toArabicDigits(studentNamesList.length)} طالب</span>
+                    <span class="toggle-arrow" id="toggle-arrow-${idx}">▾</span>
+                  </button>
+                </div>
+                <div class="students-collapsible-list" id="students-list-${idx}">
+                  <div class="students-chips-grid">
+                    ${studentNamesList.map((st, sIdx) => `
+                      <span class="student-chip" data-name="${escapeAttr(st)}">
+                        <span class="student-seq">${toArabicDigits(sIdx + 1)}.</span>
+                        <span class="student-name-text">${escapeHtmlText(st)}</span>
+                      </span>
+                    `).join('')}
+                  </div>
                 </div>` : ''}
+              <div class="card-search-matches" id="card-matches-${idx}" style="display: none;"></div>
             </div>
 
             <div class="card-actions-row">
@@ -2268,189 +2405,321 @@ export const shareInteractiveCardsHtml = async (
       padding: 0 16px;
     }
 
-    /* Search & Filter Toolbar */
-    .search-panel {
-      background: white;
-      border-radius: 18px;
-      padding: 18px 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    /* Controls Panel & Search */
+    .controls-panel {
+      padding: 14px 18px;
+      background: #f8fafc;
       border: 1px solid var(--border-color);
+      border-radius: 16px;
       margin-bottom: 24px;
-    }
-
-    .search-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
       align-items: center;
-      margin-bottom: 14px;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
     }
 
-    .search-input-wrapper {
+    .filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
       flex: 1;
-      min-width: 260px;
-      position: relative;
+      min-width: 280px;
     }
 
-    .search-input-icon {
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .search-icon {
       position: absolute;
       right: 14px;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 18px;
+      font-size: 15px;
       color: #94a3b8;
       pointer-events: none;
     }
 
     .search-input {
       width: 100%;
-      padding: 13px 44px 13px 14px;
+      padding: 11px 40px 11px 38px;
       border: 2px solid #cbd5e1;
       border-radius: 12px;
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 700;
-      font-family: inherit;
-      color: var(--text-main);
-      background: #f8fafc;
+      background: white;
+      color: #0f172a;
       transition: all 0.2s;
+      outline: none;
+      font-family: inherit;
     }
 
     .search-input:focus {
-      outline: none;
-      border-color: var(--primary);
-      background: #ffffff;
-      box-shadow: 0 0 0 4px rgba(0, 106, 78, 0.12);
+      border-color: #006A4E;
+      box-shadow: 0 0 0 3px rgba(0, 106, 78, 0.15);
     }
 
-    .btn-search-main {
-      background: linear-gradient(135deg, #006A4E, #004D38);
-      color: white;
-      border: none;
-      padding: 13px 24px;
-      border-radius: 12px;
-      font-size: 14.5px;
-      font-weight: 800;
-      font-family: inherit;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 12px rgba(0, 106, 78, 0.2);
-      transition: all 0.15s;
-    }
-
-    .btn-search-main:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(0, 106, 78, 0.25);
-    }
-
-    .btn-search-main:active {
-      transform: translateY(0);
-    }
-
-    .btn-clear-search {
-      background: #f1f5f9;
-      color: #475569;
-      border: 1px solid #cbd5e1;
-      padding: 13px 18px;
-      border-radius: 12px;
-      font-size: 13.5px;
-      font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .btn-clear-search:hover {
+    .clear-btn {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
       background: #e2e8f0;
+      color: #475569;
+      border: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 900;
+      transition: all 0.15s;
+    }
+
+    .clear-btn:hover {
+      background: #cbd5e1;
       color: #0f172a;
     }
 
-    .btn-print-all {
-      background: #ffffff;
-      color: #006A4E;
-      border: 2px solid #006A4E;
-      padding: 12px 18px;
+    /* Student Filter Dropdown */
+    .dropdown-container {
+      position: relative;
+      min-width: 220px;
+      max-width: 320px;
+      flex: 1;
+    }
+
+    .dropdown-btn {
+      width: 100%;
+      padding: 10.5px 14px;
+      border: 2px solid #cbd5e1;
       border-radius: 12px;
-      font-size: 13.5px;
+      font-size: 14px;
       font-weight: 800;
-      font-family: inherit;
+      background: white;
+      color: #006A4E;
       cursor: pointer;
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      transition: all 0.2s;
+      outline: none;
+      font-family: inherit;
+      text-align: right;
+    }
+
+    .dropdown-btn:hover {
+      border-color: #006A4E;
+    }
+
+    .dropdown-btn.active {
+      border-color: #006A4E;
+      box-shadow: 0 0 0 3px rgba(0, 106, 78, 0.15);
+    }
+
+    .dropdown-btn-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .dropdown-btn-arrow {
+      font-size: 11px;
+      color: #64748b;
+      transition: transform 0.2s;
+    }
+
+    .dropdown-btn.active .dropdown-btn-arrow {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      width: 330px;
+      max-width: 90vw;
+      background: white;
+      border: 2px solid #006A4E;
+      border-radius: 16px;
+      box-shadow: 0 15px 35px -5px rgba(0,0,0,0.25);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .dropdown-panel.show {
+      display: flex !important;
+    }
+
+    .dropdown-search-box {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      position: relative;
+    }
+
+    .dropdown-search-input {
+      width: 100%;
+      padding: 8px 34px 8px 10px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 700;
+      outline: none;
+      background: white;
+      color: #0f172a;
+      font-family: inherit;
+    }
+
+    .dropdown-search-input:focus {
+      border-color: #006A4E;
+      box-shadow: 0 0 0 2px rgba(0, 106, 78, 0.15);
+    }
+
+    .dropdown-search-icon {
+      position: absolute;
+      right: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 13px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    .dropdown-actions {
+      display: flex;
+      align-items: center;
       gap: 6px;
-      margin-right: auto;
+      padding: 8px 10px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 12.5px;
+      font-weight: 800;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
       transition: all 0.15s;
     }
 
-    .btn-print-all:hover {
-      background: var(--primary-light);
+    .btn-select-all {
+      background: #006A4E;
+      color: white;
     }
 
-    /* Filter mode selector tabs */
-    .filter-mode-row {
+    .btn-select-all:hover {
+      background: #064e3b;
+    }
+
+    .btn-deselect-all {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .btn-deselect-all:hover {
+      background: #cbd5e1;
+    }
+
+    .dropdown-options-list {
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .dropdown-option {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
-      padding-top: 10px;
-      border-top: 1px solid #f1f5f9;
-    }
-
-    .filter-label {
-      font-size: 12.5px;
-      font-weight: 800;
-      color: #475569;
-      margin-left: 6px;
-    }
-
-    .filter-btn {
-      background: #f8fafc;
-      color: #475569;
-      border: 1.5px solid #cbd5e1;
-      padding: 7px 14px;
-      border-radius: 10px;
+      gap: 10px;
+      padding: 8px 14px;
+      cursor: pointer;
       font-size: 13px;
       font-weight: 700;
+      color: #1e293b;
+      transition: background-color 0.15s;
+      user-select: none;
+    }
+
+    .dropdown-option:hover {
+      background-color: #f0fdf4;
+    }
+
+    .dropdown-checkbox {
+      width: 17px;
+      height: 17px;
+      accent-color: #006A4E;
+      cursor: pointer;
+    }
+
+    .stats-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1.5px solid #a7f3d0;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .btn-print-action {
+      background: #ffffff;
+      color: #006A4E;
+      border: 2px solid #006A4E;
+      padding: 9px 18px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 800;
       font-family: inherit;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
+      white-space: nowrap;
       transition: all 0.15s;
     }
 
-    .filter-btn:hover {
-      background: #e2e8f0;
-      color: #0f172a;
+    .btn-print-action:hover {
+      background: rgba(0, 106, 78, 0.08);
     }
 
-    .filter-btn.active {
-      background: #006A4E;
-      color: #ffffff;
-      border-color: #006A4E;
-      box-shadow: 0 2px 8px rgba(0, 106, 78, 0.2);
+    .btn-clear-search-action {
+      background: linear-gradient(135deg, #006A4E, #004D38);
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      margin: 12px auto 0;
+      display: block;
+      transition: all 0.15s;
     }
 
-    /* Active Search Notification Banner */
-    .search-alert-bar {
-      display: none;
-      background: #ecfdf5;
-      border: 1.5px solid #a7f3d0;
-      color: #065f46;
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      font-weight: 700;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      animation: fadeIn 0.2s ease-out;
-    }
-
-    .search-alert-bar.visible {
-      display: flex;
+    .btn-clear-search-action:hover {
+      box-shadow: 0 4px 12px rgba(0, 106, 78, 0.25);
     }
 
     /* Cards Grid */
@@ -2636,6 +2905,122 @@ export const shareInteractiveCardsHtml = async (
       font-weight: 800;
     }
 
+    /* Students Collapsible List & Chips */
+    .btn-toggle-students {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #006A4E;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .btn-toggle-students:hover {
+      background: #e2e8f0;
+      border-color: #006A4E;
+    }
+
+    .toggle-arrow {
+      font-size: 11px;
+      color: #64748b;
+      transition: transform 0.2s;
+    }
+
+    .students-collapsible-list {
+      display: none;
+      margin-top: 6px;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 8px 10px;
+      max-height: 190px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+    }
+
+    .students-chips-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .student-chip {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #1e293b;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .student-chip .student-seq {
+      color: #64748b;
+      font-weight: 800;
+      font-size: 10.5px;
+    }
+
+    .student-chip.is-matched {
+      background: #fef3c7 !important;
+      border-color: #d97706 !important;
+      color: #92400e !important;
+      font-weight: 900 !important;
+      box-shadow: 0 0 0 2.5px rgba(217, 119, 6, 0.35) !important;
+      transform: scale(1.02);
+    }
+
+    .student-chip.is-matched .student-seq {
+      color: #d97706 !important;
+    }
+
+    /* Live Card Search Match Badges */
+    .card-search-matches {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #fefce8;
+      border: 1.5px solid #facc15;
+      border-radius: 10px;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    .match-badge {
+      font-size: 12px;
+      font-weight: 800;
+      color: #854d0e;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.45;
+    }
+
+    .match-student-badge strong {
+      color: #047857;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .match-teacher-badge strong {
+      color: #0284c7;
+    }
+
+    .match-halaqa-badge strong {
+      color: #7c3aed;
+    }
+
     .card-actions-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -2813,6 +3198,8 @@ export const shareInteractiveCardsHtml = async (
       .search-alert-bar,
       .card-actions-row,
       .card-zoom-overlay,
+      .card-search-matches,
+      .btn-toggle-students,
       .zoom-modal {
         display: none !important;
       }
@@ -2894,55 +3281,69 @@ export const shareInteractiveCardsHtml = async (
   <!-- Main Container -->
   <main class="main-wrapper">
 
-    <!-- Search & Filter Controls -->
-    <section class="search-panel">
-      <div class="search-row">
-        <div class="search-input-wrapper">
-          <span class="search-input-icon">🔍</span>
-          <input type="text"
-                 id="cardsSearchInput"
-                 class="search-input"
-                 placeholder="ابحث باسم الطالب، أو المعلم، أو الحلقة، أو رقم البطاقة..."
-                 autocomplete="off" />
+    <!-- Controls & Search -->
+    <section class="controls-panel">
+      <div class="filter-group">
+        <div class="search-wrapper">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            id="searchInput" 
+            class="search-input" 
+            placeholder="ابحث بأي جزء من اسم الطالب، المعلم، الحلقة..." 
+            autocomplete="off"
+            oninput="filterCards()"
+            onkeyup="filterCards()"
+          />
+          <button type="button" id="clearBtn" class="clear-btn" title="مسح" onclick="clearSearch()">✕</button>
         </div>
-        <button type="button" id="btnSearchSubmit" class="btn-search-main">
-          <span>🔍 بحث</span>
-        </button>
-        <button type="button" id="btnClearSearch" class="btn-clear-search">
-          <span>✕ مسح البحث</span>
-        </button>
-        <button type="button" id="btnPrintVisible" class="btn-print-all">
+
+        ${uniqueStudents.length > 0 ? `
+        <div class="dropdown-container" id="studentDropdownContainer">
+          <button type="button" id="studentDropdownBtn" class="dropdown-btn" onclick="toggleStudentDropdown(event)">
+            <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
+              <span>👤</span>
+              <span id="studentDropdownLabel" class="dropdown-btn-label">كل الطلاب (${toArabicDigits(uniqueStudents.length)})</span>
+            </div>
+            <span class="dropdown-btn-arrow" id="studentDropdownArrow">▼</span>
+          </button>
+          <div id="studentDropdownPanel" class="dropdown-panel">
+            <div class="dropdown-search-box">
+              <span class="dropdown-search-icon">🔍</span>
+              <input 
+                type="text" 
+                id="studentSearchInput" 
+                class="dropdown-search-input" 
+                placeholder="بحث سريع في أسماء الطلاب..." 
+                autocomplete="off"
+                oninput="filterStudentOptions()"
+                onkeyup="filterStudentOptions()"
+              />
+            </div>
+            <div class="dropdown-actions">
+              <button type="button" id="btnSelectAllStudents" class="btn-action btn-select-all" onclick="selectAllStudents(event)">تحديد الكل</button>
+              <button type="button" id="btnDeselectAllStudents" class="btn-action btn-deselect-all" onclick="deselectAllStudents(event)">إلغاء التحديد</button>
+            </div>
+            <div id="studentOptionsList" class="dropdown-options-list">
+              ${uniqueStudents.map((name) => `
+                <label class="dropdown-option" data-student-name="${escapeAttr(name)}">
+                  <input type="checkbox" class="dropdown-checkbox student-cb" value="${escapeAttr(name)}" checked onchange="handleStudentCbChange()" />
+                  <span>${escapeHtmlText(name)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>` : ''}
+
+        <div class="stats-badge">
+          عدد البطاقات: <strong id="matchCount">${toArabicDigits(cards.length)}</strong> من أصل ${toArabicDigits(cards.length)}
+        </div>
+
+        <button type="button" class="btn-print-action" onclick="window.print()">
           <span>🖨️ طباعة البطاقات المعروضة</span>
         </button>
       </div>
-
-      <!-- Filter Mode Selector -->
-      <div class="filter-mode-row">
-        <span class="filter-label">نوع البحث:</span>
-        <button type="button" class="filter-btn active" data-mode="all">
-          <span>🔘 الكل</span>
-        </button>
-        <button type="button" class="filter-btn" data-mode="student">
-          <span>👤 بحث بالطالب</span>
-        </button>
-        <button type="button" class="filter-btn" data-mode="teacher">
-          <span>👨‍🏫 بحث بالمعلم</span>
-        </button>
-        <button type="button" class="filter-btn" data-mode="halaqa">
-          <span>🕌 بحث بالحلقة</span>
-        </button>
-      </div>
     </section>
-
-    <!-- Search feedback banner -->
-    <div id="searchAlertBar" class="search-alert-bar">
-      <div>
-        <span id="searchAlertText"></span>
-      </div>
-      <button type="button" class="btn-clear-search" style="padding: 6px 12px; font-size: 12px;" onclick="resetSearch()">
-        إظهار جميع البطاقات
-      </button>
-    </div>
 
     <!-- Cards Grid -->
     <div id="cardsGrid" class="cards-grid">
@@ -2950,11 +3351,11 @@ export const shareInteractiveCardsHtml = async (
     </div>
 
     <!-- Empty State -->
-    <div id="emptyState" class="empty-state">
+    <div id="noResults" class="empty-state" style="display: none;">
       <div class="empty-icon">🔎</div>
       <div class="empty-title">لم يتم العثور على أي بطاقة مطابقة</div>
-      <div class="empty-desc">تأكد من كتابة الاسم أو رقم الحلقة بشكل صحيح، أو جرب تغيير نوع البحث.</div>
-      <button type="button" class="btn-search-main" style="margin: 0 auto;" onclick="resetSearch()">
+      <div class="empty-desc">تأكد من كتابة الاسم أو رقم الحلقة بشكل صحيح، أو اضغط مسح لعرض كافة البطاقات.</div>
+      <button type="button" class="btn-clear-search-action" onclick="clearSearch()">
         <span>إظهار جميع البطاقات</span>
       </button>
     </div>
@@ -2983,28 +3384,63 @@ export const shareInteractiveCardsHtml = async (
 
   <script>
     (function() {
-      var currentMode = 'all';
+      'use strict';
       var currentZoomIdx = 0;
-      var cardsData = ${JSON.stringify(cards.map((c, i) => ({
-        idx: i,
-        title: c.title || c.name,
-        name: c.name,
-        imageDataUrl: c.imageDataUrl
-      })))};
+
+      function toArray(list) {
+        if (!list) return [];
+        var arr = [];
+        for (var i = 0; i < list.length; i++) { arr.push(list[i]); }
+        return arr;
+      }
 
       function normalizeArabic(text) {
-        if (!text) return '';
-        return String(text)
-          .trim()
-          .toLowerCase()
-          .replace(/[\\u064B-\\u065F\\u0670]/g, '') // Tashkeel
-          .replace(/[إأآا]/g, 'ا')
-          .replace(/ة/g, 'ه')
-          .replace(/[ىي]/g, 'ي')
-          .replace(/ؤ/g, 'و')
-          .replace(/ئ/g, 'ي')
-          .replace(/[-_،,]/g, ' ')
-          .replace(/\\s+/g, ' ');
+        if (!text) return "";
+        var str = String(text).toLowerCase();
+        str = str.replace(/[أإآ]/g, "ا")
+                 .replace(/ة/g, "ه")
+                 .replace(/ى/g, "ي")
+                 .replace(/[\\u064B-\\u065F\\u0670]/g, "")
+                 .replace(/ـ+/g, "");
+        var arDigits = "٠١٢٣٤٥٦٧٨٩";
+        for (var d = 0; d < 10; d++) {
+          str = str.split(arDigits[d]).join(String(d));
+        }
+        return str.replace(/[\\r\\n\\t]+/g, " ").replace(/\\s+/g, " ").trim();
+      }
+
+      function isSmartMatch(targetText, query) {
+        var normalizedQuery = normalizeArabic(query);
+        if (!normalizedQuery) return true;
+
+        var tokens = normalizedQuery.split(" ").filter(function(t) { return t.length > 0; });
+        var normalizedTarget = normalizeArabic(targetText);
+
+        for (var i = 0; i < tokens.length; i++) {
+          var tok = tokens[i];
+          if (normalizedTarget.indexOf(tok) !== -1) {
+            continue;
+          }
+          // If token has "ال" prefix, check without "ال"
+          if (tok.length > 3 && tok.indexOf("ال") === 0 && normalizedTarget.indexOf(tok.substring(2)) !== -1) {
+            continue;
+          }
+          // If target has "ال" prefix before token
+          if (tok.length > 2 && normalizedTarget.indexOf("ال" + tok) !== -1) {
+            continue;
+          }
+          // Handle abu / abi / aba
+          if (tok.indexOf("ابو") === 0 || tok.indexOf("ابي") === 0 || tok.indexOf("ابا") === 0) {
+            var rest = tok.substring(3);
+            if (normalizedTarget.indexOf("ابو" + rest) !== -1 ||
+                normalizedTarget.indexOf("ابي" + rest) !== -1 ||
+                normalizedTarget.indexOf("ابا" + rest) !== -1) {
+              continue;
+            }
+          }
+          return false;
+        }
+        return true;
       }
 
       function toArabicDigits(num) {
@@ -3013,129 +3449,292 @@ export const shareInteractiveCardsHtml = async (
         return String(num).replace(/[0-9]/g, function(w) { return id[+w]; });
       }
 
-      function doSearch() {
-        var input = document.getElementById('cardsSearchInput');
-        var query = normalizeArabic(input ? input.value : '');
-        var wrappers = document.querySelectorAll('.card-item-wrapper');
-        var visibleCount = 0;
-        var totalCount = wrappers.length;
-
-        for (var i = 0; i < wrappers.length; i++) {
-          var el = wrappers[i];
-          el.classList.remove('highlight-match');
-
-          if (!query) {
-            el.classList.remove('hidden-by-filter');
-            visibleCount++;
-            continue;
-          }
-
-          var match = false;
-          if (currentMode === 'student') {
-            var studentField = normalizeArabic(el.getAttribute('data-students') || '') + ' ' + normalizeArabic(el.getAttribute('data-name') || '');
-            if (studentField.indexOf(query) !== -1) match = true;
-          } else if (currentMode === 'teacher') {
-            var teacherField = normalizeArabic(el.getAttribute('data-teacher') || '');
-            if (teacherField.indexOf(query) !== -1) match = true;
-          } else if (currentMode === 'halaqa') {
-            var halaqaField = normalizeArabic(el.getAttribute('data-halaqa') || '') + ' ' + normalizeArabic(el.getAttribute('data-number') || '');
-            if (halaqaField.indexOf(query) !== -1) match = true;
-          } else {
-            // all
-            var searchField = normalizeArabic(el.getAttribute('data-search') || '');
-            if (searchField.indexOf(query) !== -1) match = true;
-          }
-
-          if (match) {
-            el.classList.remove('hidden-by-filter');
-            visibleCount++;
-            if (query.length >= 2) {
-              el.classList.add('highlight-match');
-            }
-          } else {
-            el.classList.add('hidden-by-filter');
-          }
+      function toggleStudentDropdown(e) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
         }
-
-        // Update stats
-        var statVisible = document.getElementById('statVisible');
-        if (statVisible) statVisible.textContent = toArabicDigits(visibleCount);
-
-        // Update alert bar
-        var alertBar = document.getElementById('searchAlertBar');
-        var alertText = document.getElementById('searchAlertText');
-        var emptyState = document.getElementById('emptyState');
-
-        if (query) {
-          if (alertBar && alertText) {
-            var modeLabel = currentMode === 'student' ? 'بالطالب' : currentMode === 'teacher' ? 'بالمعلم' : currentMode === 'halaqa' ? 'بالحلقة' : 'شامل';
-            alertText.textContent = '🔍 نتائج البحث (' + modeLabel + ') عن: "' + (input ? input.value : '') + '" — تم العثور على ' + toArabicDigits(visibleCount) + ' بطاقة';
-            alertBar.classList.add('visible');
-          }
+        var panel = document.getElementById("studentDropdownPanel");
+        var btn = document.getElementById("studentDropdownBtn");
+        if (!panel) return;
+        var isOpen = panel.classList.contains("show");
+        if (isOpen) {
+          panel.classList.remove("show");
+          if (btn) btn.classList.remove("active");
         } else {
-          if (alertBar) alertBar.classList.remove('visible');
+          panel.classList.add("show");
+          if (btn) btn.classList.add("active");
+          var input = document.getElementById("studentSearchInput");
+          if (input) setTimeout(function() { input.focus(); }, 60);
         }
+      }
+      window.toggleStudentDropdown = toggleStudentDropdown;
 
-        if (emptyState) {
-          if (visibleCount === 0) {
-            emptyState.classList.add('visible');
+      function closeStudentDropdown() {
+        var panel = document.getElementById("studentDropdownPanel");
+        var btn = document.getElementById("studentDropdownBtn");
+        if (panel) panel.classList.remove("show");
+        if (btn) btn.classList.remove("active");
+      }
+      window.closeStudentDropdown = closeStudentDropdown;
+
+      function filterStudentOptions() {
+        var input = document.getElementById("studentSearchInput");
+        var q = input ? (input.value || "") : "";
+        var options = toArray(document.querySelectorAll("#studentOptionsList .dropdown-option"));
+        for (var i = 0; i < options.length; i++) {
+          var opt = options[i];
+          var name = opt.getAttribute("data-student-name") || opt.textContent || "";
+          if (!q.trim() || isSmartMatch(name, q)) {
+            opt.style.display = "flex";
           } else {
-            emptyState.classList.remove('visible');
+            opt.style.display = "none";
           }
         }
       }
+      window.filterStudentOptions = filterStudentOptions;
 
-      window.resetSearch = function() {
-        var input = document.getElementById('cardsSearchInput');
-        if (input) input.value = '';
-        doSearch();
-      };
+      function selectAllStudents(e) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        var cbs = toArray(document.querySelectorAll(".student-cb"));
+        for (var i = 0; i < cbs.length; i++) {
+          cbs[i].checked = true;
+        }
+        updateStudentLabel();
+        filterCards();
+      }
+      window.selectAllStudents = selectAllStudents;
+
+      function deselectAllStudents(e) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+        }
+        var cbs = toArray(document.querySelectorAll(".student-cb"));
+        for (var i = 0; i < cbs.length; i++) {
+          cbs[i].checked = false;
+        }
+        updateStudentLabel();
+        filterCards();
+      }
+      window.deselectAllStudents = deselectAllStudents;
+
+      function handleStudentCbChange() {
+        updateStudentLabel();
+        filterCards();
+      }
+      window.handleStudentCbChange = handleStudentCbChange;
+
+      function updateStudentLabel() {
+        var label = document.getElementById("studentDropdownLabel");
+        if (!label) return;
+        var cbs = toArray(document.querySelectorAll(".student-cb"));
+        var total = cbs.length;
+        var checked = 0;
+        var firstChecked = "";
+        for (var i = 0; i < total; i++) {
+          if (cbs[i].checked) {
+            checked++;
+            if (!firstChecked) firstChecked = cbs[i].value;
+          }
+        }
+
+        if (total === 0 || checked === total) {
+          label.textContent = "كل الطلاب (" + toArabicDigits(total) + ")";
+        } else if (checked === 0) {
+          label.textContent = "لم يتم اختيار أي طالب (٠)";
+        } else if (checked === 1) {
+          label.textContent = firstChecked;
+        } else {
+          label.textContent = toArabicDigits(checked) + " طلاب محددين";
+        }
+      }
+      window.updateStudentLabel = updateStudentLabel;
+
+      function filterCards() {
+        try {
+          var searchInput = document.getElementById("searchInput");
+          var rawQuery = searchInput ? (searchInput.value || "") : "";
+          var clearBtn = document.getElementById("clearBtn");
+          if (clearBtn) {
+            clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
+          }
+
+          var studentCbs = toArray(document.querySelectorAll(".student-cb"));
+          var totalCbs = studentCbs.length;
+          var checkedMap = {};
+          var checkedCount = 0;
+          for (var c = 0; c < totalCbs; c++) {
+            if (studentCbs[c].checked) {
+              var val = studentCbs[c].value.trim();
+              checkedMap[val] = true;
+              checkedMap[normalizeArabic(val)] = true;
+              checkedCount++;
+            }
+          }
+
+          var filterByStudent = totalCbs > 0 && checkedCount < totalCbs;
+
+          var cards = toArray(document.querySelectorAll(".card-item-wrapper"));
+          var matchCount = document.getElementById("matchCount");
+          var statVisible = document.getElementById("statVisible");
+          var noResults = document.getElementById("noResults");
+          var visibleCount = 0;
+
+          for (var i = 0; i < cards.length; i++) {
+            var card = cards[i];
+            var cardIdx = card.getAttribute("data-idx") || String(i);
+            var cardSearchText = card.getAttribute("data-search") || card.textContent || "";
+            var cardName = (card.getAttribute("data-name") || "").trim();
+
+            var matchesQuery = !rawQuery.trim() || isSmartMatch(cardSearchText, rawQuery);
+
+            var matchesStudent = true;
+            var cardStudentNames = [];
+            var studentsJsonRaw = card.getAttribute("data-students-json");
+            if (studentsJsonRaw) {
+              try {
+                cardStudentNames = JSON.parse(studentsJsonRaw);
+              } catch (e) {
+                cardStudentNames = [];
+              }
+            }
+            if (!cardStudentNames || cardStudentNames.length === 0) {
+              var chips = toArray(card.querySelectorAll(".student-chip"));
+              for (var ch = 0; ch < chips.length; ch++) {
+                var sName = chips[ch].getAttribute("data-name") || chips[ch].textContent.trim();
+                if (sName) cardStudentNames.push(sName);
+              }
+            }
+
+            if (filterByStudent) {
+              if (checkedCount === 0) {
+                matchesStudent = false;
+              } else if (cardStudentNames.length > 0) {
+                matchesStudent = cardStudentNames.some(function(st) {
+                  return !!checkedMap[st.trim()] || !!checkedMap[normalizeArabic(st)];
+                });
+              } else {
+                matchesStudent = !!checkedMap[cardName] || !!checkedMap[normalizeArabic(cardName)];
+              }
+            }
+
+            if (matchesQuery && matchesStudent) {
+              card.style.display = "";
+              card.classList.remove("hidden-by-filter");
+              visibleCount++;
+
+              var chips = toArray(card.querySelectorAll(".student-chip"));
+              var hasRelevantStudent = false;
+
+              for (var sc = 0; sc < chips.length; sc++) {
+                var chip = chips[sc];
+                var studentName = chip.getAttribute("data-name") || chip.textContent || "";
+                var normName = normalizeArabic(studentName);
+
+                var chipMatchesQuery = rawQuery.trim() && isSmartMatch(studentName, rawQuery);
+                var chipMatchesFilter = filterByStudent && (!!checkedMap[studentName.trim()] || !!checkedMap[normName]);
+
+                if (chipMatchesQuery || chipMatchesFilter) {
+                  chip.classList.add("is-matched");
+                  hasRelevantStudent = true;
+                } else {
+                  chip.classList.remove("is-matched");
+                }
+              }
+
+              var studentsList = document.getElementById("students-list-" + cardIdx);
+              var arrow = document.getElementById("toggle-arrow-" + cardIdx);
+              if (studentsList) {
+                if (hasRelevantStudent) {
+                  studentsList.style.display = "block";
+                  if (arrow) arrow.textContent = "▴";
+                } else if (!rawQuery.trim() && !filterByStudent) {
+                  studentsList.style.display = "none";
+                  if (arrow) arrow.textContent = "▾";
+                }
+              }
+            } else {
+              card.style.display = "none";
+              card.classList.add("hidden-by-filter");
+            }
+          }
+
+          if (matchCount) {
+            matchCount.textContent = toArabicDigits(visibleCount);
+          }
+          if (statVisible) {
+            statVisible.textContent = toArabicDigits(visibleCount);
+          }
+          if (noResults) {
+            noResults.style.display = visibleCount === 0 ? "block" : "none";
+          }
+        } catch (err) {
+          console.error("Filter error:", err);
+        }
+      }
+      window.filterCards = filterCards;
+
+      function clearSearch() {
+        var searchInput = document.getElementById("searchInput");
+        if (searchInput) {
+          searchInput.value = "";
+          searchInput.focus();
+        }
+        var studentSearchInput = document.getElementById("studentSearchInput");
+        if (studentSearchInput) {
+          studentSearchInput.value = "";
+          filterStudentOptions();
+        }
+        var cbs = toArray(document.querySelectorAll(".student-cb"));
+        for (var i = 0; i < cbs.length; i++) {
+          cbs[i].checked = true;
+        }
+        updateStudentLabel();
+        filterCards();
+      }
+      window.clearSearch = clearSearch;
 
       window.quickSearchHalaqa = function(halaqaName) {
-        var input = document.getElementById('cardsSearchInput');
+        var input = document.getElementById('searchInput');
         if (input) input.value = halaqaName;
-        setMode('halaqa');
-        doSearch();
+        filterCards();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
       window.quickSearchTeacher = function(teacherName) {
-        var input = document.getElementById('cardsSearchInput');
+        var input = document.getElementById('searchInput');
         if (input) input.value = teacherName;
-        setMode('teacher');
-        doSearch();
+        filterCards();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
-      function setMode(mode) {
-        currentMode = mode;
-        var btns = document.querySelectorAll('.filter-btn');
-        for (var i = 0; i < btns.length; i++) {
-          if (btns[i].getAttribute('data-mode') === mode) {
-            btns[i].classList.add('active');
-          } else {
-            btns[i].classList.remove('active');
-          }
+      window.toggleStudentsList = function(idx) {
+        var el = document.getElementById('students-list-' + idx);
+        var arrow = document.getElementById('toggle-arrow-' + idx);
+        if (!el) return;
+        if (el.style.display === 'block') {
+          el.style.display = 'none';
+          if (arrow) arrow.textContent = '▾';
+        } else {
+          el.style.display = 'block';
+          if (arrow) arrow.textContent = '▴';
         }
-        var input = document.getElementById('cardsSearchInput');
-        if (input) {
-          if (mode === 'student') input.placeholder = 'ابحث باسم الطالب...';
-          else if (mode === 'teacher') input.placeholder = 'ابحث باسم المعلم...';
-          else if (mode === 'halaqa') input.placeholder = 'ابحث باسم أو رقم الحلقة...';
-          else input.placeholder = 'ابحث باسم الطالب، أو المعلم، أو الحلقة، أو رقم البطاقة...';
-        }
-        doSearch();
-      }
+      };
 
       window.openZoomModal = function(idx) {
-        var data = cardsData[idx];
-        if (!data) return;
         currentZoomIdx = idx;
         var modal = document.getElementById('zoomModal');
         var img = document.getElementById('zoomImg');
         var title = document.getElementById('zoomTitle');
-        if (img) img.src = data.imageDataUrl;
-        if (title) title.textContent = data.title;
+        var cardWrapper = document.getElementById('card-wrapper-' + idx);
+        var cardImg = cardWrapper ? cardWrapper.querySelector('img.card-img') : null;
+        var cardName = cardWrapper ? cardWrapper.getAttribute('data-name') : 'معاينة البطاقة';
+        if (img && cardImg) img.src = cardImg.src;
+        if (title) title.textContent = cardName || 'معاينة البطاقة';
         if (modal) modal.classList.add('visible');
       };
 
@@ -3150,56 +3749,51 @@ export const shareInteractiveCardsHtml = async (
         if (!wrapper) return;
         wrapper.classList.add('print-this-card-now');
         document.body.classList.add('printing-single-mode');
-
         window.print();
-
         setTimeout(function() {
           wrapper.classList.remove('print-this-card-now');
           document.body.classList.remove('printing-single-mode');
         }, 1000);
       };
 
-      document.addEventListener('DOMContentLoaded', function() {
-        var input = document.getElementById('cardsSearchInput');
-        if (input) {
-          input.addEventListener('input', function() { doSearch(); });
-          input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') doSearch();
+      function initListeners() {
+        var searchInput = document.getElementById("searchInput");
+        if (searchInput) {
+          searchInput.addEventListener("input", function() { filterCards(); });
+          searchInput.addEventListener("keyup", function() { filterCards(); });
+        }
+        var clearBtn = document.getElementById("clearBtn");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", function(e) {
+            e.preventDefault();
+            clearSearch();
           });
         }
-
-        var btnSearch = document.getElementById('btnSearchSubmit');
-        if (btnSearch) {
-          btnSearch.addEventListener('click', function() { doSearch(); });
+        var studentSearchInput = document.getElementById("studentSearchInput");
+        if (studentSearchInput) {
+          studentSearchInput.addEventListener("input", function() { filterStudentOptions(); });
+          studentSearchInput.addEventListener("keyup", function() { filterStudentOptions(); });
         }
-
-        var btnClear = document.getElementById('btnClearSearch');
-        if (btnClear) {
-          btnClear.addEventListener('click', function() { resetSearch(); });
-        }
-
-        var btnPrintVisible = document.getElementById('btnPrintVisible');
-        if (btnPrintVisible) {
-          btnPrintVisible.addEventListener('click', function() {
-            window.print();
-          });
-        }
-
-        var filterBtns = document.querySelectorAll('.filter-btn');
-        for (var i = 0; i < filterBtns.length; i++) {
-          filterBtns[i].addEventListener('click', function(e) {
-            var mode = this.getAttribute('data-mode') || 'all';
-            setMode(mode);
-          });
-        }
-
         var btnZoomPrint = document.getElementById('btnZoomPrint');
         if (btnZoomPrint) {
           btnZoomPrint.addEventListener('click', function() {
-            printSingleCard(currentZoomIdx);
+            window.printSingleCard(currentZoomIdx);
           });
         }
-      });
+        document.addEventListener("click", function(e) {
+          var container = document.getElementById("studentDropdownContainer");
+          if (container && !container.contains(e.target)) {
+            closeStudentDropdown();
+          }
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initListeners);
+      } else {
+        initListeners();
+      }
+      setTimeout(initListeners, 200);
     })();
   </script>
 </body>

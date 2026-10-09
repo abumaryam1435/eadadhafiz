@@ -504,7 +504,7 @@ export const CardsManager: React.FC = () => {
         halaqas.forEach(h => {
             const numStr = extractNumber(h.name, h.id);
             const hStudents = (students || [])
-                .filter(s => Number(s.halaqaId) === Number(h.id))
+                .filter(s => s.halaqaId !== undefined && s.halaqaId !== null && (String(s.halaqaId) === String(h.id) || Number(s.halaqaId) === Number(h.id)))
                 .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
                 .map(s => ({
                     id: s.id,
@@ -528,7 +528,7 @@ export const CardsManager: React.FC = () => {
         sardHalaqas.forEach(sh => {
             const numStr = extractNumber(sh.name, sh.id);
             const shStudents = (students || [])
-                .filter(s => Number(s.sardHalaqaId) === Number(sh.id))
+                .filter(s => s.sardHalaqaId !== undefined && s.sardHalaqaId !== null && (String(s.sardHalaqaId) === String(sh.id) || Number(s.sardHalaqaId) === Number(sh.id)))
                 .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
                 .map(s => ({
                     id: s.id,
