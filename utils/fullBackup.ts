@@ -423,6 +423,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
   addSetting("lastUsedWeek", data.lastUsedWeek);
   addSetting("hijriAdjustments", data.hijriAdjustments);
   addSetting("showAmeerToTeachers", data.showAmeerToTeachers);
+  addSetting("reviewFeatureConfig", data.reviewFeatureConfig ? JSON.stringify(data.reviewFeatureConfig) : localStorage.getItem("reviewFeatureConfig"));
 
   // بيانات إضافية من التخزين المحلي (Comprehensive)
   addSetting("reportColorMap", localStorage.getItem("halaqaReportColorMap"));
@@ -903,6 +904,15 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
                 importedData.hijriAdjustments = {};
               }
             }
+            if (settingsMap.has("reviewFeatureConfig")) {
+              const rfc = getS("reviewFeatureConfig");
+              try {
+                importedData.reviewFeatureConfig = rfc ? JSON.parse(rfc) : { enabled: false, teachers: {} };
+                if (rfc) localStorage.setItem("reviewFeatureConfig", rfc);
+              } catch (e) {
+                importedData.reviewFeatureConfig = { enabled: false, teachers: {} };
+              }
+            }
 
             // استعادة البيانات الإضافية للتخزين المحلي
             const setLS = (key: string, valKey: string) => {
@@ -958,6 +968,7 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
           lastUsedWeek: importedData.lastUsedWeek || null,
           hijriAdjustments: importedData.hijriAdjustments || {},
           showAmeerToTeachers: importedData.showAmeerToTeachers || false,
+          reviewFeatureConfig: importedData.reviewFeatureConfig || { enabled: false, teachers: {} },
         });
       } catch (error) {
         console.error("Backup parse error:", error);

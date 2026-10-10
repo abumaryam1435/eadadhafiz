@@ -4,7 +4,7 @@ import { exportSheetTemplate } from "../utils/exportSheetTemplate";
 import { exportMainHalaqasTemplate, exportSardHalaqasTemplate } from "../utils/halaqaExcelUtils";
 import { exportFullBackup, importFullBackup, exportFullBackupJson, importFullBackupJson } from "../utils/fullBackup";
 import { parseJuzsToNumbers, parseSafeNumber, safeNumberVal } from "../utils/juzUtils";
-import { FullBackupData, UserRole } from "../types";
+import { FullBackupData, UserRole, ReviewFeatureConfig, TeacherReviewPermission } from "../types";
 import Modal from "./Modal";
 import {
   generateAndDownloadDistributableHtml,
@@ -70,8 +70,12 @@ export const Settings: React.FC = () => {
   const setNewStudentPassingRate = context?.setNewStudentPassingRate || (() => {});
   const newStudentTestDeductions = context?.newStudentTestDeductions || { fath: 1, tashkeel: 1, tajweed: 0.5 };
   const setNewStudentTestDeductions = context?.setNewStudentTestDeductions || (() => {});
+  const reviewFeatureConfig: ReviewFeatureConfig = context?.reviewFeatureConfig || { enabled: false, teachers: {} };
+  const setReviewFeatureConfig = context?.setReviewFeatureConfig || (() => {});
+  const [reviewTeacherSearch, setReviewTeacherSearch] = useState<string>("");
+  const [expandedReviewTeacherId, setExpandedReviewTeacherId] = useState<number | null>(null);
 
-  const [activeSettingsView, setActiveSettingsView] = useState<"main" | "tests" | "customization" | "mutoon">("main");
+  const [activeSettingsView, setActiveSettingsView] = useState<"main" | "tests" | "customization" | "mutoon" | "review">("main");
   const [message, setMessage] = useState<{
     type: "success" | "error" | "warning";
     text: string;
@@ -559,6 +563,148 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const allTeachers = (context?.users || [])
+    .filter(u => u.role === UserRole.TEACHER)
+    .sort((a, b) => a.name.localeCompare(b.name, "ar", { numeric: true }));
+
+  const getTeacherHalaqas = (teacherId: number) => {
+    return (context?.halaqas || []).filter(h => h.teacherId === teacherId);
+  };
+
+  const getTeacherStudents = (teacherId: number) => {
+    const halaqaIds = getTeacherHalaqas(teacherId).map(h => h.id);
+    return (context?.students || [])
+      .filter(s => halaqaIds.includes(s.halaqaId))
+      .sort((a, b) => a.name.localeCompare(b.name, "ar", { numeric: true }));
+  };
+
+  const isReviewMasterEnabled = !!reviewFeatureConfig.enabled;
+
+  const handleToggleReviewMaster = (checked: boolean) => {
+    const updated: ReviewFeatureConfig = {
+      ...reviewFeatureConfig,
+      enabled: checked,
+    };
+    setReviewFeatureConfig(updated);
+    showToast(
+      checked
+        ? "✅ تم تفعيل إمكانية خيار المراجعة في استمارة التقييم (يمكنك الآن تخصيص المعلمين والطلاب)"
+        : "تم تعطيل خيار المراجعة في استمارة التقييم لجميع المعلمين والطلاب (الافتراضي)",
+      "info"
+    );
+  };
+
+  const handleSelectAllTeachersForReview = () => {
+    const newTeachersMap: Record<string | number, TeacherReviewPermission> = {};
+    allTeachers.forEach(t => {
+      newTeachersMap[t.id] = {
+        enabled: true,
+        allStudents: true,
+        studentIds: [],
+      };
+    });
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      enabled: true,
+      teachers: newTeachersMap,
+    });
+    showToast("✅ تم تفعيل خيار المراجعة لجميع المعلمين ولكافة طلابهم", "success");
+  };
+
+  const handleDeselectAllTeachersForReview = () => {
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      teachers: {},
+    });
+    showToast("تم إلغاء تفعيل خيار المراجعة لجميع المعلمين", "info");
+  };
+
+  const handleToggleTeacherReview = (teacherId: number, enabled: boolean) => {
+    const teachersMap = { ...(reviewFeatureConfig.teachers || {}) };
+    if (enabled) {
+      teachersMap[teacherId] = {
+        enabled: true,
+        allStudents: teachersMap[teacherId]?.allStudents ?? true,
+        studentIds: teachersMap[teacherId]?.studentIds ?? [],
+      };
+    } else {
+      teachersMap[teacherId] = {
+        ...(teachersMap[teacherId] || { allStudents: true, studentIds: [] }),
+        enabled: false,
+      };
+    }
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      teachers: teachersMap,
+    });
+  };
+
+  const handleChangeTeacherReviewMode = (teacherId: number, allStudents: boolean) => {
+    const teachersMap = { ...(reviewFeatureConfig.teachers || {}) };
+    const tStudents = getTeacherStudents(teacherId);
+    teachersMap[teacherId] = {
+      enabled: true,
+      allStudents,
+      studentIds: allStudents
+        ? []
+        : (teachersMap[teacherId]?.studentIds && teachersMap[teacherId].studentIds!.length > 0
+            ? teachersMap[teacherId].studentIds
+            : tStudents.map(s => s.id)),
+    };
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      teachers: teachersMap,
+    });
+  };
+
+  const handleToggleStudentForTeacherReview = (teacherId: number, studentId: number) => {
+    const teachersMap = { ...(reviewFeatureConfig.teachers || {}) };
+    const current = teachersMap[teacherId] || { enabled: true, allStudents: false, studentIds: [] };
+    const currentIds = current.studentIds || [];
+    const exists = currentIds.includes(studentId);
+    const updatedIds = exists
+      ? currentIds.filter(id => id !== studentId)
+      : [...currentIds, studentId];
+
+    teachersMap[teacherId] = {
+      ...current,
+      enabled: true,
+      allStudents: false,
+      studentIds: updatedIds,
+    };
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      teachers: teachersMap,
+    });
+  };
+
+  const handleSelectAllStudentsForTeacherReview = (teacherId: number) => {
+    const teachersMap = { ...(reviewFeatureConfig.teachers || {}) };
+    const tStudents = getTeacherStudents(teacherId);
+    teachersMap[teacherId] = {
+      enabled: true,
+      allStudents: false,
+      studentIds: tStudents.map(s => s.id),
+    };
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      teachers: teachersMap,
+    });
+  };
+
+  const handleDeselectAllStudentsForTeacherReview = (teacherId: number) => {
+    const teachersMap = { ...(reviewFeatureConfig.teachers || {}) };
+    teachersMap[teacherId] = {
+      enabled: true,
+      allStudents: false,
+      studentIds: [],
+    };
+    setReviewFeatureConfig({
+      ...reviewFeatureConfig,
+      teachers: teachersMap,
+    });
+  };
+
   return (
     <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg dark:bg-gray-800">
       {importModalType && (
@@ -630,6 +776,12 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveSettingsView("mutoon")}
         >
           إدارة المتون
+        </button>
+        <button
+          className={`px-6 py-3 font-bold transition-all border-b-4 ${activeSettingsView === "review" ? "text-green-700 border-green-700 dark:text-green-300" : "text-gray-400 border-transparent"}`}
+          onClick={() => setActiveSettingsView("review")}
+        >
+          تفعيل "مراجعة"
         </button>
       </div>
 
@@ -1348,6 +1500,288 @@ export const Settings: React.FC = () => {
 
             {activeSettingsView === "mutoon" && (
         <MutoonManager />
+      )}
+
+      {activeSettingsView === "review" && (
+        <div className="animate-fade-in space-y-8">
+          <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 dark:bg-slate-800/50 dark:border-slate-700">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <h4 className="text-xl font-black text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                  <span className="text-2xl">🔄</span>
+                  تفعيل وتخصيص بند «المراجعة»
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  إتاحة خيار المراجعة في خانة نوع الإنجاز في استمارة التقييم وتعديل التقييم، مع إمكانية إدارتها لمعلمين وطلاب محددين.
+                </p>
+              </div>
+              <span className={`self-start sm:self-center text-xs font-bold px-3.5 py-1.5 rounded-xl whitespace-nowrap ${isReviewMasterEnabled ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-gray-100 text-gray-500 dark:bg-gray-600'}`}>
+                {isReviewMasterEnabled ? 'مفعل حالياً' : 'معطل (الافتراضي)'}
+              </span>
+            </div>
+
+            {/* المفتاح الرئيسي */}
+            <div className="bg-white dark:bg-slate-700 p-5 rounded-2xl border border-gray-200 dark:border-slate-600 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex-1">
+                <label className="inline-flex items-center cursor-pointer">
+                  <div className="relative" dir="ltr">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={isReviewMasterEnabled}
+                      onChange={(e) => handleToggleReviewMaster(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600"></div>
+                  </div>
+                  <span className="mr-3 text-sm font-bold text-gray-700 dark:text-gray-300">
+                    تفعيل بند «مراجعة» في شاشة تقييم وتعديل الطلاب
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 mr-14">
+                  الأصل والافتراضي هو عدم ظهور بند المراجعة (حفظ جديد وغير مستعد فقط). عند تفعيل هذا الخيار، يمكنك تحديد المعلمين والطلاب المتاح لهم التقييم ببند المراجعة.
+                </p>
+              </div>
+            </div>
+
+            {/* لوحة تخصيص المعلمين والطلاب عند التفعيل */}
+            {isReviewMasterEnabled && (
+              <div className="mt-5 space-y-4 pt-4 border-t border-gray-200 dark:border-slate-700">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50/70 dark:bg-blue-950/30 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/50">
+                  <div className="space-y-0.5">
+                    <h5 className="text-sm font-black text-blue-950 dark:text-blue-200 flex items-center gap-2">
+                      <span>👥</span>
+                      تحديد المعلمين والطلاب المسموح لهم بالمراجعة
+                    </h5>
+                    <p className="text-xs text-blue-700/80 dark:text-blue-300/80">
+                      اختر المعلمين، ثم حدد ما إذا كان بند المراجعة متاحاً لجميع طلاب المعلم أو لطلاب محددين فقط.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllTeachersForReview}
+                      className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-xs cursor-pointer"
+                    >
+                      تحديد جميع المعلمين
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeselectAllTeachersForReview}
+                      className="px-3 py-1.5 text-xs font-bold bg-white text-gray-700 border border-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:border-slate-600 rounded-xl hover:bg-gray-50 active:scale-95 transition-all shadow-xs cursor-pointer"
+                    >
+                      إلغاء تحديد الجميع
+                    </button>
+                  </div>
+                </div>
+
+                {/* خانة بحث عن المعلمين */}
+                {allTeachers.length > 3 && (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={reviewTeacherSearch}
+                      onChange={(e) => setReviewTeacherSearch(e.target.value)}
+                      placeholder="ابحث باسم المعلم أو الحلقة..."
+                      className="w-full text-xs font-bold py-2.5 px-9 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder:text-gray-400"
+                    />
+                    <span className="absolute right-3 top-2.5 text-sm text-gray-400">🔍</span>
+                    {reviewTeacherSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setReviewTeacherSearch("")}
+                        className="absolute left-3 top-2.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* قائمة المعلمين */}
+                <div className="space-y-3">
+                  {allTeachers
+                    .filter((teacher) => {
+                      if (!reviewTeacherSearch.trim()) return true;
+                      const q = reviewTeacherSearch.toLowerCase().trim();
+                      const halaqas = getTeacherHalaqas(teacher.id);
+                      return (
+                        teacher.name.toLowerCase().includes(q) ||
+                        halaqas.some((h) => h.name.toLowerCase().includes(q))
+                      );
+                    })
+                    .map((teacher) => {
+                      const teacherPerm = reviewFeatureConfig.teachers?.[teacher.id];
+                      const isTeacherActive = teacherPerm?.enabled !== false && teacherPerm !== undefined;
+                      const isAllStudents = teacherPerm?.allStudents ?? true;
+                      const tHalaqas = getTeacherHalaqas(teacher.id);
+                      const tStudents = getTeacherStudents(teacher.id);
+                      const selectedStudentIds = teacherPerm?.studentIds || [];
+                      const selectedStudentsCount = isAllStudents
+                        ? tStudents.length
+                        : selectedStudentIds.filter((id) => tStudents.some((s) => s.id === id)).length;
+
+                      const isExpanded = expandedReviewTeacherId === teacher.id;
+
+                      return (
+                        <div
+                          key={teacher.id}
+                          className={`rounded-2xl border transition-all ${
+                            isTeacherActive
+                              ? 'bg-white dark:bg-slate-700/80 border-emerald-200 dark:border-emerald-800/80 shadow-xs'
+                              : 'bg-white/60 dark:bg-slate-800/40 border-gray-200 dark:border-slate-700 opacity-80'
+                          }`}
+                        >
+                          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                id={`teacher_review_${teacher.id}`}
+                                checked={isTeacherActive}
+                                onChange={(e) => handleToggleTeacherReview(teacher.id, e.target.checked)}
+                                className="w-5 h-5 rounded-md text-emerald-600 focus:ring-emerald-500 border-gray-300 dark:border-slate-600 cursor-pointer"
+                              />
+                              <div>
+                                <label
+                                  htmlFor={`teacher_review_${teacher.id}`}
+                                  className="text-sm font-black text-gray-800 dark:text-gray-100 cursor-pointer flex items-center gap-2"
+                                >
+                                  <span>{teacher.name}</span>
+                                  {isTeacherActive && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                      متاح
+                                    </span>
+                                  )}
+                                </label>
+                                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  <span>
+                                    {tHalaqas.length > 0
+                                      ? tHalaqas.map((h) => h.name).join('، ')
+                                      : 'لا توجد حلقات مسندة'}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{tStudents.length} طلاب</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* خيارات الطلاب للمعلم المفعل */}
+                            {isTeacherActive && (
+                              <div className="flex items-center gap-2 flex-wrap mr-8 sm:mr-0">
+                                <div className="inline-flex rounded-xl p-1 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-xs font-bold">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleChangeTeacherReviewMode(teacher.id, true)}
+                                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                      isAllStudents
+                                        ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-2xs font-black'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800'
+                                    }`}
+                                  >
+                                    جميع الطلاب ({tStudents.length})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleChangeTeacherReviewMode(teacher.id, false);
+                                      setExpandedReviewTeacherId(teacher.id);
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                      !isAllStudents
+                                        ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-2xs font-black'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800'
+                                    }`}
+                                  >
+                                    طلاب محددون ({selectedStudentsCount})
+                                  </button>
+                                </div>
+
+                                {!isAllStudents && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedReviewTeacherId(isExpanded ? null : teacher.id)}
+                                    className="px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <span>{isExpanded ? 'إخفاء الطلاب' : 'تحديد الطلاب'}</span>
+                                    <span>{isExpanded ? '▲' : '▼'}</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* قائمة تحديد الطلاب المخصصين */}
+                          {isTeacherActive && !isAllStudents && (isExpanded || tStudents.length <= 6) && (
+                            <div className="p-4 border-t border-gray-100 dark:border-slate-600/70 bg-gray-50/70 dark:bg-slate-800/40 rounded-b-2xl animate-in fade-in duration-200">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                  حدد الطلاب الذين سيظهر لديهم بند المراجعة لهذا المعلم:
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectAllStudentsForTeacherReview(teacher.id)}
+                                    className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                                  >
+                                    تحديد الكل
+                                  </button>
+                                  <span className="text-gray-300">|</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeselectAllStudentsForTeacherReview(teacher.id)}
+                                    className="text-xs text-gray-500 dark:text-gray-400 font-bold hover:underline cursor-pointer"
+                                  >
+                                    إلغاء التحديد
+                                  </button>
+                                </div>
+                              </div>
+
+                              {tStudents.length === 0 ? (
+                                <p className="text-xs text-amber-600 dark:text-amber-400">
+                                  لا يوجد طلاب مسجلون في حلقات هذا المعلم حالياً.
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                  {tStudents.map((student) => {
+                                    const isSelected = selectedStudentIds.includes(student.id);
+                                    const studentHalaqa = tHalaqas.find((h) => h.id === student.halaqaId);
+                                    return (
+                                      <label
+                                        key={student.id}
+                                        className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                          isSelected
+                                            ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700/80 text-blue-950 dark:text-blue-100 font-black'
+                                            : 'bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 font-normal'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => handleToggleStudentForTeacherReview(teacher.id, student.id)}
+                                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-500 cursor-pointer"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-xs truncate">{student.name}</div>
+                                          {studentHalaqa && (
+                                            <div className="text-[10px] text-gray-400 truncate">
+                                              {studentHalaqa.name}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {activeSettingsView === "customization" && (

@@ -26,6 +26,7 @@ import { isSmartMatch } from '../utils/searchUtils';
 import { StudentProgressInfo } from './StudentProgressInfo';
 import { getCompletedJuzs } from '../utils/pageUtils';
 import { preloadMushafPages } from '../utils/mushafPreload';
+import { isReviewAllowedForStudent } from '../utils/reviewPermissions';
 
 interface EvaluationEditFormProps {
   initialEvaluation: Evaluation;
@@ -62,6 +63,23 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
   const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
   const isAmeer = canSeeAmeer && halaqa?.ameerStudentId === currentStudent.id;
+
+  const isReviewAllowed = useMemo(() => {
+    const effectiveTeacherId = initialEvaluation.teacherId || 
+      halaqa?.teacherId || 
+      (student ? (context?.halaqas || []).find(h => h.id === student.halaqaId)?.teacherId : undefined) || 
+      currentUser?.id;
+
+    return isReviewAllowedForStudent(
+      student?.id || initialEvaluation.studentId,
+      effectiveTeacherId,
+      context?.reviewFeatureConfig,
+      context?.halaqas || [],
+      context?.students || []
+    );
+  }, [initialEvaluation, student, halaqa, currentUser?.id, context?.reviewFeatureConfig, context?.halaqas, context?.students]);
+
+  const canShowReviewOption = isReviewAllowed || initialEvaluation.evaluationType === EvaluationType.REVIEW;
 
   const studentQuranHistory = useMemo(() => {
     return analyzeStudentQuranHistory(
@@ -657,13 +675,15 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
             {initialEvaluation.subject !== "mutoon" && (
             <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-gray-500 flex items-center gap-1.5 uppercase">نوع الإنجاز</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className={`grid ${canShowReviewOption ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                     <button type="button" onClick={() => setEvaluationType(EvaluationType.MEMORIZATION)} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.MEMORIZATION ? "bg-green-50 border-green-600 text-green-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>حفظ جديد</button>
-                    <button type="button" onClick={() => {
-                        setEvaluationType(EvaluationType.REVIEW);
-                        setPerformance(undefined);
-                        setPeriodicReview(undefined);
-                    }} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.REVIEW ? "bg-blue-50 border-blue-600 text-blue-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>مراجعة</button>
+                    {canShowReviewOption && (
+                      <button type="button" onClick={() => {
+                          setEvaluationType(EvaluationType.REVIEW);
+                          setPerformance(undefined);
+                          setPeriodicReview(undefined);
+                      }} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.REVIEW ? "bg-blue-50 border-blue-600 text-blue-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>مراجعة</button>
+                    )}
                     <button type="button" onClick={() => {
                         setEvaluationType(EvaluationType.DID_NOT_MEMORIZE);
                         setPages("");
@@ -757,26 +777,28 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                                         حالة التقييم لهذا المتن (أتم الحفظ سابقاً):
                                                     </label>
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (isSelectedMatn && mPages === 'review') {
-                                                                    setPages('');
-                                                                    setEvalFath(0);
-                                                                } else {
-                                                                    setSelectedSurahs([m.name]);
-                                                                    setPages('review');
-                                                                    setEvalFath(0);
-                                                                }
-                                                            }}
-                                                            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all border ${
-                                                                isSelectedMatn && mPages === 'review'
-                                                                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                                                                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'
-                                                            }`}
-                                                        >
-                                                            {isSelectedMatn && mPages === 'review' ? '✓ تم تحديد: مراجعة المتن' : 'تحديد مراجعة المتن لهذا الأسبوع'}
-                                                        </button>
+                                                        {canShowReviewOption && (
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                  if (isSelectedMatn && mPages === 'review') {
+                                                                      setPages('');
+                                                                      setEvalFath(0);
+                                                                  } else {
+                                                                      setSelectedSurahs([m.name]);
+                                                                      setPages('review');
+                                                                      setEvalFath(0);
+                                                                  }
+                                                              }}
+                                                              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all border ${
+                                                                  isSelectedMatn && mPages === 'review'
+                                                                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                                                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'
+                                                              }`}
+                                                          >
+                                                              {isSelectedMatn && mPages === 'review' ? '✓ تم تحديد: مراجعة المتن' : 'تحديد مراجعة المتن لهذا الأسبوع'}
+                                                          </button>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={() => {

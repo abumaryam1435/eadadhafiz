@@ -1,4 +1,4 @@
-import { quranPageMap, surahNames } from './quranData';
+import { quranPageMap, surahNames, juzPagesMap } from './quranData';
 import { toArabicDigits } from './juzUtils';
 import ayahSegmentsData from './mushafAyahSegments.json';
 
@@ -578,4 +578,52 @@ function createFallbackPassage(passageNum: number, page: number): SuggestedTestP
     actualLinesCount: 6.0,
   };
 }
+
+/**
+ * Calculate required test/review passages count based on number of Juzs:
+ * - 1 Juz or less: 3 passages
+ * - 2 - 3 Juzs: 4 passages
+ * - 4 - 5 Juzs: 5 passages
+ * - 6 or more Juzs: 6 passages
+ */
+export function getReviewPassagesCountForJuzs(juzsCount: number): number {
+  if (juzsCount <= 1) return 3;
+  if (juzsCount <= 3) return 4;
+  if (juzsCount <= 5) return 5;
+  return 6;
+}
+
+/**
+ * Generate suggested review passages based on selected Juzs using test criteria:
+ * Number of passages is determined by the number of selected Juzs (3, 4, 5, or 6 passages).
+ * Passages are randomly and evenly distributed across all pages of the selected Juzs.
+ */
+export function generateReviewPassagesForJuzs(
+  selectedJuzs: number[]
+): SuggestedTestPassage[] {
+  if (!selectedJuzs || selectedJuzs.length === 0) return [];
+  const sortedJuzs = Array.from(new Set(selectedJuzs)).sort((a, b) => a - b);
+  const allPages = Array.from(new Set(sortedJuzs.flatMap(j => juzPagesMap[j] || []))).sort((a, b) => a - b);
+  if (allPages.length === 0) return [];
+
+  const requiredCount = getReviewPassagesCountForJuzs(sortedJuzs.length);
+  return generateSuggestedTestPassages(allPages, requiredCount);
+}
+
+/**
+ * Replace a specific review passage for the selected Juzs.
+ */
+export function replaceReviewPassage(
+  selectedJuzs: number[],
+  passageNumber: number,
+  existingPassages: SuggestedTestPassage[] = []
+): SuggestedTestPassage {
+  const sortedJuzs = Array.from(new Set(selectedJuzs)).sort((a, b) => a - b);
+  const allPages = Array.from(new Set(sortedJuzs.flatMap(j => juzPagesMap[j] || []))).sort((a, b) => a - b);
+  if (allPages.length === 0) {
+    return createFallbackPassage(passageNumber, 1);
+  }
+  return generateSingleReplacementPassage(allPages, passageNumber, existingPassages);
+}
+
 

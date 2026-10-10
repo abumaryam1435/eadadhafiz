@@ -718,88 +718,80 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
         </Modal>
       )}
 
-      <div className="flex flex-col gap-2.5 my-2 bg-gray-50/90 dark:bg-gray-800/60 p-3 sm:p-3.5 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs">
-          <div className="flex items-center justify-between pb-1.5 border-b border-gray-200/70 dark:border-gray-700/70">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-gray-700 dark:text-gray-300">📊 بيانات تقدم الطالب:</span>
-              <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md font-bold dark:bg-indigo-900/50 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 text-[11px]">
-                المستوى: {studentLevel}
-              </span>
+      <div className="flex flex-col gap-2 my-1.5 bg-gray-50/90 dark:bg-gray-800/60 p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs">
+        {/* الهيدر مع المستوى وزر التعديل الوحيد */}
+        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-gray-200/70 dark:border-gray-700/70">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-black text-gray-800 dark:text-gray-200">📊 تقدم الطالب:</span>
+            <span className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-md font-bold text-[11px]">
+              {studentLevel}
+            </span>
+          </div>
+          {allowTeacherEditOldMemorized && (
+            <button
+              type="button"
+              onClick={() => {
+                parseCurrentStudentRanges();
+                setIsEditingRanges(true);
+              }}
+              className="text-[10px] font-bold px-2 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 touch-manipulation bg-emerald-100 hover:bg-emerald-200 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shrink-0"
+              title="تعديل المحفوظ القديم للطالب"
+            >
+              <span>✏️ تعديل المحفوظ</span>
+            </button>
+          )}
+        </div>
+
+        {/* شبكة الحفظ القديم والجديد جنباً إلى جنب في شاشة الهاتف */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {/* صندوق الحفظ القديم */}
+          <div className="bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800/80 flex flex-col justify-between gap-1 shadow-2xs">
+            <div className="font-black text-[11px] sm:text-xs text-emerald-950 dark:text-emerald-100 pb-1 border-b border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1">
+              <span>📖</span>
+              <span>الحفظ القديم</span>
             </div>
-            {allowTeacherEditOldMemorized && (
-              <button
-                type="button"
-                onClick={() => {
-                  parseCurrentStudentRanges();
-                  setIsEditingRanges(true);
-                }}
-                className="text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 touch-manipulation bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 hover:bg-emerald-200 border border-emerald-300 dark:border-emerald-700"
-              >
-                <span>✏️ تعديل المحفوظ القديم</span>
-              </button>
-            )}
+            <div className="flex flex-col gap-0.5 text-[11px]">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-emerald-800/80 dark:text-emerald-300/80 font-bold shrink-0 text-[10px]">الصفحات:</span>
+                <span className="font-black bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 text-right truncate text-[10px] sm:text-[11px]">
+                  {pagesData.oldStr || 'لا يوجد'}
+                </span>
+              </div>
+              {oldCompletedJuzs.length > 0 && (
+                <div className="flex items-center justify-between gap-1 text-[10px] text-emerald-800/90 dark:text-emerald-300/90 pt-0.5">
+                  <span className="font-bold shrink-0 text-[9px]">الأجزاء:</span>
+                  <span className="font-extrabold text-emerald-950 dark:text-emerald-100 truncate text-[10px]">
+                    {oldJuzsFormatted.formatted} ({toArabicDigits(oldJuzsFormatted.count)})
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="w-full space-y-2 text-xs">
-              {/* صندوق المحفوظ القديم */}
-              <div className="bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 p-3 rounded-xl font-bold border border-emerald-200 dark:border-emerald-800/80 text-xs leading-relaxed break-words whitespace-normal space-y-1.5 shadow-2xs">
-                  <div className="flex items-center justify-between pb-1 border-b border-emerald-200/70 dark:border-emerald-800/70">
-                      <span className="font-black text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5 text-xs sm:text-sm">
-                        <span>📖</span>
-                        <span>الحفظ القديم</span>
-                      </span>
-                      {allowTeacherEditOldMemorized && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            parseCurrentStudentRanges();
-                            setIsEditingRanges(true);
-                          }}
-                          className="text-[10px] bg-emerald-200/70 hover:bg-emerald-200 dark:bg-emerald-800/50 dark:hover:bg-emerald-800 text-emerald-900 dark:text-emerald-100 px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer active:scale-95 shadow-2xs"
-                        >
-                          ✏️ تعديل النطاقات
-                        </button>
-                      )}
-                  </div>
-
-                  {/* عرض الصفحات الحالية */}
-                  <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-emerald-800 dark:text-emerald-300 font-bold ml-1">الصفحات:</span>
-                      <span className="font-black bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100">
-                        {pagesData.oldStr || 'لا يوجد'}
-                      </span>
-                  </div>
-                  {oldCompletedJuzs.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                          <span className="text-emerald-800 dark:text-emerald-300 font-bold ml-1">الأجزاء المكتملة:</span>
-                          <span className="font-extrabold text-emerald-900 dark:text-emerald-200">
-                            {oldJuzsFormatted.formatted} (العدد: {oldJuzsFormatted.count})
-                          </span>
-                      </div>
-                  )}
+          {/* صندوق الحفظ الجديد */}
+          <div className="bg-blue-50/90 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 p-2 rounded-xl border border-blue-200 dark:border-blue-800/80 flex flex-col justify-between gap-1 shadow-2xs">
+            <div className="font-black text-[11px] sm:text-xs text-blue-950 dark:text-blue-100 pb-1 border-b border-blue-200/60 dark:border-blue-800/60 flex items-center gap-1">
+              <span>✨</span>
+              <span>الحفظ الجديد</span>
+            </div>
+            <div className="flex flex-col gap-0.5 text-[11px]">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-blue-800/80 dark:text-blue-300/80 font-bold shrink-0 text-[10px]">الصفحات:</span>
+                <span className="font-black bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-blue-950 dark:text-blue-100 text-right truncate text-[10px] sm:text-[11px]">
+                  {pagesData.newStr || 'لا يوجد'}
+                </span>
               </div>
-
-                  {/* صندوق الحفظ الجديد */}
-                  <div className="bg-blue-50/90 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 p-3 rounded-xl font-bold border border-blue-200 dark:border-blue-800/80 text-xs leading-relaxed break-words whitespace-normal space-y-1.5 shadow-2xs">
-                      <div className="flex items-center gap-1.5 pb-1 border-b border-blue-200/70 dark:border-blue-800/70">
-                          <span className="font-black text-blue-950 dark:text-blue-100 text-xs sm:text-sm">✨ الحفظ الجديد</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-blue-800 dark:text-blue-300 font-bold ml-1">الصفحات:</span>
-                          <span className="font-black bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 text-blue-950 dark:text-blue-100">
-                            {pagesData.newStr || 'لا يوجد'}
-                          </span>
-                      </div>
-                      {newCompletedJuzs.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                              <span className="text-blue-800 dark:text-blue-300 font-bold ml-1">الأجزاء المكتملة:</span>
-                              <span className="font-extrabold text-blue-900 dark:text-blue-200">
-                                {newJuzsFormatted.formatted} (العدد: {newJuzsFormatted.count})
-                              </span>
-                          </div>
-                      )}
-                  </div>
-              </div>
+              {newCompletedJuzs.length > 0 && (
+                <div className="flex items-center justify-between gap-1 text-[10px] text-blue-800/90 dark:text-blue-300/90 pt-0.5">
+                  <span className="font-bold shrink-0 text-[9px]">الأجزاء:</span>
+                  <span className="font-extrabold text-blue-950 dark:text-blue-100 truncate text-[10px]">
+                    {newJuzsFormatted.formatted} ({toArabicDigits(newJuzsFormatted.count)})
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

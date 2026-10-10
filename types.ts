@@ -282,6 +282,18 @@ export interface FullBackupData {
   certificateConfig?: any;
   cardConfig?: any;
   showAmeerToTeachers?: boolean;
+  reviewFeatureConfig?: ReviewFeatureConfig;
+}
+
+export interface TeacherReviewPermission {
+  enabled?: boolean;
+  allStudents: boolean;
+  studentIds?: number[];
+}
+
+export interface ReviewFeatureConfig {
+  enabled: boolean;
+  teachers?: Record<string | number, TeacherReviewPermission>;
 }
 
 export interface DocumentCategory {

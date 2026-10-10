@@ -3,7 +3,7 @@ import React, { useState, useContext, useMemo, useEffect, useLayoutEffect, useRe
 import { AppContext } from '../App';
 import { QURAN_SURAHS } from '../constants';
 import { Student, AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, SardEvaluation, SardHalaqa, SardPageRange, UserRole } from '../types';
-import { BookOpen, ScrollText, Sparkles } from "lucide-react";
+import { BookOpen, ScrollText, Sparkles, RotateCw, Check, ArrowLeft, Shuffle } from "lucide-react";
 import Modal from './Modal';
 import { translationMap, toArabicDigits, formatRtlRange } from '../utils/exportWord';
 import { toEnglishDigits, parseSafeNumber, safeInputNumber, safeNumberVal } from '../utils/juzUtils';
@@ -11,6 +11,7 @@ import EvaluationSummaryModal from './EvaluationSummaryModal';
 import EvaluationEditForm from './EvaluationEditForm';
 import MushafReaderModal from './MushafReaderModal';
 import { MatnVersesModal } from './MatnVersesModal';
+import { generateReviewPassagesForJuzs, replaceReviewPassage, SuggestedTestPassage, formatPassageDescription } from '../utils/testPassageGenerator';
 import { SardEvaluationEditModal } from './SardEvaluationEditModal';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { isSmartMatch } from '../utils/searchUtils';
@@ -33,6 +34,7 @@ import {
 import { StudentProgressInfo } from './StudentProgressInfo';
 import { getMemorizedPagesData, getCompletedJuzs, countQuranPages } from '../utils/pageUtils';
 import { preloadMushafPages } from '../utils/mushafPreload';
+import { isReviewAllowedForStudent } from '../utils/reviewPermissions';
 
 interface EvaluationFormProps {
   teacherId: number;
@@ -73,7 +75,7 @@ const SURAH_JUZ_MAPPING: Record<string, number[]> = {
   "الكافرون": [30], "النصر": [30], "المسد": [30], "الإخلاص": [30], "الفلق": [30], "الناس": [30]
 };
 
-type FormStep = 'selectHalaqa' | 'selectWeek' | 'selectSubject' | 'selectStudent' | 'testStep' | 'selectAttendance' | 'selectAbsenceReason' | 'selectEvaluationType' | 'memorizationDetails' | 'selectPerformanceLevel' | 'periodicReviewStatus' | 'sardContentSelection' | 'sardErrorsStep' | 'sardEvaluationDetails' | 'notesStep' | 'summaryAndConfirm' | 'mutoonEvaluation';
+type FormStep = 'selectHalaqa' | 'selectWeek' | 'selectSubject' | 'selectStudent' | 'testStep' | 'selectAttendance' | 'selectAbsenceReason' | 'selectEvaluationType' | 'reviewJuzSelection' | 'memorizationDetails' | 'selectPerformanceLevel' | 'periodicReviewStatus' | 'sardContentSelection' | 'sardErrorsStep' | 'sardEvaluationDetails' | 'notesStep' | 'summaryAndConfirm' | 'mutoonEvaluation';
 
 interface NavProps {
   back?: () => void;
@@ -251,6 +253,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [attendance, setAttendance] = useState<AttendanceStatus | undefined>();
   const [absenceReason, setAbsenceReason] = useState<AbsenceReason | undefined>();
   const [evalType, setEvalType] = useState<EvaluationType | undefined>();
+  const [reviewSelectedJuzs, setReviewSelectedJuzs] = useState<number[]>([]);
+  const [reviewSuggestedPassages, setReviewSuggestedPassages] = useState<SuggestedTestPassage[]>([]);
+  const [activeReviewPassageForMushaf, setActiveReviewPassageForMushaf] = useState<SuggestedTestPassage | null>(null);
+  const [reviewCompletedPassages, setReviewCompletedPassages] = useState<number[]>([]);
+  const [reviewPassageChanges, setReviewPassageChanges] = useState<number>(0);
   const [pages, setPages] = useState<number | ''>('');
   const [mutoonEvaluations, setMutoonEvaluations] = useState<Array<{matnName: string, lines: number | 'not_ready' | 'review' | '', fromAyah?: number | '', toAyah?: number | '', errors: number}>>([]);
 
@@ -559,6 +566,67 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     students.find(s => s.id === selectedStudent), 
     [students, selectedStudent]
   );
+
+  const isReviewAllowed = useMemo(() => {
+    return isReviewAllowedForStudent(
+      activeStudent?.id,
+      teacherId,
+      context?.reviewFeatureConfig,
+      context?.halaqas || [],
+      context?.students || []
+    );
+  }, [activeStudent?.id, teacherId, context?.reviewFeatureConfig, context?.halaqas, context?.students]);
+
+  useEffect(() => {
+    if (!isReviewAllowed && evalType === EvaluationType.REVIEW) {
+      setEvalType(EvaluationType.MEMORIZATION);
+    }
+  }, [isReviewAllowed, evalType]);
+
+  const fathDeduction = testDeductions?.fath ?? 1;
+  const tashkeelDeduction = testDeductions?.tashkeel ?? 1;
+  const tajweedDeduction = testDeductions?.tajweed ?? 0.5;
+  const passageChangeDeduction = testDeductions?.passageChange ?? 2;
+
+  const reviewTotalDeductions = useMemo(() => {
+    return (evalFath * fathDeduction) + (evalTashkeel * tashkeelDeduction) + (evalTajweed * tajweedDeduction) + (reviewPassageChanges * passageChangeDeduction);
+  }, [evalFath, evalTashkeel, evalTajweed, reviewPassageChanges, fathDeduction, tashkeelDeduction, tajweedDeduction, passageChangeDeduction]);
+
+  const reviewScore = useMemo(() => {
+    return Math.max(0, 100 - reviewTotalDeductions);
+  }, [reviewTotalDeductions]);
+
+  const handleRegenerateReviewPassages = () => {
+    if (reviewSelectedJuzs.length > 0) {
+      const generated = generateReviewPassagesForJuzs(reviewSelectedJuzs);
+      setReviewSuggestedPassages(generated);
+      setReviewCompletedPassages([]);
+      preloadMushafPages(generated.flatMap(p => p.pages));
+    }
+  };
+
+  const handleReplaceReviewPassageWithDeduction = (passageNumber: number) => {
+    const passage = reviewSuggestedPassages.find(p => p.passageNumber === passageNumber);
+    if (!passage) return;
+    const newPassage = replaceReviewPassage(reviewSelectedJuzs, passageNumber, reviewSuggestedPassages);
+    setReviewSuggestedPassages(prev => prev.map(p => p.passageNumber === passageNumber ? newPassage : p));
+    setReviewPassageChanges(prev => prev + 1);
+    setReviewCompletedPassages(prev => prev.filter(num => num !== passageNumber));
+    if (activeReviewPassageForMushaf?.passageNumber === passageNumber) {
+      setActiveReviewPassageForMushaf(newPassage);
+    }
+  };
+
+  const toggleReviewPassage = (passageNumber: number) => {
+    setReviewCompletedPassages(prev => 
+      prev.includes(passageNumber) ? prev.filter(p => p !== passageNumber) : [...prev, passageNumber]
+    );
+  };
+
+  const handleOpenReviewPassageInMushaf = (passage: SuggestedTestPassage) => {
+    setActiveReviewPassageForMushaf(passage);
+    setIsMushafModalOpen(true);
+  };
 
   useEffect(() => {
     if (isSurahOpen && surahSearchInputRef.current && window.innerWidth < 768) {
@@ -942,6 +1010,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     setSelectedSardGroupIds([]);
     setSardGroupErrors({});
     setSardGroupNotes({});
+    setReviewSelectedJuzs([]);
+    setReviewSuggestedPassages([]);
+    setActiveReviewPassageForMushaf(null);
+    setReviewCompletedPassages([]);
+    setReviewPassageChanges(0);
   }, []);
 
   // منطق البحث عن تقييم سابق: يعمل فقط عند تغيير الطالب أو الأسبوع
@@ -1327,7 +1400,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       return;
     }
 
-    const range = (ayahRange || '').split('-').map(n => n.trim());
+    const reviewSelectedPagesList = reviewSelectedJuzs.flatMap(j => juzPagesMap[j] || []);
+    const range = ayahRange ? ayahRange.split('-').map(s => parseInt(s.trim())) : [];
 
     const data: any = {
       studentId: selectedStudent, 
@@ -1338,16 +1412,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       attendance: attendance!, 
       absenceReason: absenceReason || null, 
       evaluationType: evalType || null, 
-      pages: evalType === EvaluationType.REVIEW ? countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) : (selectionState.allActivePages.length > 0 ? selectionState.newPagesCount : null),
+      pages: evalType === EvaluationType.REVIEW 
+        ? (reviewSelectedPagesList.length > 0 ? countQuranPages(reviewSelectedPagesList) : countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) 
+        : (selectionState.allActivePages.length > 0 ? selectionState.newPagesCount : null),
       fromAyah: range[0] || null, 
       toAyah: range[1] || range[0] || null, 
-      surahs: surahs || null, 
+      surahs: evalType === EvaluationType.REVIEW && reviewSelectedJuzs.length > 0 
+        ? reviewSelectedJuzs.map(j => `الجزء ${toArabicDigits(j)}`) 
+        : (surahs || null), 
       performance: perf || null, 
-      newMemorizedPages: evalType === EvaluationType.REVIEW ? Array.from(new Set([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) : (selectionState.allActivePages.length > 0 ? selectionState.allActivePages : undefined),
+      newMemorizedPages: evalType === EvaluationType.REVIEW 
+        ? (reviewSelectedPagesList.length > 0 ? reviewSelectedPagesList : Array.from(new Set([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]))) 
+        : (selectionState.allActivePages.length > 0 ? selectionState.allActivePages : undefined),
       evalFathErrors: evalFath,
       evalTashkeelErrors: evalTashkeel,
       evalTajweedErrors: evalTajweed,
-      testTotalScore: evalType === EvaluationType.REVIEW ? Math.max(0, 100 - ((evalFath * 1) + (evalTashkeel * 1) + (evalTajweed * 0.5))) : undefined,
+      testTotalScore: evalType === EvaluationType.REVIEW ? reviewScore : undefined,
       testMaxScore: evalType === EvaluationType.REVIEW ? 100 : undefined,
       periodicReview: pReview || null, 
       notes: notes || null,
@@ -2208,24 +2288,26 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               حالة التقييم لهذا المتن (أتم الحفظ سابقاً):
                             </label>
                             <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateMatnEval(m.name, {
-                                    lines: mEval.lines === 'review' ? '' : 'review',
-                                    fromAyah: '',
-                                    toAyah: '',
-                                    errors: mEval.lines === 'review' ? 0 : mEval.errors,
-                                  });
-                                }}
-                                className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all border ${
-                                  mEval.lines === 'review'
-                                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                                    : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'
-                                }`}
-                              >
-                                {mEval.lines === 'review' ? '✓ تم تحديد: مراجعة المتن' : 'تحديد مراجعة المتن لهذا الأسبوع'}
-                              </button>
+                              {isReviewAllowed && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateMatnEval(m.name, {
+                                      lines: mEval.lines === 'review' ? '' : 'review',
+                                      fromAyah: '',
+                                      toAyah: '',
+                                      errors: mEval.lines === 'review' ? 0 : mEval.errors,
+                                    });
+                                  }}
+                                  className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all border ${
+                                    mEval.lines === 'review'
+                                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                      : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300 dark:bg-slate-700 dark:text-gray-300 dark:border-slate-600'
+                                  }`}
+                                >
+                                  {mEval.lines === 'review' ? '✓ تم تحديد: مراجعة المتن' : 'تحديد مراجعة المتن لهذا الأسبوع'}
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2446,7 +2528,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full">
+            <div className={`grid ${isReviewAllowed ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-4 w-full`}>
               <button 
                 type="button" 
                 onClick={() => { 
@@ -2463,21 +2545,28 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 <span>حفظ جديد</span>
               </button>
 
-              <button 
-                type="button" 
-                onClick={() => { 
-                  setEvalType(EvaluationType.REVIEW); 
-                  setCurrentStep('selectPerformanceLevel'); 
-                }} 
-                className={`py-5 sm:py-6 px-2 rounded-2xl font-black text-sm sm:text-base border-2 transition-all flex flex-col items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
-                  evalType === EvaluationType.REVIEW 
-                    ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102' 
-                    : 'bg-blue-50/90 hover:bg-blue-100 text-blue-950 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
-                }`}
-              >
-                <span className="text-2xl sm:text-3xl">🔄</span>
-                <span>مراجعة</span>
-              </button>
+              {isReviewAllowed && (
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setEvalType(EvaluationType.REVIEW); 
+                    setEvalFath(0);
+                    setEvalTashkeel(0);
+                    setEvalTajweed(0);
+                    setReviewPassageChanges(0);
+                    setReviewCompletedPassages([]);
+                    setCurrentStep('reviewJuzSelection'); 
+                  }} 
+                  className={`py-5 sm:py-6 px-2 rounded-2xl font-black text-sm sm:text-base border-2 transition-all flex flex-col items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
+                    evalType === EvaluationType.REVIEW 
+                      ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102' 
+                      : 'bg-blue-50/90 hover:bg-blue-100 text-blue-950 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
+                  }`}
+                >
+                  <span className="text-2xl sm:text-3xl">🔄</span>
+                  <span>مراجعة</span>
+                </button>
+              )}
 
               <button 
                 type="button" 
@@ -2504,6 +2593,79 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             <div className="w-full pt-2">
               <FormNav back={() => setCurrentStep('selectAttendance')} />
             </div>
+          </div>
+        )}
+
+        {currentStep === 'reviewJuzSelection' && (
+          <div className="space-y-4 animate-fade-in max-w-xl mx-auto">
+            <div className="bg-blue-50/90 dark:bg-blue-950/50 p-3.5 sm:p-4 rounded-2xl border-2 border-blue-200 dark:border-blue-800 text-right shadow-xs">
+              <h3 className="font-black text-base sm:text-lg text-blue-950 dark:text-blue-100 flex items-center gap-2">
+                <span className="text-xl">🔄</span>
+                <span>تحديد أجزاء المراجعة (1 إلى 30)</span>
+              </h3>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 px-1">
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                الأجزاء المحددة: <strong className="text-blue-600 dark:text-blue-400 font-black text-sm">{toArabicDigits(reviewSelectedJuzs.length)}</strong> من ٣٠
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReviewSelectedJuzs(Array.from({ length: 30 }, (_, i) => i + 1))}
+                  className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                >
+                  تحديد الكل
+                </button>
+                <span className="text-gray-300 dark:text-gray-600">|</span>
+                <button
+                  type="button"
+                  onClick={() => setReviewSelectedJuzs([])}
+                  className="text-xs font-black text-gray-500 dark:text-gray-400 hover:underline cursor-pointer"
+                >
+                  إلغاء التحديد
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5 p-2 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850/30">
+              {Array.from({ length: 30 }, (_, i) => i + 1).map(juzNum => {
+                const isSelected = reviewSelectedJuzs.includes(juzNum);
+                return (
+                  <button
+                    key={juzNum}
+                    type="button"
+                    onClick={() => {
+                      setReviewSelectedJuzs(prev =>
+                        prev.includes(juzNum)
+                          ? prev.filter(j => j !== juzNum)
+                          : [...prev, juzNum].sort((a, b) => a - b)
+                      );
+                    }}
+                    className={`py-2 px-1 rounded-xl text-xs font-black border-2 transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer select-none active:scale-95 touch-manipulation ${
+                      isSelected
+                        ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102'
+                        : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+                    }`}
+                  >
+                    <span className="text-[9px] opacity-80">جزء</span>
+                    <span className="text-sm sm:text-base leading-none">{toArabicDigits(juzNum)}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <FormNav
+              back={() => setCurrentStep('selectEvaluationType')}
+              next={reviewSelectedJuzs.length > 0 ? () => {
+                const generated = generateReviewPassagesForJuzs(reviewSelectedJuzs);
+                setReviewSuggestedPassages(generated);
+                setReviewCompletedPassages([]);
+                setReviewPassageChanges(0);
+                preloadMushafPages(generated.flatMap(p => p.pages));
+                setCurrentStep('selectPerformanceLevel');
+              } : undefined}
+            />
           </div>
         )}
 
@@ -3700,20 +3862,114 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         )}
 
         {currentStep === 'selectPerformanceLevel' && (
-          <div className="min-h-[55vh] sm:min-h-[60vh] flex flex-col justify-center max-w-md mx-auto space-y-4 py-2 animate-fade-in">
+          <div className="min-h-[55vh] sm:min-h-[60vh] flex flex-col justify-center max-w-lg mx-auto space-y-4 py-2 animate-fade-in">
+              {evalType === EvaluationType.REVIEW && reviewSuggestedPassages.length > 0 && (
+                <div className="bg-amber-50/90 dark:bg-gray-850/90 p-3.5 sm:p-4 rounded-2xl border-2 border-amber-200 dark:border-gray-700 space-y-3 text-right shadow-xs">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <h4 className="font-black text-sm sm:text-base text-amber-950 dark:text-amber-100">
+                        المقاطع المقترحة للمراجعة ({toArabicDigits(reviewSuggestedPassages.length)} مقطع)
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRegenerateReviewPassages}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold transition-all active:scale-95 flex items-center gap-1 shadow-2xs shrink-0 cursor-pointer"
+                      title="إعادة المقترحات"
+                    >
+                      <Shuffle className="w-3.5 h-3.5" />
+                      <span>إعادة المقترحات</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-[35vh] overflow-y-auto no-scrollbar">
+                    {reviewSuggestedPassages.map((passage) => {
+                      const isDone = reviewCompletedPassages.includes(passage.passageNumber);
+                      const singlePassageText = passage.description && passage.description.startsWith('صفحة')
+                        ? passage.description
+                        : formatPassageDescription(
+                            passage.pages,
+                            passage.startSurahId,
+                            passage.startAyah,
+                            passage.endSurahId,
+                            passage.endAyah
+                          );
+
+                      return (
+                        <div
+                          key={passage.id}
+                          className={`flex items-start justify-between gap-2 p-2.5 sm:p-3 rounded-xl transition-all border ${
+                            isDone
+                              ? 'bg-amber-100/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-100'
+                              : 'bg-white dark:bg-gray-800 border-amber-200/80 dark:border-gray-700 hover:border-amber-300 text-gray-800 dark:text-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleReviewPassage(passage.passageNumber);
+                              }}
+                              className={`w-7 h-7 min-w-[28px] min-h-[28px] rounded-lg shrink-0 mt-0.5 flex items-center justify-center transition-all border-2 cursor-pointer select-none active:scale-90 ${
+                                isDone
+                                  ? 'bg-[#78350f] border-[#78350f] dark:bg-[#92400e] dark:border-[#92400e] text-white shadow-xs'
+                                  : 'bg-white dark:bg-gray-700 border-[#78350f] dark:border-amber-600 hover:bg-amber-50 dark:hover:bg-gray-650'
+                              }`}
+                              title={isDone ? 'تم التسميع - انقر للإلغاء' : 'انقر لتحديد المقطع كمُنجز'}
+                            >
+                              {isDone && <Check className="w-4 h-4 text-white stroke-[3.5]" />}
+                            </button>
+
+                            <div
+                              className="flex-1 min-w-0 cursor-pointer select-none"
+                              onClick={() => handleOpenReviewPassageInMushaf(passage)}
+                              title="انقر لفتح هذا المقطع مباشرة في المصحف"
+                            >
+                              <div className="text-xs sm:text-sm leading-relaxed">
+                                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                  <span className="font-black text-amber-900 dark:text-amber-300 shrink-0">
+                                    المقطع {toArabicDigits(passage.passageNumber)}.
+                                  </span>
+                                  <span className={`font-bold ${isDone ? 'text-amber-950 dark:text-amber-100' : 'text-gray-800 dark:text-gray-200'} break-words whitespace-normal`}>
+                                    {singlePassageText}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReplaceReviewPassageWithDeduction(passage.passageNumber);
+                            }}
+                            className="shrink-0 self-start mt-0.5 min-h-[28px] h-7 px-2 py-0.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-xs font-black shadow-xs transition-all active:scale-95 flex items-center justify-center gap-1 border border-purple-500 cursor-pointer select-none"
+                            title={`تغيير هذا المقطع المقترح وخصم ${toArabicDigits(passageChangeDeduction)} درجات`}
+                          >
+                            <RotateCw className="w-3.5 h-3.5 text-white shrink-0" />
+                            <span className="text-[10px] bg-purple-900/90 text-purple-100 px-1 py-0.5 rounded-md font-black leading-none">
+                              (-{toArabicDigits(passageChangeDeduction)})
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="text-center">
                 <p className="font-bold text-lg text-gray-800 dark:text-gray-200">
                   {evalType === EvaluationType.REVIEW ? 'أخطاء المراجعة والدرجة النهائية:' : 'أخطاء التسميع:'}
                 </p>
-                {evalType === EvaluationType.REVIEW && subject === 'quran' && (
-                  <div className="mt-3 flex justify-center gap-4 text-sm font-bold bg-indigo-50 dark:bg-indigo-900/30 p-2.5 rounded-xl border border-indigo-100 dark:border-indigo-800/60 max-w-sm mx-auto">
-                    <span className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                      قديم: {countQuranPages(studentQuranHistory.oldFullPages)} ص
-                    </span>
-                    <span className="text-[#8B4513] dark:text-amber-400 flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#8B4513]"></span>
-                      جديد: {countQuranPages(studentQuranHistory.newEvalsFullPages)} ص
+                {evalType === EvaluationType.REVIEW && reviewSelectedJuzs.length > 0 && (
+                  <div className="mt-2 flex justify-center items-center gap-2 text-xs font-bold bg-blue-50 dark:bg-blue-950/40 p-2 rounded-xl border border-blue-200 dark:border-blue-800/60 max-w-sm mx-auto text-blue-950 dark:text-blue-100">
+                    <span>الأجزاء المحددة:</span>
+                    <span className="font-black text-blue-700 dark:text-blue-300">
+                      {reviewSelectedJuzs.map(j => `الجزء ${toArabicDigits(j)}`).join('، ')}
                     </span>
                   </div>
                 )}
@@ -3728,10 +3984,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
                           <div className="flex items-center gap-1.5">
                               <span className="text-xs sm:text-sm font-black bg-rose-600 text-white px-2 py-0.5 rounded-lg shadow-xs">
-                                {evalType === EvaluationType.REVIEW ? '-1' : '+1'}
+                                {evalType === EvaluationType.REVIEW ? `-${fathDeduction}` : '+1'}
                               </span>
                               <span className="text-[11px] text-rose-600/80 dark:text-rose-400 font-bold hidden sm:inline">
-                                {evalType === EvaluationType.REVIEW ? 'خصم درجة' : 'خطأ جلي'}
+                                {evalType === EvaluationType.REVIEW ? `خصم ${fathDeduction} درجة` : 'خطأ جلي'}
                               </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -3762,10 +4018,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
                           <div className="flex items-center gap-1.5">
                               <span className="text-xs sm:text-sm font-black bg-amber-600 text-white px-2 py-0.5 rounded-lg shadow-xs">
-                                {evalType === EvaluationType.REVIEW ? '-1' : '+1'}
+                                {evalType === EvaluationType.REVIEW ? `-${tashkeelDeduction}` : '+1'}
                               </span>
                               <span className="text-[11px] text-amber-700/80 dark:text-amber-400 font-bold hidden sm:inline">
-                                {evalType === EvaluationType.REVIEW ? 'خصم درجة' : 'حركة/حرف'}
+                                {evalType === EvaluationType.REVIEW ? `خصم ${tashkeelDeduction} درجة` : 'حركة/حرف'}
                               </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -3796,10 +4052,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       <div className="flex-1 flex items-center justify-between px-3.5 sm:px-4">
                           <div className="flex items-center gap-1.5">
                               <span className="text-xs sm:text-sm font-black bg-teal-600 text-white px-2 py-0.5 rounded-lg shadow-xs">
-                                {evalType === EvaluationType.REVIEW ? '-0.5' : '+0.5'}
+                                {evalType === EvaluationType.REVIEW ? `-${tajweedDeduction}` : '+0.5'}
                               </span>
                               <span className="text-[11px] text-teal-700/80 dark:text-teal-400 font-bold hidden sm:inline">
-                                {evalType === EvaluationType.REVIEW ? 'خصم نصف درجة' : 'أحكام تلاوة'}
+                                {evalType === EvaluationType.REVIEW ? `خصم ${tajweedDeduction} درجة` : 'أحكام تلاوة'}
                               </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -3825,15 +4081,17 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               
               {evalType === EvaluationType.REVIEW ? (
                 (() => {
-                  const totalDeductions = (evalFath * 1) + (evalTashkeel * 1) + (evalTajweed * 0.5);
-                  const reviewScore = Math.max(0, 100 - totalDeductions);
-                  const totalQuranPages = selectionState.allActivePages.length;
                   return (
                     <div className="mt-4 space-y-3 border-t border-gray-200 dark:border-gray-700 pt-3">
                       <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 font-bold px-1">
-                        <span>إجمالي الخصم: <strong className="text-rose-600 dark:text-rose-400 text-sm">-{totalDeductions}</strong> درجة</span>
+                        <span>إجمالي الخصم: <strong className="text-rose-600 dark:text-rose-400 text-sm">-{reviewTotalDeductions}</strong> درجة</span>
                         <span className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded-md font-black">الدرجة من 100</span>
                       </div>
+                      {reviewPassageChanges > 0 && (
+                        <div className="text-xs text-purple-700 dark:text-purple-300 font-bold px-1 text-right">
+                          خصم تغيير المقاطع ({toArabicDigits(reviewPassageChanges)} × {toArabicDigits(passageChangeDeduction)}): -{reviewPassageChanges * passageChangeDeduction} درجة
+                        </div>
+                      )}
                       <p className="font-bold text-sm text-center text-gray-700 dark:text-gray-300">الدرجة النهائية للمراجعة:</p>
                       <div className="flex justify-center items-center gap-2.5">
                         <div className="py-2 px-6 rounded-2xl font-black border-2 bg-indigo-50 border-indigo-500 text-indigo-950 dark:bg-indigo-950/40 dark:border-indigo-600 dark:text-indigo-200 shadow-sm text-xl sm:text-2xl text-center flex items-center gap-1.5">
@@ -3844,16 +4102,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           <button
                             type="button"
                             onClick={() => setIsMushafModalOpen(true)}
-                            disabled={evalType === EvaluationType.REVIEW ? (countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) === 0) : selectionState.allActivePages.length === 0}
-                            className="py-2 px-3 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 border border-emerald-600/80 shrink-0"
+                            className="py-2 px-3 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 border border-emerald-600/80 shrink-0 cursor-pointer"
                             title="فتح صفحات المصحف للمراجعة"
                           >
                             <span>📖 المصحف</span>
-                            {(evalType === EvaluationType.REVIEW ? countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) : totalQuranPages) > 0 && (
-                              <span className="bg-emerald-900/70 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                                {toArabicDigits(evalType === EvaluationType.REVIEW ? countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]) : totalQuranPages)} ص
-                              </span>
-                            )}
                           </button>
                         )}
                       </div>
@@ -3892,7 +4144,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 })()
               )}
 
-              <FormNav back={() => setCurrentStep(subject === 'sard' ? 'sardContentSelection' : (evalType === EvaluationType.REVIEW ? 'selectEvaluationType' : 'memorizationDetails'))} next={() => {
+              <FormNav back={() => setCurrentStep(subject === 'sard' ? 'sardContentSelection' : (evalType === EvaluationType.REVIEW ? 'reviewJuzSelection' : 'memorizationDetails'))} next={() => {
                   if (evalType === EvaluationType.REVIEW) {
                     setCurrentStep('notesStep');
                   } else {
