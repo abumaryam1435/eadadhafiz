@@ -43,6 +43,8 @@ export const SardManagement: React.FC = () => {
     const currentUser = context?.currentUser;
 
     const [openHalaqaId, setOpenHalaqaId] = useState<number | null>(null);
+    const [showHalaqas, setShowHalaqas] = useState(false);
+    const [categoryTab, setCategoryTab] = useState<'ibri' | 'outside'>('ibri');
     const [newHalaqaName, setNewHalaqaName] = useState('');
     const [editingHalaqaId, setEditingHalaqaId] = useState<number | null>(null);
     const [editingHalaqaName, setEditingHalaqaName] = useState<string>('');
@@ -57,13 +59,19 @@ export const SardManagement: React.FC = () => {
     // Transfer student between Sard halaqas
     const [transferringStudent, setTransferringStudent] = useState<Student | null>(null);
     const [transferSearchQuery, setTransferSearchQuery] = useState('');
+    const [transferCategoryFilter, setTransferCategoryFilter] = useState<'all' | 'ibri' | 'outside'>('all');
 
     // Add existing student modal
     const [assignExistingModalOpen, setAssignExistingModalOpen] = useState<number | null>(null);
     const [existingStudentSearch, setExistingStudentSearch] = useState('');
     const [selectedLevelFilter, setSelectedLevelFilter] = useState<string>('all');
+    const [assignCategoryFilter, setAssignCategoryFilter] = useState<'all' | 'ibri' | 'outside'>('all');
     const [selectedStudentIdsToAssign, setSelectedStudentIdsToAssign] = useState<number[]>([]);
     const [showMemorizedPagesRange, setShowMemorizedPagesRange] = useState<boolean>(false);
+
+    // Fast dropdown for unassigned students inside a halaqa
+    const [openUnassignedDropdownHalaqaId, setOpenUnassignedDropdownHalaqaId] = useState<number | null>(null);
+    const [unassignedSearchTerm, setUnassignedSearchTerm] = useState('');
 
     // New student text input
     const [newStudentName, setNewStudentName] = useState('');
@@ -78,6 +86,36 @@ export const SardManagement: React.FC = () => {
     const teachers = useMemo(() => users.filter(u => u.role === UserRole.TEACHER).sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [users]);
     const sortedSardHalaqas = useMemo(() => [...(sardHalaqas || [])].sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [sardHalaqas]);
 
+    // تفريغ وتصنيف حلقات السرد حسب القسم (جامع عبري / خارج جامع عبري)
+    const ibriSardHalaqas = useMemo(() => {
+        return sortedSardHalaqas.filter(h => (h.category || 'ibri') === 'ibri');
+    }, [sortedSardHalaqas]);
+
+    const outsideSardHalaqas = useMemo(() => {
+        return sortedSardHalaqas.filter(h => h.category === 'outside');
+    }, [sortedSardHalaqas]);
+
+    const currentCategorySardHalaqas = useMemo(() => {
+        return categoryTab === 'ibri' ? ibriSardHalaqas : outsideSardHalaqas;
+    }, [categoryTab, ibriSardHalaqas, outsideSardHalaqas]);
+
+    // إحصائيات طلاب السرد لكل قسم
+    const ibriSardStudentsCount = useMemo(() => {
+        const ibriHalaqaIds = new Set(ibriSardHalaqas.map(h => h.id));
+        return students.filter(s => {
+            if (!s.sardHalaqaId) return false;
+            return ibriHalaqaIds.has(s.sardHalaqaId) || s.isFromIbri !== false;
+        }).length;
+    }, [students, ibriSardHalaqas]);
+
+    const outsideSardStudentsCount = useMemo(() => {
+        const outsideHalaqaIds = new Set(outsideSardHalaqas.map(h => h.id));
+        return students.filter(s => {
+            if (!s.sardHalaqaId) return false;
+            return outsideHalaqaIds.has(s.sardHalaqaId) || s.isFromIbri === false;
+        }).length;
+    }, [students, outsideSardHalaqas]);
+
     // Available teachers for a given Sard Halaqa (hides teachers already assigned to OTHER Sard halaqas)
     const getAvailableTeachersForSardHalaqa = (currentHalaqaId: number) => {
         return teachers.filter(t => {
@@ -90,6 +128,14 @@ export const SardManagement: React.FC = () => {
     const unassignedStudents = useMemo(() => {
         return students.filter(s => !s.sardHalaqaId);
     }, [students]);
+
+    // الطلاب غير الملحقين التابعين للقسم الحالي المختار
+    const unassignedCurrentCategoryStudents = useMemo(() => {
+        return unassignedStudents.filter(s => {
+            if (categoryTab === 'outside') return s.isFromIbri === false;
+            return s.isFromIbri !== false;
+        });
+    }, [unassignedStudents, categoryTab]);
 
     // Unique levels among unassigned students (Sorted strictly ascending from smallest to largest)
     const availableLevels = useMemo(() => {
@@ -112,7 +158,12 @@ export const SardManagement: React.FC = () => {
             .filter(s => {
                 const matchesSearch = !existingStudentSearch.trim() || isSmartMatch(s.name, existingStudentSearch);
                 const matchesLevel = selectedLevelFilter === 'all' || getStudentLevel(s) === selectedLevelFilter;
-                return matchesSearch && matchesLevel;
+                const matchesCat = assignCategoryFilter === 'all'
+                    ? true
+                    : assignCategoryFilter === 'outside'
+                        ? s.isFromIbri === false
+                        : s.isFromIbri !== false;
+                return matchesSearch && matchesLevel && matchesCat;
             })
             .sort((a, b) => {
                 const rankA = getLevelNumericRank(getStudentLevel(a));
@@ -120,7 +171,7 @@ export const SardManagement: React.FC = () => {
                 if (rankA !== rankB) return rankA - rankB;
                 return a.name.localeCompare(b.name, 'ar', { numeric: true });
             });
-    }, [unassignedStudents, existingStudentSearch, selectedLevelFilter, evaluations]);
+    }, [unassignedStudents, existingStudentSearch, selectedLevelFilter, assignCategoryFilter, evaluations]);
 
     const handleSelectAllFiltered = () => {
         const visibleIds = filteredAndSortedStudentsToAssign.map(s => s.id);
@@ -133,9 +184,10 @@ export const SardManagement: React.FC = () => {
     };
 
     const filteredHalaqasForList = useMemo(() => {
-        if (!halaqaSearchTerm.trim()) return sortedSardHalaqas;
-        return sortedSardHalaqas.filter(h => isSmartMatch(h.name, halaqaSearchTerm));
-    }, [sortedSardHalaqas, halaqaSearchTerm]);
+        const base = currentCategorySardHalaqas;
+        if (!halaqaSearchTerm.trim()) return base;
+        return base.filter(h => isSmartMatch(h.name, halaqaSearchTerm));
+    }, [currentCategorySardHalaqas, halaqaSearchTerm]);
 
     const handleHalaqaDelete = (halaqa: SardHalaqa) => {
         setConfirmationModal({
@@ -198,8 +250,8 @@ export const SardManagement: React.FC = () => {
             return;
         }
 
-        // إضافة حلقات السرد الفريدة فقط
-        validToAdd.forEach(name => addSardHalaqa({ name, teacherId: 0 }));
+        // إضافة حلقات السرد الفريدة فقط مع حفظ القسم
+        validToAdd.forEach(name => addSardHalaqa({ name, teacherId: 0, category: categoryTab }));
 
         if (rejectedDuplicates.length > 0) {
             // إبقاء الأسماء المرفوضة في المربع للمراجعة والتعديل
@@ -237,13 +289,23 @@ export const SardManagement: React.FC = () => {
     const handleAddNewStudentToSard = (sardHalaqaId: number) => {
         if (newStudentName.trim()) {
             const names = newStudentName.split('\n').filter(n => n.trim() !== '');
+            const targetHalaqa = sardHalaqas.find(h => h.id === sardHalaqaId);
+            const isOutside = (targetHalaqa?.category || categoryTab) === 'outside';
             names.forEach(name => {
                 // Find if student already exists by name
                 const existing = students.find(s => s.name.trim() === name.trim());
                 if (existing) {
                     assignStudentToSardHalaqa(existing.id, sardHalaqaId);
+                    if (isOutside && existing.isFromIbri !== false) {
+                        updateStudent({ ...existing, sardHalaqaId, isFromIbri: false });
+                    }
                 } else {
-                    addStudent({ name: name.trim(), halaqaId: 0, sardHalaqaId });
+                    addStudent({ 
+                        name: name.trim(), 
+                        halaqaId: 0, 
+                        sardHalaqaId, 
+                        isFromIbri: !isOutside 
+                    });
                 }
             });
             setNewStudentName('');
@@ -252,7 +314,10 @@ export const SardManagement: React.FC = () => {
     };
 
     const handleOpenAssignExistingModal = (halaqaId: number) => {
+        const targetH = sardHalaqas.find(h => h.id === halaqaId);
+        const defaultCat = (targetH?.category || categoryTab) === 'outside' ? 'outside' : 'all';
         setSelectedLevelFilter('all');
+        setAssignCategoryFilter(defaultCat);
         setExistingStudentSearch('');
         setSelectedStudentIdsToAssign([]);
         setAssignExistingModalOpen(halaqaId);
@@ -261,14 +326,22 @@ export const SardManagement: React.FC = () => {
     const handleCloseAssignExistingModal = () => {
         setAssignExistingModalOpen(null);
         setSelectedLevelFilter('all');
+        setAssignCategoryFilter('all');
         setExistingStudentSearch('');
         setSelectedStudentIdsToAssign([]);
     };
 
     const handleBatchAssignExistingStudents = (sardHalaqaId: number) => {
         if (selectedStudentIdsToAssign.length === 0) return;
+        const targetHalaqa = sardHalaqas.find(h => h.id === sardHalaqaId);
+        const isOutsideHalaqa = targetHalaqa?.category === 'outside';
         selectedStudentIdsToAssign.forEach(id => {
-            assignStudentToSardHalaqa(id, sardHalaqaId);
+            const st = students.find(s => s.id === id);
+            if (st && isOutsideHalaqa && st.isFromIbri !== false) {
+                updateStudent({ ...st, sardHalaqaId, isFromIbri: false });
+            } else {
+                assignStudentToSardHalaqa(id, sardHalaqaId);
+            }
         });
         showToast(`✅ تم إلحاق ${selectedStudentIdsToAssign.length} طالب بحلقة السرد بنجاح.`);
         handleCloseAssignExistingModal();
@@ -278,7 +351,12 @@ export const SardManagement: React.FC = () => {
         const targetHalaqa = sardHalaqas.find(h => h.id === targetSardHalaqaId);
         if (!targetHalaqa) return;
 
-        assignStudentToSardHalaqa(student.id, targetSardHalaqaId);
+        const isTargetOutside = targetHalaqa.category === 'outside';
+        updateStudent({
+            ...student,
+            sardHalaqaId: targetSardHalaqaId,
+            isFromIbri: !isTargetOutside
+        });
         setTransferringStudent(null);
         setTransferSearchQuery('');
         showToast(`✅ تم نقل الطالب "${student.name}" إلى حلقة السرد "${targetHalaqa.name}"`);
@@ -549,7 +627,20 @@ export const SardManagement: React.FC = () => {
                                 )}
                             </div>
 
-                            <div className="sm:w-52">
+                            <div className="sm:w-44">
+                                <select
+                                    value={assignCategoryFilter}
+                                    onChange={(e) => setAssignCategoryFilter(e.target.value as any)}
+                                    className="input-style w-full bg-white dark:bg-slate-700 font-bold text-xs border-2 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 focus:outline-none cursor-pointer py-3"
+                                    title="تصفية حسب القسم"
+                                >
+                                    <option value="all">جميع الأقسام ({unassignedStudents.length})</option>
+                                    <option value="ibri">🕌 جامع عبري ({unassignedStudents.filter(s => s.isFromIbri !== false).length})</option>
+                                    <option value="outside">🌐 خارج جامع عبري ({unassignedStudents.filter(s => s.isFromIbri === false).length})</option>
+                                </select>
+                            </div>
+
+                            <div className="sm:w-48">
                                 <select
                                     value={selectedLevelFilter}
                                     onChange={(e) => setSelectedLevelFilter(e.target.value)}
@@ -655,6 +746,13 @@ export const SardManagement: React.FC = () => {
                                                             طالب أمين
                                                         </span>
                                                     )}
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                                        student.isFromIbri === false
+                                                            ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200 border border-blue-300 dark:border-blue-700'
+                                                            : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
+                                                    }`}>
+                                                        {student.isFromIbri === false ? '🌐 خارج عبري' : '🕌 جامع عبري'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -803,13 +901,63 @@ export const SardManagement: React.FC = () => {
                     </div>
                 </div>
 
+                {/* أقسام حلقات السرد (جامع عبري / خارج جامع عبري) */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="text-right w-full md:w-auto">
+                            <h4 className="text-lg font-black text-emerald-950 dark:text-emerald-300 flex items-center gap-2">
+                                <span>📖</span>
+                                <span>أقسام حلقات السرد</span>
+                            </h4>
+                            <p className="text-xs text-gray-500 font-bold mt-0.5">
+                                اختر القسم لعرض وإضافة وإدارة حلقات السرد وطلابها ({categoryTab === 'ibri' ? 'جامع عبري' : 'خارج جامع عبري'})
+                            </p>
+                        </div>
+                        <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-700/60 rounded-2xl w-full md:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setCategoryTab('ibri')}
+                                className={`flex-1 md:flex-initial px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                    categoryTab === 'ibri'
+                                        ? 'bg-emerald-700 text-white shadow-md'
+                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+                                }`}
+                            >
+                                <span>🕌</span>
+                                <span>جامع عبري ({ibriSardHalaqas.length} حلقة • {ibriSardStudentsCount} طالب)</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCategoryTab('outside')}
+                                className={`flex-1 md:flex-initial px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                    categoryTab === 'outside'
+                                        ? 'bg-blue-700 text-white shadow-md'
+                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+                                }`}
+                            >
+                                <span>🌐</span>
+                                <span>خارج جامع عبري ({outsideSardHalaqas.length} حلقة • {outsideSardStudentsCount} طالب)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* إضافة حلقات سرد جديدة */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
                     <div className="p-6 border-b dark:border-gray-700 bg-emerald-50/30 dark:bg-slate-800/50">
-                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                            <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                            إضافة حلقات سرد جديدة
-                        </h4>
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                                <span>إضافة حلقات سرد جديدة إلى {categoryTab === 'ibri' ? 'جامع عبري' : 'خارج جامع عبري'}</span>
+                            </h4>
+                            <span className={`text-xs px-3 py-1 rounded-full font-black ${
+                                categoryTab === 'ibri' 
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            }`}>
+                                {categoryTab === 'ibri' ? '🕌 قسم جامع عبري' : '🌐 قسم خارج جامع عبري'}
+                            </span>
+                        </div>
                         <form onSubmit={handleAddHalaqa} className="flex flex-col gap-3">
                             <div className="flex gap-3">
                                 <textarea 
@@ -844,13 +992,36 @@ export const SardManagement: React.FC = () => {
                     </div>
                 </div>
 
-                {/* قائمة حلقات السرد وتوزيع الطلاب */}
-                <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-700 dark:text-gray-200">حلقات السرد المتاحة:</span>
-                            <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 px-3 py-1 rounded-full text-xs font-black">{sortedSardHalaqas.length}</span>
+                {/* ثانياً: قائمة حلقات السرد وتوزيع الطلاب (نسق منسدل مطوي افتراضياً) */}
+                <div className="bg-white rounded-2xl shadow-md border border-gray-100 dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+                    <button 
+                        type="button"
+                        onClick={() => setShowHalaqas(!showHalaqas)}
+                        className={`w-full p-5 flex justify-between items-center transition-all cursor-pointer ${showHalaqas ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-750'}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${showHalaqas ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                                    حلقات سرد {categoryTab === 'ibri' ? 'جامع عبري' : 'خارج جامع عبري'} ({currentCategorySardHalaqas.length})
+                                </span>
+                                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-bold">
+                                    إجمالي حلقات السرد: {sortedSardHalaqas.length}
+                                </span>
+                            </div>
                         </div>
+                        <svg className={`h-6 w-6 transform transition-transform ${showHalaqas ? 'rotate-180 text-emerald-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+
+                    {showHalaqas && (
+                        <div className="p-6 bg-white dark:bg-gray-800 border-t dark:border-gray-700 animate-fade-in space-y-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/70 dark:bg-slate-850 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-gray-700 dark:text-gray-200">حلقات هذا القسم المتاحة:</span>
+                                    <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 px-3 py-1 rounded-full text-xs font-black">{currentCategorySardHalaqas.length}</span>
+                                </div>
                         <div className="relative w-full sm:w-72 flex items-center">
                             <input 
                                 type="text" 
@@ -1073,6 +1244,11 @@ export const SardManagement: React.FC = () => {
                                                                             <span className={student.isAlAmeen ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-gray-500 dark:text-gray-400 font-medium"}>
                                                                                 {student.isAlAmeen ? ` - (${getStudentLevel(student)})` : `- (${getStudentLevel(student)})`}
                                                                             </span>
+                                                                            {student.isFromIbri === false && (
+                                                                                <span className="text-blue-700 bg-blue-100 dark:bg-blue-900/60 dark:text-blue-200 px-1.5 py-0.5 rounded font-black text-[9px]">
+                                                                                    خارج عبري
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex items-center gap-1">
@@ -1123,7 +1299,9 @@ export const SardManagement: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
+            )}
+        </div>
+    </div>
 
             <WordExportModal 
                 isOpen={isWordModalOpen} 

@@ -58,9 +58,13 @@ const StudentManagement: React.FC = () => {
     const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
     const [isWordModalOpen, setIsWordModalOpen] = useState(false);
 
+    // Category tab for Main Halaqas: ibri (جامع عبري) or outside (خارج جامع عبري)
+    const [categoryTab, setCategoryTab] = useState<'ibri' | 'outside'>('ibri');
+
     // New states for transferring students
     const [transferringStudent, setTransferringStudent] = useState<Student | null>(null);
     const [transferSearchQuery, setTransferSearchQuery] = useState('');
+    const [transferCategoryFilter, setTransferCategoryFilter] = useState<'ALL' | 'ibri' | 'outside'>('ALL');
 
     // States for unassigned students dropdown
     const [openUnassignedDropdownHalaqaId, setOpenUnassignedDropdownHalaqaId] = useState<number | null>(null);
@@ -76,6 +80,24 @@ const StudentManagement: React.FC = () => {
     const teachers = useMemo(() => users.filter(u => u.role === UserRole.TEACHER).sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [users]);
     const sortedHalaqas = useMemo(() => [...halaqas].sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true })), [halaqas]);
 
+    // تقسيم الحلقات والطلاب بين جامع عبري وخارج جامع عبري
+    const ibriHalaqas = useMemo(() => halaqas.filter(h => (h.category || 'ibri') === 'ibri'), [halaqas]);
+    const outsideHalaqas = useMemo(() => halaqas.filter(h => h.category === 'outside'), [halaqas]);
+
+    const ibriStudentsCount = useMemo(() => {
+        const ids = new Set(ibriHalaqas.map(h => h.id));
+        return students.filter(s => ids.has(s.halaqaId) || (s.isFromIbri !== false && !s.halaqaId)).length;
+    }, [ibriHalaqas, students]);
+
+    const outsideStudentsCount = useMemo(() => {
+        const ids = new Set(outsideHalaqas.map(h => h.id));
+        return students.filter(s => ids.has(s.halaqaId) || (s.isFromIbri === false && !s.halaqaId)).length;
+    }, [outsideHalaqas, students]);
+
+    const categoryHalaqas = useMemo(() => {
+        return sortedHalaqas.filter(h => (h.category || 'ibri') === categoryTab);
+    }, [sortedHalaqas, categoryTab]);
+
     // Unassigned students who have no halaqa assigned
     const unassignedStudents = useMemo(() => {
         return students.filter(s => !s.halaqaId || s.halaqaId === 0 || !halaqas.some(h => h.id === s.halaqaId))
@@ -88,9 +110,9 @@ const StudentManagement: React.FC = () => {
     }, [teachers, teacherSearchTerm]);
 
     const filteredHalaqasForList = useMemo(() => {
-        if (!halaqaSearchTerm.trim()) return sortedHalaqas;
-        return sortedHalaqas.filter(h => isSmartMatch(h.name, halaqaSearchTerm));
-    }, [sortedHalaqas, halaqaSearchTerm]);
+        if (!halaqaSearchTerm.trim()) return categoryHalaqas;
+        return categoryHalaqas.filter(h => isSmartMatch(h.name, halaqaSearchTerm));
+    }, [categoryHalaqas, halaqaSearchTerm]);
 
     const handleTeacherDelete = (teacher: User) => {
         setConfirmationModal({
@@ -177,8 +199,8 @@ const StudentManagement: React.FC = () => {
             return;
         }
 
-        // إضافة الحلقات الفريدة فقط
-        validToAdd.forEach(name => addHalaqa({ name, teacherId: 0 }));
+        // إضافة الحلقات الفريدة فقط مع تعيين القسم الحالي
+        validToAdd.forEach(name => addHalaqa({ name, teacherId: 0, category: categoryTab }));
         setShowHalaqas(true);
 
         if (rejectedDuplicates.length > 0) {
@@ -188,7 +210,7 @@ const StudentManagement: React.FC = () => {
             showToast(`✅ تم إضافة ${validToAdd.length} حلقة بنجاح. ⚠️ تم استبعاد المكرر: (${rejectedList}) لأن الاسم مسجل مسبقاً.`);
         } else {
             setNewHalaqaName('');
-            showToast(`✅ تم إضافة ${validToAdd.length} حلقة بنجاح.`);
+            showToast(`✅ تم إضافة ${validToAdd.length} حلقة في (${categoryTab === 'ibri' ? 'جامع عبري' : 'خارج جامع عبري'}) بنجاح.`);
         }
     };
 
@@ -216,8 +238,10 @@ const StudentManagement: React.FC = () => {
 
     const handleAddStudent = (halaqaId: number) => {
         if (newStudentName.trim()) {
+            const currentHalaqa = halaqas.find(h => h.id === halaqaId);
+            const isFromIbri = currentHalaqa ? currentHalaqa.category !== 'outside' : (categoryTab === 'ibri');
             const names = newStudentName.split('\n').filter(n => n.trim() !== '');
-            names.forEach(name => addStudent({ name: name.trim(), halaqaId }));
+            names.forEach(name => addStudent({ name: name.trim(), halaqaId, isFromIbri }));
             setNewStudentName('');
             showToast(`✅ تم إضافة ${names.length} طالب بنجاح.`);
         }
@@ -227,10 +251,15 @@ const StudentManagement: React.FC = () => {
         const targetHalaqa = halaqas.find(h => h.id === targetHalaqaId);
         if (!targetHalaqa) return;
 
-        updateStudent({ ...student, halaqaId: targetHalaqaId });
+        const isTargetOutside = targetHalaqa.category === 'outside';
+        updateStudent({ 
+            ...student, 
+            halaqaId: targetHalaqaId, 
+            isFromIbri: !isTargetOutside 
+        });
         setTransferringStudent(null);
         setTransferSearchQuery('');
-        showToast(`✅ تم نقل الطالب "${student.name}" إلى "${targetHalaqa.name}"`);
+        showToast(`✅ تم نقل الطالب "${student.name}" إلى "${targetHalaqa.name}" (${isTargetOutside ? 'خارج جامع عبري' : 'جامع عبري'})`);
     };
 
     const mainHalaqasExportHeaders = [
@@ -417,7 +446,45 @@ const StudentManagement: React.FC = () => {
             {transferringStudent && (
                 <Modal title={`نقل الطالب: ${transferringStudent.name}`} onClose={() => setTransferringStudent(null)} hideDefaultCloseButton>
                     <div className="space-y-4">
-                        <p className="text-sm font-bold text-gray-500">اختر الحلقة الجديدة التي ترغب في نقل الطالب إليها:</p>
+                        <p className="text-sm font-bold text-gray-500">اختر الحلقة الجديدة التي ترغب في نقل الطالب إليها (يمكن النقل بين جامع عبري وخارج جامع عبري بكل سهولة):</p>
+
+                        {/* فلاتر تصنيف الحلقات داخل نافذة النقل */}
+                        <div className="flex gap-1.5 p-1 bg-gray-100 dark:bg-slate-700 rounded-xl">
+                            <button
+                                type="button"
+                                onClick={() => setTransferCategoryFilter('ALL')}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                    transferCategoryFilter === 'ALL'
+                                        ? 'bg-white dark:bg-slate-800 text-green-800 dark:text-green-300 shadow-xs'
+                                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-300'
+                                }`}
+                            >
+                                الكل ({sortedHalaqas.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTransferCategoryFilter('ibri')}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                    transferCategoryFilter === 'ibri'
+                                        ? 'bg-green-700 text-white shadow-xs'
+                                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-300'
+                                }`}
+                            >
+                                🕌 جامع عبري ({ibriHalaqas.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTransferCategoryFilter('outside')}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                    transferCategoryFilter === 'outside'
+                                        ? 'bg-blue-700 text-white shadow-xs'
+                                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-300'
+                                }`}
+                            >
+                                🌐 خارج عبري ({outsideHalaqas.length})
+                            </button>
+                        </div>
+
                         <div className="relative flex items-center">
                             <input 
                                 type="text" 
@@ -441,23 +508,43 @@ const StudentManagement: React.FC = () => {
                         </div>
                         <div className="max-h-60 overflow-y-auto border-2 rounded-2xl p-2 bg-gray-50 dark:bg-slate-800 dark:border-slate-700">
                             {sortedHalaqas
-                                .filter(h => h.id !== transferringStudent.halaqaId && isSmartMatch(h.name, transferSearchQuery))
-                                .map(halaqa => (
-                                    <button 
-                                        key={halaqa.id}
-                                        onClick={() => handleMoveStudent(transferringStudent, halaqa.id)}
-                                        className="w-full text-right p-4 hover:bg-green-600 hover:text-white dark:hover:bg-green-700 rounded-xl border-b dark:border-slate-700 last:border-0 font-bold transition-colors flex justify-between items-center group"
-                                    >
-                                        <span>{halaqa.name}</span>
-                                        <svg className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
-                                    </button>
-                                ))
+                                .filter(h => {
+                                    if (h.id === transferringStudent.halaqaId) return false;
+                                    if (transferCategoryFilter !== 'ALL' && (h.category || 'ibri') !== transferCategoryFilter) return false;
+                                    return isSmartMatch(h.name, transferSearchQuery);
+                                })
+                                .map(halaqa => {
+                                    const isOutside = halaqa.category === 'outside';
+                                    return (
+                                        <button 
+                                            key={halaqa.id}
+                                            onClick={() => handleMoveStudent(transferringStudent, halaqa.id)}
+                                            className="w-full text-right p-3.5 hover:bg-green-600 hover:text-white dark:hover:bg-green-700 rounded-xl border-b dark:border-slate-700 last:border-0 font-bold transition-colors flex justify-between items-center group cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${
+                                                    isOutside 
+                                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 group-hover:bg-white group-hover:text-blue-900' 
+                                                        : 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300 group-hover:bg-white group-hover:text-green-900'
+                                                }`}>
+                                                    {isOutside ? '🌐 خارج عبري' : '🕌 جامع عبري'}
+                                                </span>
+                                                <span className="text-sm sm:text-base">{halaqa.name}</span>
+                                            </div>
+                                            <svg className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
+                                        </button>
+                                    );
+                                })
                             }
-                            {sortedHalaqas.filter(h => h.id !== transferringStudent.halaqaId && isSmartMatch(h.name, transferSearchQuery)).length === 0 && (
-                                <p className="p-8 text-center text-gray-400">لا توجد حلقات أخرى بهذا الاسم</p>
+                            {sortedHalaqas.filter(h => {
+                                if (h.id === transferringStudent.halaqaId) return false;
+                                if (transferCategoryFilter !== 'ALL' && (h.category || 'ibri') !== transferCategoryFilter) return false;
+                                return isSmartMatch(h.name, transferSearchQuery);
+                            }).length === 0 && (
+                                <p className="p-8 text-center text-gray-400 font-bold">لا توجد حلقات تطابق الاختيار</p>
                             )}
                         </div>
-                        <button onClick={() => setTransferringStudent(null)} className="w-full py-3 bg-gray-200 text-gray-800 rounded-xl font-bold mt-2">إلغاء</button>
+                        <button onClick={() => setTransferringStudent(null)} className="w-full py-3 bg-gray-200 text-gray-800 rounded-xl font-bold mt-2 cursor-pointer">إلغاء</button>
                     </div>
                 </Modal>
             )}
@@ -693,13 +780,63 @@ const StudentManagement: React.FC = () => {
                     )}
                 </div>
 
+                {/* تبويبات جامع عبري وخارج جامع عبري */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 p-3 sm:p-5">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="text-right w-full md:w-auto">
+                            <h4 className="text-lg font-black text-green-950 dark:text-green-300 flex items-center gap-2">
+                                <span>🏛️</span>
+                                <span>أقسام حلقات الحفظ</span>
+                            </h4>
+                            <p className="text-xs text-gray-500 font-bold mt-0.5">
+                                اختر القسم لعرض وإضافة وإدارة حلقاته، معلميه، وطلابه مع إمكانية النقل المتبادل
+                            </p>
+                        </div>
+                        <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-700/60 rounded-2xl w-full md:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setCategoryTab('ibri')}
+                                className={`flex-1 md:flex-initial px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                    categoryTab === 'ibri'
+                                        ? 'bg-emerald-700 text-white shadow-md'
+                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+                                }`}
+                            >
+                                <span>🕌</span>
+                                <span>جامع عبري ({ibriHalaqas.length} حلقة • {ibriStudentsCount} طالب)</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setCategoryTab('outside')}
+                                className={`flex-1 md:flex-initial px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                    categoryTab === 'outside'
+                                        ? 'bg-blue-700 text-white shadow-md'
+                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+                                }`}
+                            >
+                                <span>🌐</span>
+                                <span>خارج جامع عبري ({outsideHalaqas.length} حلقة • {outsideStudentsCount} طالب)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* ثانياً: إدارة الحلقات والطلاب (نسق منسدل) */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
                     <div className="p-6 border-b dark:border-gray-700 bg-green-50/30 dark:bg-slate-800/50">
-                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
-                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                            إضافة حلقات جديدة
-                        </h4>
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                                <span>إضافة حلقات جديدة إلى {categoryTab === 'ibri' ? 'جامع عبري' : 'خارج جامع عبري'}</span>
+                            </h4>
+                            <span className={`text-xs px-3 py-1 rounded-full font-black ${
+                                categoryTab === 'ibri' 
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' 
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                            }`}>
+                                {categoryTab === 'ibri' ? '🕌 قسم جامع عبري' : '🌐 قسم خارج جامع عبري'}
+                            </span>
+                        </div>
                         <form onSubmit={handleAddHalaqa} className="flex flex-col gap-3">
                             <div className="flex gap-3">
                                 <textarea 
@@ -741,7 +878,14 @@ const StudentManagement: React.FC = () => {
                             <div className={`p-2 rounded-lg ${showHalaqas ? 'bg-green-600 text-white' : 'bg-green-100 text-green-600'}`}>
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                             </div>
-                            <span className="text-xl font-bold text-gray-800 dark:text-gray-200">قائمة الحلقات ({halaqas.length})</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                                    حلقات {categoryTab === 'ibri' ? 'جامع عبري' : 'خارج جامع عبري'} ({categoryHalaqas.length})
+                                </span>
+                                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-bold">
+                                    إجمالي الحلقات: {halaqas.length}
+                                </span>
+                            </div>
                         </div>
                         <svg className={`h-6 w-6 transform transition-transform ${showHalaqas ? 'rotate-180 text-green-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
@@ -801,7 +945,16 @@ const StudentManagement: React.FC = () => {
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                                                     </div>
                                                     <div>
-                                                        <h5 className="text-xl font-black text-gray-800 dark:text-gray-100">{halaqa.name}</h5>
+                                                        <div className="flex items-center gap-2">
+                                                            <h5 className="text-xl font-black text-gray-800 dark:text-gray-100">{halaqa.name}</h5>
+                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                                                halaqa.category === 'outside'
+                                                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                                                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                                            }`}>
+                                                                {halaqa.category === 'outside' ? '🌐 خارج عبري' : '🕌 جامع عبري'}
+                                                            </span>
+                                                        </div>
                                                         <p className="text-xs text-gray-500 font-bold dark:text-gray-400">عدد الطلاب: {halaqaStudents.length} | المعلم: {currentTeacher?.name || 'غير معين'}</p>
                                                     </div>
                                                 </div>
@@ -977,7 +1130,8 @@ const StudentManagement: React.FC = () => {
                                                                                                 <button
                                                                                                     type="button"
                                                                                                     onClick={() => {
-                                                                                                        updateStudent({ ...student, halaqaId: halaqa.id });
+                                                                                                        const isTargetOutside = halaqa.category === 'outside';
+                                                                                                        updateStudent({ ...student, halaqaId: halaqa.id, isFromIbri: !isTargetOutside });
                                                                                                         showToast(`✅ تم إضافة الطالب "${student.name}" إلى ${halaqa.name}`);
                                                                                                     }}
                                                                                                     className="px-2.5 py-1 bg-green-600 hover:bg-green-700 active:scale-95 text-white text-[11px] font-black rounded-lg shadow-xs flex items-center gap-1 shrink-0 transition-all cursor-pointer"
@@ -1012,8 +1166,9 @@ const StudentManagement: React.FC = () => {
                                                                                         <button
                                                                                             type="button"
                                                                                             onClick={() => {
+                                                                                                const isTargetOutside = halaqa.category === 'outside';
                                                                                                 const matching = unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm));
-                                                                                                matching.forEach(s => updateStudent({ ...s, halaqaId: halaqa.id }));
+                                                                                                matching.forEach(s => updateStudent({ ...s, halaqaId: halaqa.id, isFromIbri: !isTargetOutside }));
                                                                                                 showToast(`✅ تم إضافة ${matching.length} طالب إلى ${halaqa.name}`);
                                                                                             }}
                                                                                             className="text-[10px] font-black px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
@@ -1099,13 +1254,15 @@ const StudentManagement: React.FC = () => {
                                                                                 <span className="text-[10px] font-black">{student.id === halaqa.ameerStudentId ? 'إلغاء الأمير' : 'تعيين كأمير'}</span>
                                                                             </button>
 
-                                                                            {/* Clickable Badge to move student */}
+                                                                            {/* زر نقل الطالب بين الحلقات */}
                                                                             <button 
+                                                                                type="button"
                                                                                 onClick={() => setTransferringStudent(student)}
-                                                                                className="text-[9px] font-black px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-600 hover:text-white transition-all whitespace-nowrap"
-                                                                                title="انقر لنقل الطالب لحلقة أخرى"
+                                                                                className="text-[10px] font-black px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-600 hover:text-white transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                                                                                title="انقر لنقل الطالب لحلقة أخرى داخل أو خارج جامع عبري"
                                                                             >
-                                                                                {currentHalaqaName}
+                                                                                <span>🔄</span>
+                                                                                <span>نقل</span>
                                                                             </button>
                                                                             
                                                                             <button onClick={() => setEditingStudent(student)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg" title="تعديل"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>

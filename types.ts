@@ -51,6 +51,7 @@ export interface User {
   updatedAt?: number;
   canViewBehaviors?: boolean;
   behaviorsPassword?: string;
+  category?: 'ibri' | 'outside'; // جامع عبري أو خارج جامع عبري
 }
 
 export interface Halaqa {
@@ -60,6 +61,7 @@ export interface Halaqa {
   testTeacherId?: number;
   updatedAt?: number;
   ameerStudentId?: number; // أمير الحلقة
+  category?: 'ibri' | 'outside'; // جامع عبري أو خارج جامع عبري
 }
 
 export interface Student {
@@ -86,6 +88,7 @@ export interface SardHalaqa {
   id: number;
   name: string;
   teacherId: number;
+  category?: 'ibri' | 'outside';
   updatedAt?: number;
   ameerStudentId?: number; // أمير حلقة السرد
 }
@@ -257,6 +260,8 @@ export interface FullBackupData {
   customLogo: string | null;
   supervisorPassword?: string;
   maghribPassword?: string;
+  teacherIbriPassword?: string;
+  teacherOutsidePassword?: string;
   appName?: string;
   firebaseConfig?: any;
   configUpdatedAt?: number;

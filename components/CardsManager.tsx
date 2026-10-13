@@ -321,10 +321,43 @@ const getDefaultColorForStage = (index: number): string => {
 export const CardsManager: React.FC = () => {
     const context = useContext(AppContext);
 
-    const students = context?.students || [];
-    const users = context?.users || [];
-    const halaqas = context?.halaqas || [];
-    const sardHalaqas = context?.sardHalaqas || [];
+    // الحلقات الخاصة بجامع عبري فقط
+    const halaqas = useMemo(() => {
+        return (context?.halaqas || []).filter(h => (h.category || 'ibri') === 'ibri');
+    }, [context?.halaqas]);
+
+    const sardHalaqas = useMemo(() => {
+        return (context?.sardHalaqas || []).filter(sh => ((sh as any).category || 'ibri') === 'ibri');
+    }, [context?.sardHalaqas]);
+
+    // طلاب جامع عبري فقط (الطلاب المنتمون لجامع عبري أو لحلقات جامع عبري)
+    const students = useMemo(() => {
+        const ibriHalaqaIds = new Set(halaqas.map(h => h.id));
+        return (context?.students || []).filter(s => {
+            if (s.isFromIbri === false) return false;
+            if (s.halaqaId && !ibriHalaqaIds.has(s.halaqaId)) {
+                const rawH = (context?.halaqas || []).find(h => h.id === s.halaqaId);
+                if (rawH && rawH.category === 'outside') return false;
+            }
+            return true;
+        });
+    }, [context?.students, halaqas, context?.halaqas]);
+
+    // معلمو جامع عبري فقط
+    const users = useMemo(() => {
+        return (context?.users || []).filter(u => {
+            if (u.role === UserRole.TEACHER) {
+                const teacherHalaqas = (context?.halaqas || []).filter(h => h.teacherId === u.id || h.testTeacherId === u.id);
+                const hasIbriHalaqa = teacherHalaqas.some(h => (h.category || 'ibri') === 'ibri');
+                const hasOutsideHalaqa = teacherHalaqas.some(h => h.category === 'outside');
+                if (hasIbriHalaqa) return true;
+                if (hasOutsideHalaqa) return false;
+                return u.category !== 'outside';
+            }
+            return true;
+        });
+    }, [context?.users, context?.halaqas]);
+
     const showToast = context?.showToast || (() => {});
     const cardConfig = context?.cardConfig;
     const setCardConfig = context?.setCardConfig;
@@ -3198,8 +3231,11 @@ export const CardsManager: React.FC = () => {
                         <CreditCard className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">إصدار البطاقات</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">إصدار وتصميم البطاقات التعريفية للطلاب والمعلمين وبطاقات الحلقات</p>
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">إصدار البطاقات</h3>
+                            <span className="px-2.5 py-0.5 text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 rounded-full border border-emerald-300 dark:border-emerald-700">خاصة بجامع عبري</span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">إصدار وتصميم البطاقات التعريفية للطلاب والمعلمين وبطاقات الحلقات الخاصة بمركز جامع عبري</p>
                     </div>
                 </div>
 
@@ -3209,14 +3245,14 @@ export const CardsManager: React.FC = () => {
                         className={`flex-1 md:flex-none px-5 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${mainTab === 'id_cards' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                     >
                         <CreditCard className="w-4 h-4" />
-                        <span>البطاقات التعريفية</span>
+                        <span>البطاقات التعريفية (جامع عبري)</span>
                     </button>
                     <button 
                         onClick={() => setMainTab('halaqa_cards')}
                         className={`flex-1 md:flex-none px-5 py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${mainTab === 'halaqa_cards' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                     >
                         <Users className="w-4 h-4" />
-                        <span>بطاقات الحلقات</span>
+                        <span>بطاقات الحلقات (جامع عبري)</span>
                     </button>
                 </div>
             </div>

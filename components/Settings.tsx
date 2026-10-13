@@ -39,6 +39,12 @@ export const Settings: React.FC = () => {
   const maghribAttendances = context?.maghribAttendances || [];
   const supervisorPassword = context?.supervisorPassword || '';
   const maghribPassword = context?.maghribPassword || '';
+  const teacherIbriPassword = context?.teacherIbriPassword || 'Ibri123';
+  const teacherOutsidePassword = context?.teacherOutsidePassword || 'Ameen123';
+  const setSupervisorPassword = context?.setSupervisorPassword || (() => {});
+  const setMaghribPassword = context?.setMaghribPassword || (() => {});
+  const setTeacherIbriPassword = context?.setTeacherIbriPassword || (() => {});
+  const setTeacherOutsidePassword = context?.setTeacherOutsidePassword || (() => {});
   const addTeacher = context?.addTeacher || ((n: string) => 0);
   const addHalaqa = context?.addHalaqa || ((h: any) => 0);
   const addSardHalaqa = context?.addSardHalaqa || ((h: any) => 0);
@@ -75,7 +81,24 @@ export const Settings: React.FC = () => {
   const [reviewTeacherSearch, setReviewTeacherSearch] = useState<string>("");
   const [expandedReviewTeacherId, setExpandedReviewTeacherId] = useState<number | null>(null);
 
-  const [activeSettingsView, setActiveSettingsView] = useState<"main" | "tests" | "customization" | "mutoon" | "review">("main");
+  const [activeSettingsView, setActiveSettingsView] = useState<"main" | "tests" | "customization" | "mutoon" | "review" | "passwords">("main");
+  
+  // حالات تحرير كلمات المرور الجديدة (تكون الخانات فارغة للكتابة المباشرة)
+  const [editingSupervisorPass, setEditingSupervisorPass] = useState('');
+  const [editingTeacherIbriPass, setEditingTeacherIbriPass] = useState('');
+  const [editingTeacherOutsidePass, setEditingTeacherOutsidePass] = useState('');
+  const [editingMaghribPass, setEditingMaghribPass] = useState('');
+  const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
+
+  // ضمان أن تظل خانات كتابة كلمات المرور الجديدة فارغة دائماً عند فتح صفحة كلمات المرور
+  useEffect(() => {
+    if (activeSettingsView === 'passwords') {
+      setEditingSupervisorPass('');
+      setEditingTeacherIbriPass('');
+      setEditingTeacherOutsidePass('');
+      setEditingMaghribPass('');
+    }
+  }, [activeSettingsView]);
   const [message, setMessage] = useState<{
     type: "success" | "error" | "warning";
     text: string;
@@ -500,6 +523,8 @@ export const Settings: React.FC = () => {
       customLogo: context?.customLogo || null,
       supervisorPassword: context?.supervisorPassword || '',
       maghribPassword: context?.maghribPassword || '',
+      teacherIbriPassword: context?.teacherIbriPassword || 'Ibri123',
+      teacherOutsidePassword: context?.teacherOutsidePassword || 'Ameen123',
       appName: context?.appName || '',
       firebaseConfig: context?.firebaseConfig,
       hijriAdjustments: context?.hijriAdjustments || {},
@@ -541,6 +566,8 @@ export const Settings: React.FC = () => {
       customLogo,
       supervisorPassword,
       maghribPassword,
+      teacherIbriPassword,
+      teacherOutsidePassword,
       appName,
       firebaseConfig,
       hijriAdjustments,
@@ -782,6 +809,19 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveSettingsView("review")}
         >
           تفعيل "مراجعة"
+        </button>
+        <button
+          className={`px-6 py-3 font-bold transition-all border-b-4 flex items-center gap-2 ${activeSettingsView === "passwords" ? "text-green-700 border-green-700 dark:text-green-300" : "text-gray-400 border-transparent"}`}
+          onClick={() => {
+            setEditingSupervisorPass('');
+            setEditingTeacherIbriPass('');
+            setEditingTeacherOutsidePass('');
+            setEditingMaghribPass('');
+            setActiveSettingsView("passwords");
+          }}
+        >
+          <span>🔐</span>
+          <span>إدارة كلمات المرور</span>
         </button>
       </div>
 
@@ -1848,6 +1888,376 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeSettingsView === "passwords" && (
+        <div className="space-y-8 animate-fade-in">
+          <div className="p-5 sm:p-6 bg-amber-50 dark:bg-amber-950/30 rounded-3xl border border-amber-200 dark:border-amber-800">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">🔐</span>
+              <div>
+                <h4 className="text-xl font-black text-amber-950 dark:text-amber-200">
+                  إدارة كلمات المرور والصلاحيات
+                </h4>
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-300 mt-1">
+                  تحدد هذه الصفحة كلمات المرور لجميع بوابات الدخول. المعلمون ومسؤولو الحضور لا يملكون صلاحية تعديل كلمات المرور، ويتم التحكم بها مركزياً وحصرياً من قبل المشرف.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 1. كلمة مرور المشرف */}
+            <div className="bg-gray-50 dark:bg-slate-800/60 p-6 rounded-3xl border border-gray-200 dark:border-slate-700 flex flex-col justify-between shadow-xs">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">👨‍💼</span>
+                    <div>
+                      <h5 className="font-black text-lg text-gray-800 dark:text-gray-100">كلمة مرور المشرف</h5>
+                      <span className="text-xs text-gray-500 font-bold">بوابة دخول المشرف العام</span>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 text-xs font-black rounded-lg">الافتراضي: 123</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                    كلمة المرور الحالية:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-base px-3 py-1.5 bg-white dark:bg-slate-900 border rounded-xl dark:border-slate-700 text-green-700 dark:text-green-400 min-w-[90px] text-center">
+                      {showPasswordMap['supervisor'] ? supervisorPassword : '••••••••'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordMap(p => ({ ...p, supervisor: !p['supervisor'] }))}
+                      className="px-2.5 py-1.5 text-xs font-bold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      {showPasswordMap['supervisor'] ? 'إخفاء 👁️' : 'إظهار 👁️'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    كلمة المرور الجديدة:
+                  </label>
+                  <input
+                    type="text"
+                    value={editingSupervisorPass}
+                    onChange={(e) => setEditingSupervisorPass(e.target.value)}
+                    placeholder="أدخل كلمة مرور جديدة..."
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    className="input-style text-center font-bold tracking-wider py-2.5 w-full bg-white dark:bg-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-5 mt-4 border-t dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pass = editingSupervisorPass.trim();
+                    if (!pass) return showToast('⚠️ يرجى كتابة كلمة مرور جديدة أولاً', 'error');
+                    setSupervisorPassword(pass);
+                    setEditingSupervisorPass('');
+                    showToast('✅ تم حفظ كلمة مرور المشرف بنجاح', 'success');
+                  }}
+                  className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 text-white rounded-xl font-bold text-sm shadow-xs transition-all active:scale-95"
+                >
+                  حفظ كلمة مرور المشرف
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSupervisorPassword('123');
+                    setEditingSupervisorPass('');
+                    showToast('🔄 تمت استعادة كلمة المرور الافتراضية (123)', 'info');
+                  }}
+                  className="px-3 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs transition-all"
+                  title="استعادة الافتراضي"
+                >
+                  افتراضي
+                </button>
+              </div>
+            </div>
+
+            {/* 2. كلمة مرور معلمي جامع عبري */}
+            <div className="bg-emerald-50/50 dark:bg-slate-800/60 p-6 rounded-3xl border border-emerald-200 dark:border-slate-700 flex flex-col justify-between shadow-xs">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">🕌</span>
+                    <div>
+                      <h5 className="font-black text-lg text-emerald-950 dark:text-emerald-200">معلمو جامع عبري</h5>
+                      <span className="text-xs text-gray-500 font-bold">بوابة دخول معلمي جامع عبري</span>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-xs font-black rounded-lg">الافتراضي: Ibri123</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                    كلمة المرور الحالية:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-base px-3 py-1.5 bg-white dark:bg-slate-900 border rounded-xl dark:border-slate-700 text-emerald-700 dark:text-emerald-400 min-w-[90px] text-center">
+                      {showPasswordMap['t_ibri'] ? teacherIbriPassword : '••••••••'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordMap(p => ({ ...p, t_ibri: !p['t_ibri'] }))}
+                      className="px-2.5 py-1.5 text-xs font-bold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      {showPasswordMap['t_ibri'] ? 'إخفاء 👁️' : 'إظهار 👁️'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    كلمة المرور الجديدة:
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTeacherIbriPass}
+                    onChange={(e) => setEditingTeacherIbriPass(e.target.value)}
+                    placeholder="أدخل كلمة مرور جديدة لمعلمي جامع عبري..."
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    className="input-style text-center font-bold tracking-wider py-2.5 w-full bg-white dark:bg-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-5 mt-4 border-t dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pass = editingTeacherIbriPass.trim();
+                    if (!pass) return showToast('⚠️ يرجى كتابة كلمة مرور جديدة أولاً', 'error');
+                    setTeacherIbriPassword(pass);
+                    setEditingTeacherIbriPass('');
+                    showToast('✅ تم حفظ كلمة مرور معلمي جامع عبري بنجاح', 'success');
+                  }}
+                  className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-sm shadow-xs transition-all active:scale-95"
+                >
+                  حفظ كلمة مرور جامع عبري
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeacherIbriPassword('Ibri123');
+                    setEditingTeacherIbriPass('');
+                    showToast('🔄 تمت استعادة كلمة المرور الافتراضية (Ibri123)', 'info');
+                  }}
+                  className="px-3 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs transition-all"
+                  title="استعادة الافتراضي"
+                >
+                  افتراضي
+                </button>
+              </div>
+            </div>
+
+            {/* 3. كلمة مرور المعلمين خارج جامع عبري */}
+            <div className="bg-blue-50/50 dark:bg-slate-800/60 p-6 rounded-3xl border border-blue-200 dark:border-slate-700 flex flex-col justify-between shadow-xs">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">🌐</span>
+                    <div>
+                      <h5 className="font-black text-lg text-blue-950 dark:text-blue-200">خارج جامع عبري</h5>
+                      <span className="text-xs text-gray-500 font-bold">بوابة دخول المعلمين خارج جامع عبري</span>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-xs font-black rounded-lg">الافتراضي: Ameen123</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                    كلمة المرور الحالية:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-base px-3 py-1.5 bg-white dark:bg-slate-900 border rounded-xl dark:border-slate-700 text-blue-700 dark:text-blue-400 min-w-[90px] text-center">
+                      {showPasswordMap['t_outside'] ? teacherOutsidePassword : '••••••••'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordMap(p => ({ ...p, t_outside: !p['t_outside'] }))}
+                      className="px-2.5 py-1.5 text-xs font-bold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      {showPasswordMap['t_outside'] ? 'إخفاء 👁️' : 'إظهار 👁️'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    كلمة المرور الجديدة:
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTeacherOutsidePass}
+                    onChange={(e) => setEditingTeacherOutsidePass(e.target.value)}
+                    placeholder="أدخل كلمة مرور جديدة لخارج جامع عبري..."
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    className="input-style text-center font-bold tracking-wider py-2.5 w-full bg-white dark:bg-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-5 mt-4 border-t dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pass = editingTeacherOutsidePass.trim();
+                    if (!pass) return showToast('⚠️ يرجى كتابة كلمة مرور جديدة أولاً', 'error');
+                    setTeacherOutsidePassword(pass);
+                    setEditingTeacherOutsidePass('');
+                    showToast('✅ تم حفظ كلمة مرور خارج جامع عبري بنجاح', 'success');
+                  }}
+                  className="flex-1 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-bold text-sm shadow-xs transition-all active:scale-95"
+                >
+                  حفظ كلمة مرور خارج عبري
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeacherOutsidePassword('Ameen123');
+                    setEditingTeacherOutsidePass('');
+                    showToast('🔄 تمت استعادة كلمة المرور الافتراضية (Ameen123)', 'info');
+                  }}
+                  className="px-3 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs transition-all"
+                  title="استعادة الافتراضي"
+                >
+                  افتراضي
+                </button>
+              </div>
+            </div>
+
+            {/* 4. كلمة مرور إدارة الحضور (المغرب / العصر) */}
+            <div className="bg-amber-50/50 dark:bg-slate-800/60 p-6 rounded-3xl border border-amber-200 dark:border-slate-700 flex flex-col justify-between shadow-xs">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">🌅</span>
+                    <div>
+                      <h5 className="font-black text-lg text-amber-950 dark:text-amber-200">إدارة الحضور</h5>
+                      <span className="text-xs text-gray-500 font-bold">بوابة حضور المغرب والعصر</span>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-black rounded-lg">الافتراضي: 123</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
+                    كلمة المرور الحالية:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-base px-3 py-1.5 bg-white dark:bg-slate-900 border rounded-xl dark:border-slate-700 text-amber-800 dark:text-amber-400 min-w-[90px] text-center">
+                      {showPasswordMap['maghrib'] ? maghribPassword : '••••••••'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordMap(p => ({ ...p, maghrib: !p['maghrib'] }))}
+                      className="px-2.5 py-1.5 text-xs font-bold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      {showPasswordMap['maghrib'] ? 'إخفاء 👁️' : 'إظهار 👁️'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    كلمة المرور الجديدة:
+                  </label>
+                  <input
+                    type="text"
+                    value={editingMaghribPass}
+                    onChange={(e) => setEditingMaghribPass(e.target.value)}
+                    placeholder="أدخل كلمة مرور جديدة لإدارة الحضور..."
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    className="input-style text-center font-bold tracking-wider py-2.5 w-full bg-white dark:bg-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-5 mt-4 border-t dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pass = editingMaghribPass.trim();
+                    if (!pass) return showToast('⚠️ يرجى كتابة كلمة مرور جديدة أولاً', 'error');
+                    setMaghribPassword(pass);
+                    setEditingMaghribPass('');
+                    showToast('✅ تم حفظ كلمة مرور إدارة الحضور بنجاح', 'success');
+                  }}
+                  className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-sm shadow-xs transition-all active:scale-95"
+                >
+                  حفظ كلمة مرور الحضور
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMaghribPassword('123');
+                    setEditingMaghribPass('');
+                    showToast('🔄 تمت استعادة كلمة المرور الافتراضية (123)', 'info');
+                  }}
+                  className="px-3 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs transition-all"
+                  title="استعادة الافتراضي"
+                >
+                  افتراضي
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* زر الحفظ الجماعي الشامل */}
+          <div className="pt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                let updatedCount = 0;
+                if (editingSupervisorPass.trim()) {
+                  setSupervisorPassword(editingSupervisorPass.trim());
+                  updatedCount++;
+                }
+                if (editingTeacherIbriPass.trim()) {
+                  setTeacherIbriPassword(editingTeacherIbriPass.trim());
+                  updatedCount++;
+                }
+                if (editingTeacherOutsidePass.trim()) {
+                  setTeacherOutsidePassword(editingTeacherOutsidePass.trim());
+                  updatedCount++;
+                }
+                if (editingMaghribPass.trim()) {
+                  setMaghribPassword(editingMaghribPass.trim());
+                  updatedCount++;
+                }
+                if (updatedCount === 0) {
+                  return showToast('ℹ️ لم يتم كتابة أي كلمة مرور جديدة لتحديثها', 'info');
+                }
+                setEditingSupervisorPass('');
+                setEditingTeacherIbriPass('');
+                setEditingTeacherOutsidePass('');
+                setEditingMaghribPass('');
+                showToast(`✅ تم حفظ وتحديث ${updatedCount} من كلمات المرور بنجاح`, 'success');
+              }}
+              className="px-8 py-4 bg-green-700 hover:bg-green-800 text-white font-black text-lg rounded-2xl shadow-xl hover:shadow-2xl active:scale-95 transition-all flex items-center gap-3 cursor-pointer"
+            >
+              <span>💾</span>
+              <span>حفظ جميع كلمات المرور وتحديث السحابة</span>
+            </button>
           </div>
         </div>
       )}

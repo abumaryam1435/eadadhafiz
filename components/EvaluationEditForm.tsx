@@ -1588,6 +1588,11 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
           matns={matns}
           prevFromVerse={viewingVersesModal.prevFromVerse}
           prevToVerse={viewingVersesModal.prevToVerse}
+          studentName={student?.name}
+          errors={Number(evalFath) || 0}
+          onUpdateErrors={(newErrors) => {
+            setEvalFath(newErrors);
+          }}
         />
       )}
     </Modal>

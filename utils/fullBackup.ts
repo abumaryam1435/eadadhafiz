@@ -132,6 +132,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
     "teacherId",
     "testTeacherId",
     "ameerStudentId",
+    "category",
     "updatedAt",
   ];
   const { headers: finalHalaqasHeaders, data: finalHalaqasData } = getDynamicSheetData(
@@ -143,6 +144,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
       h.teacherId,
       h.testTeacherId,
       h.ameerStudentId ?? null,
+      h.category || 'ibri',
       h.updatedAt,
     ]
   );
@@ -412,6 +414,8 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
   addSetting("customLogo", data.customLogo);
   addSetting("supervisorPassword", data.supervisorPassword);
   addSetting("maghribPassword", data.maghribPassword);
+  addSetting("teacherIbriPassword", data.teacherIbriPassword);
+  addSetting("teacherOutsidePassword", data.teacherOutsidePassword);
   addSetting("appName", data.appName);
   addSetting("firebaseConfig", data.firebaseConfig);
   addSetting("configUpdatedAt", data.configUpdatedAt);
@@ -597,6 +601,7 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
           teacherId: Number(getValue(r, h, "teacherId") || 0),
           testTeacherId: safeNum(getValue(r, h, "testTeacherId")),
           ameerStudentId: safeNum(getValue(r, h, "ameerStudentId")) || undefined,
+          category: (safeStr(getValue(r, h, "category")) === 'outside' ? 'outside' : 'ibri') as 'ibri' | 'outside',
           updatedAt: safeNum(getValue(r, h, "updatedAt")) || Date.now(),
         }));
 
@@ -865,6 +870,10 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
               importedData.supervisorPassword = getS("supervisorPassword");
             if (settingsMap.has("maghribPassword"))
               importedData.maghribPassword = getS("maghribPassword");
+            if (settingsMap.has("teacherIbriPassword"))
+              importedData.teacherIbriPassword = getS("teacherIbriPassword");
+            if (settingsMap.has("teacherOutsidePassword"))
+              importedData.teacherOutsidePassword = getS("teacherOutsidePassword");
             if (settingsMap.has("appName"))
               importedData.appName = getS("appName");
             if (settingsMap.has("firebaseConfig")) {
@@ -955,8 +964,10 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
             importedData.customLogo !== undefined
               ? importedData.customLogo
               : null,
-          supervisorPassword: importedData.supervisorPassword || "1234",
-          maghribPassword: importedData.maghribPassword || "1234",
+          supervisorPassword: importedData.supervisorPassword || "123",
+          maghribPassword: importedData.maghribPassword || "123",
+          teacherIbriPassword: importedData.teacherIbriPassword || "Ibri123",
+          teacherOutsidePassword: importedData.teacherOutsidePassword || "Ameen123",
           appName: importedData.appName || "إعداد حافظ",
           firebaseConfig: importedData.firebaseConfig || null,
           configUpdatedAt: importedData.configUpdatedAt || 0,

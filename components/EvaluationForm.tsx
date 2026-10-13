@@ -4520,6 +4520,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           prevFromVerse={viewingVersesModal.prevFromVerse}
           prevToVerse={viewingVersesModal.prevToVerse}
           matns={matns}
+          studentName={student?.name}
+          errors={(() => {
+            const currentMEval = mutoonEvaluations.find(me => me.matnName === viewingVersesModal.matnName);
+            return currentMEval?.errors || 0;
+          })()}
+          onUpdateErrors={(newErrors) => {
+            updateMatnEval(viewingVersesModal.matnName, { errors: newErrors });
+          }}
         />
       )}
     </>

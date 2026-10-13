@@ -4,25 +4,13 @@ import { AppContext } from '../App';
 import Logo from './Logo';
 import { MaghribProgramForm } from './MaghribProgramForm';
 import { MaghribReportTable } from './MaghribReportTable';
-import Modal from './Modal';
 
 export const MaghribDashboard: React.FC = () => {
   const context = useContext(AppContext);
   const [activeTab, setActiveTab] = useState<'entry' | 'reports'>('entry');
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [newPass, setNewPass] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
   const [programType, setProgramType] = useState<'maghrib' | 'asr' | null>(null);
 
-  const { appName, logout, maghribPassword, setMaghribPassword, darkMode, toggleDarkMode } = context;
-
-  const handleUpdatePassword = () => {
-    if (newPass.length < 4) return alert('كلمة السر قصيرة جداً');
-    if (newPass !== confirmPass) return alert('كلمات السر غير متطابقة');
-    setMaghribPassword(newPass);
-    setShowPasswordModal(false);
-    alert('تم تغيير كلمة السر بنجاح');
-  };
+  const { appName, logout, darkMode, toggleDarkMode } = context || {};
 
   if (!programType) {
       
@@ -81,9 +69,7 @@ export const MaghribDashboard: React.FC = () => {
                <button onClick={() => setProgramType(null)} className="px-1.5 py-1.5 sm:px-4 sm:py-2.5 bg-white text-green-900 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-gray-100 transition-all shadow-sm whitespace-nowrap">
                   البرنامج
                </button>
-               <button onClick={() => setShowPasswordModal(true)} className="px-1.5 py-1.5 sm:px-4 sm:py-2.5 bg-amber-500 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-amber-600 transition-all shadow-sm whitespace-nowrap">
-                  الرقم السري
-               </button>
+
                <button onClick={logout} className="px-1.5 py-1.5 sm:px-4 sm:py-2.5 bg-red-500 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-extrabold hover:bg-red-600 transition-all shadow-sm whitespace-nowrap">
                   خروج
                </button>
@@ -119,20 +105,7 @@ export const MaghribDashboard: React.FC = () => {
         )}
       </main>
 
-      {/* Password Modal */}
-      {showPasswordModal && (
-        <Modal title={`تغيير الرقم السري لـ ${programTitle}`} onClose={() => setShowPasswordModal(false)} hideDefaultCloseButton>
-           <div className="space-y-4">
-              <p className="text-sm text-gray-500">الرقم السري الحالي هو: <span className="font-mono font-bold text-green-700">{maghribPassword}</span></p>
-              <input type="password" placeholder="الرقم السري الجديد" value={newPass} onChange={e => setNewPass(e.target.value)} className="input-style" />
-              <input type="password" placeholder="تأكيد الرقم السري" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} className="input-style" />
-              <div className="flex gap-2 pt-4">
-                <button onClick={() => setShowPasswordModal(false)} className="flex-1 py-2 bg-gray-200 rounded-lg">إلغاء</button>
-                <button onClick={handleUpdatePassword} className="flex-1 py-2 bg-green-700 text-white rounded-lg">حفظ</button>
-              </div>
-           </div>
-        </Modal>
-      )}
+
     </div>
   );
 };

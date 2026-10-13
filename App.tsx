@@ -87,6 +87,10 @@ interface AppContextType {
   setSupervisorPassword: (password: string) => void;
   maghribPassword: string;
   setMaghribPassword: (password: string) => void;
+  teacherIbriPassword: string;
+  setTeacherIbriPassword: (password: string) => void;
+  teacherOutsidePassword: string;
+  setTeacherOutsidePassword: (password: string) => void;
   logout: () => void;
   isLoading: boolean;
   isLoadingFirebase: boolean;
@@ -272,6 +276,8 @@ const App: React.FC = () => {
 
   const [supervisorPassword, setSupervisorPasswordState] = useState<string>(() => initialBackupData?.supervisorPassword || '123');
   const [maghribPassword, setMaghribPasswordState] = useState<string>(() => initialBackupData?.maghribPassword || '123');
+  const [teacherIbriPassword, setTeacherIbriPasswordState] = useState<string>(() => initialBackupData?.teacherIbriPassword || 'Ibri123');
+  const [teacherOutsidePassword, setTeacherOutsidePasswordState] = useState<string>(() => initialBackupData?.teacherOutsidePassword || 'Ameen123');
   const [customLogo, setCustomLogoState] = useState<string | null>(() => initialBackupData?.customLogo || null);
   const [appName, setAppNameState] = useState<string>(() => initialBackupData?.appName || DEFAULT_APP_NAME);
   const [hijriAdjustments, setHijriAdjustmentsState] = useState<Record<string, number>>(() => initialBackupData?.hijriAdjustments || {});
@@ -451,6 +457,8 @@ const App: React.FC = () => {
       if (loadedConfig.customLogo !== undefined) setCustomLogoState(loadedConfig.customLogo);
       if (loadedConfig.supervisorPassword) setSupervisorPasswordState(loadedConfig.supervisorPassword);
       if (loadedConfig.maghribPassword) setMaghribPasswordState(loadedConfig.maghribPassword);
+      if (loadedConfig.teacherIbriPassword) setTeacherIbriPasswordState(loadedConfig.teacherIbriPassword);
+      if (loadedConfig.teacherOutsidePassword) setTeacherOutsidePasswordState(loadedConfig.teacherOutsidePassword);
       if (loadedConfig.hijriAdjustments) setHijriAdjustmentsState(loadedConfig.hijriAdjustments);
       if (loadedConfig.isTestActive !== undefined) setIsTestActiveState(loadedConfig.isTestActive);
       if (loadedConfig.testScore !== undefined) setTestScoreState(loadedConfig.testScore);
@@ -496,7 +504,7 @@ const App: React.FC = () => {
     if (!isLoading) {
         const dataToSave: FullBackupData = {
             users: data.users, halaqas: data.halaqas, sardHalaqas: data.sardHalaqas, students: data.students, evaluations: data.evaluations, sardEvaluations: data.sardEvaluations, maghribAttendances: data.maghribAttendances, suggestions: data.suggestions, studentBehaviors: data.studentBehaviors, matns: data.matns, newStudentTests: data.newStudentTests || [],
-            customLogo, supervisorPassword, maghribPassword, appName, hijriAdjustments,
+            customLogo, supervisorPassword, maghribPassword, teacherIbriPassword, teacherOutsidePassword, appName, hijriAdjustments,
             colorMap, saveColors, rankColors, manualRanks, certificateConfig, cardConfig,
             isTestActive: isTestActiveState, testScore: testScoreState, testName: testNameState,
             testDeductions: testDeductionsState,
@@ -511,7 +519,7 @@ const App: React.FC = () => {
         };
         localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(dataToSave));
     }
-  }, [data, appName, customLogo, supervisorPassword, maghribPassword, hijriAdjustments, colorMap, saveColors, rankColors, manualRanks, certificateConfig, cardConfig, isTestActiveState, testScoreState, testNameState, testDeductionsState, firebaseConfigState, isDistributable, isPublishedConnected, isLoading, allowTeacherEditOldMemorizedState, showAmeerToTeachersState, reviewFeatureConfigState]);
+  }, [data, appName, customLogo, supervisorPassword, maghribPassword, teacherIbriPassword, teacherOutsidePassword, hijriAdjustments, colorMap, saveColors, rankColors, manualRanks, certificateConfig, cardConfig, isTestActiveState, testScoreState, testNameState, testDeductionsState, firebaseConfigState, isDistributable, isPublishedConnected, isLoading, allowTeacherEditOldMemorizedState, showAmeerToTeachersState, reviewFeatureConfigState]);
 
   useEffect(() => {
     if (!firebaseConfigState || Object.keys(firebaseConfigState).length === 0) {
@@ -546,6 +554,8 @@ const App: React.FC = () => {
             if(val.customLogo !== undefined) setCustomLogoState(val.customLogo);
             if(val.supervisorPassword) setSupervisorPasswordState(val.supervisorPassword);
             if(val.maghribPassword) setMaghribPasswordState(val.maghribPassword);
+            if(val.teacherIbriPassword) setTeacherIbriPasswordState(val.teacherIbriPassword);
+            if(val.teacherOutsidePassword) setTeacherOutsidePasswordState(val.teacherOutsidePassword);
             if(val.hijriAdjustments) setHijriAdjustmentsState(val.hijriAdjustments);
             if(val.isTestActive !== undefined) setIsTestActiveState(val.isTestActive);
             if(val.testScore !== undefined) setTestScoreState(val.testScore);
@@ -1082,7 +1092,7 @@ const App: React.FC = () => {
           });
           db.ref('data').set(cleanData);
           db.ref('config').set(sanitizeForFirebase({
-              appName: d.appName, customLogo: d.customLogo, supervisorPassword: d.supervisorPassword, maghribPassword: d.maghribPassword, hijriAdjustments: d.hijriAdjustments, isTestActive: d.isTestActive, testScore: d.testScore, testName: d.testName, lastUsedWeek: d.lastUsedWeek, showAmeerToTeachers: d.showAmeerToTeachers ?? false
+              appName: d.appName, customLogo: d.customLogo, supervisorPassword: d.supervisorPassword, maghribPassword: d.maghribPassword, teacherIbriPassword: d.teacherIbriPassword, teacherOutsidePassword: d.teacherOutsidePassword, hijriAdjustments: d.hijriAdjustments, isTestActive: d.isTestActive, testScore: d.testScore, testName: d.testName, lastUsedWeek: d.lastUsedWeek, showAmeerToTeachers: d.showAmeerToTeachers ?? false
           }));
       }
       setData({ users: d.users, halaqas: d.halaqas, sardHalaqas: d.sardHalaqas || [], students: d.students, evaluations: d.evaluations, sardEvaluations: d.sardEvaluations || [], maghribAttendances: d.maghribAttendances || [], suggestions: d.suggestions || [], studentBehaviors: d.studentBehaviors || [], matns: d.matns || [], newStudentTests: d.newStudentTests || [] });
@@ -1090,6 +1100,8 @@ const App: React.FC = () => {
       if(d.customLogo !== undefined) setCustomLogoState(d.customLogo);
       if(d.supervisorPassword) setSupervisorPasswordState(d.supervisorPassword);
       if(d.maghribPassword) setMaghribPasswordState(d.maghribPassword);
+      if(d.teacherIbriPassword) setTeacherIbriPasswordState(d.teacherIbriPassword);
+      if(d.teacherOutsidePassword) setTeacherOutsidePasswordState(d.teacherOutsidePassword);
       if(d.hijriAdjustments) setHijriAdjustmentsState(d.hijriAdjustments);
       if(d.isTestActive !== undefined) setIsTestActiveState(d.isTestActive);
       if(d.testScore !== undefined) setTestScoreState(d.testScore);
@@ -1116,6 +1128,8 @@ const App: React.FC = () => {
   const setCustomLogo = useCallback((l: string | null) => { setCustomLogoState(l); writeData('config/customLogo', l); }, []);
   const setSupervisorPassword = useCallback((p: string) => { setSupervisorPasswordState(p); writeData('config/supervisorPassword', p); }, []);
   const setMaghribPassword = useCallback((p: string) => { setMaghribPasswordState(p); writeData('config/maghribPassword', p); }, []);
+  const setTeacherIbriPassword = useCallback((p: string) => { setTeacherIbriPasswordState(p); writeData('config/teacherIbriPassword', p); }, []);
+  const setTeacherOutsidePassword = useCallback((p: string) => { setTeacherOutsidePasswordState(p); writeData('config/teacherOutsidePassword', p); }, []);
   const setLastUsedWeek = useCallback((w: number | null) => { setLastUsedWeekState(w); writeData('config/lastUsedWeek', w); }, []);
   const setIsTestActive = useCallback((a: boolean) => { setIsTestActiveState(a); writeData('config/isTestActive', a); }, []);
   const setTestScore = useCallback((s: number) => { const safe = isNaN(s) ? 100 : s; setTestScoreState(safe); writeData('config/testScore', safe); }, [writeData]);
@@ -1187,6 +1201,8 @@ const App: React.FC = () => {
           appName: DEFAULT_APP_NAME, 
           supervisorPassword: '123', 
           maghribPassword: '123', 
+          teacherIbriPassword: 'Ibri123',
+          teacherOutsidePassword: 'Ameen123',
           customLogo: null,
           hijriAdjustments: {},
           isTestActive: false,
@@ -1213,6 +1229,8 @@ const App: React.FC = () => {
     addTeacher, updateTeacher, deleteTeacher, importFullBackup: handleImportFullBackup,
     supervisorPassword, setSupervisorPassword,
     maghribPassword, setMaghribPassword,
+    teacherIbriPassword, setTeacherIbriPassword,
+    teacherOutsidePassword, setTeacherOutsidePassword,
     logout: handleLogout, isLoading, isLoadingFirebase, latestWeek: 0, lastUsedWeek, setLastUsedWeek,
     isTestActive: isTestActiveState, setIsTestActive,
     testScore: testScoreState, setTestScore,
@@ -1247,7 +1265,7 @@ const App: React.FC = () => {
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa, addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
     addStudentBehavior, updateStudentBehavior, deleteStudentBehavior, deleteAllStudentBehaviors,
     customLogo, setCustomLogo, addTeacher, updateTeacher, deleteTeacher, handleImportFullBackup,
-    supervisorPassword, setSupervisorPassword, maghribPassword, setMaghribPassword,
+    supervisorPassword, setSupervisorPassword, maghribPassword, setMaghribPassword, teacherIbriPassword, setTeacherIbriPassword, teacherOutsidePassword, setTeacherOutsidePassword,
     handleLogout, isLoading, isLoadingFirebase, lastUsedWeek, setLastUsedWeek,
     isTestActiveState, setIsTestActive, testScoreState, setTestScore, testNameState, setTestName, testDeductionsState, setTestDeductions,
     isNewStudentTestActiveState, setIsNewStudentTestActive, allowTeacherEditOldMemorizedState, setAllowTeacherEditOldMemorized, showAmeerToTeachersState, setShowAmeerToTeachers, reviewFeatureConfigState, setReviewFeatureConfig, newStudentTestScoreState, setNewStudentTestScore, newStudentPassingRateState, setNewStudentPassingRate, newStudentTestDeductionsState, setNewStudentTestDeductions,
