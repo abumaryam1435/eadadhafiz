@@ -1100,6 +1100,7 @@ export const SardManagement: React.FC = () => {
                                             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
                                                 {/* تعيين أمير حلقة السرد */}
                                                 <div className="flex items-center gap-1.5 bg-amber-50/90 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-xl border border-amber-300/80 dark:border-amber-700 shadow-2xs" title="تعيين أمير حلقة السرد">
+                                                    <span className="text-xs font-bold text-amber-950 dark:text-amber-200 whitespace-nowrap">أمير الحلقة:</span>
                                                     <select 
                                                         className="text-xs font-bold text-amber-950 dark:text-amber-200 bg-transparent focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[160px] truncate"
                                                         value={halaqa.ameerStudentId || 0}
@@ -1110,7 +1111,7 @@ export const SardManagement: React.FC = () => {
                                                             showToast(sid ? `✅ تم تعيين "${ameerStudent?.name}" أميراً لـ "${halaqa.name}"` : `تم إلغاء تعيين أمير حلقة "${halaqa.name}"`);
                                                         }}
                                                     >
-                                                        <option value="0">أمير الحلقة: غير محدد</option>
+                                                        <option value="0">-- غير محدد --</option>
                                                         {halaqaStudents.map(s => (
                                                             <option key={s.id} value={s.id}>{s.name}</option>
                                                         ))}
@@ -1253,23 +1254,26 @@ export const SardManagement: React.FC = () => {
                                                                     </div>
                                                                     <div className="flex items-center gap-1">
                                                                         {/* زر تعيين / إلغاء أمير حلقة السرد */}
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                const isCurrentAmeer = halaqa.ameerStudentId === student.id;
-                                                                                const newAmeerId = isCurrentAmeer ? undefined : student.id;
-                                                                                updateSardHalaqa({ ...halaqa, ameerStudentId: newAmeerId });
-                                                                                showToast(isCurrentAmeer ? `تم إلغاء تعيين أمير حلقة "${halaqa.name}"` : `✅ تم تعيين "${student.name}" أميراً لـ "${halaqa.name}"`);
-                                                                            }}
-                                                                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                                                                                student.id === halaqa.ameerStudentId 
-                                                                                    ? 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-200 ring-2 ring-amber-400 shadow-xs' 
-                                                                                    : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
-                                                                            }`}
-                                                                            title={student.id === halaqa.ameerStudentId ? 'إلغاء تعيينه كأمير للحلقة' : 'تعيينه أميراً للحلقة'}
-                                                                        >
-                                                                            <span className="text-[10px] font-black">{student.id === halaqa.ameerStudentId ? 'إلغاء الأمير' : 'تعيين كأمير'}</span>
-                                                                        </button>
+                                                                        <div className="flex items-center gap-1 bg-amber-50/80 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-lg border border-amber-200/80 dark:border-amber-800/60 shadow-2xs">
+                                                                            <span className="text-[10px] font-bold text-amber-900/90 dark:text-amber-200/90 whitespace-nowrap">أمير الحلقة:</span>
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const isCurrentAmeer = halaqa.ameerStudentId === student.id;
+                                                                                    const newAmeerId = isCurrentAmeer ? undefined : student.id;
+                                                                                    updateSardHalaqa({ ...halaqa, ameerStudentId: newAmeerId });
+                                                                                    showToast(isCurrentAmeer ? `تم إلغاء تعيين أمير حلقة "${halaqa.name}"` : `✅ تم تعيين "${student.name}" أميراً لـ "${halaqa.name}"`);
+                                                                                }}
+                                                                                className={`p-1 rounded-md transition-all cursor-pointer ${
+                                                                                    student.id === halaqa.ameerStudentId 
+                                                                                        ? 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-200 ring-2 ring-amber-400 shadow-xs' 
+                                                                                        : 'text-gray-500 hover:text-amber-700 hover:bg-amber-100'
+                                                                                }`}
+                                                                                title={student.id === halaqa.ameerStudentId ? 'إلغاء تعيينه كأمير للحلقة' : 'تعيينه أميراً للحلقة'}
+                                                                            >
+                                                                                <span className="text-[10px] font-black">{student.id === halaqa.ameerStudentId ? 'إلغاء الأمير' : 'تعيين كأمير'}</span>
+                                                                            </button>
+                                                                        </div>
 
                                                                         <button 
                                                                             onClick={() => setTransferringStudent(student)}

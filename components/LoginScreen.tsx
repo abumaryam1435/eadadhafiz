@@ -170,7 +170,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         }, 50);
       }
     } else if (mode === 'teacher_select') {
+      if (teacherSearchInputRef.current) {
+        teacherSearchInputRef.current.blur();
+      }
       setTimeout(() => {
+        if (teacherSearchInputRef.current) {
+          teacherSearchInputRef.current.blur();
+        }
         scrollSearchToTop();
       }, 80);
     }
@@ -230,6 +236,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         setError('');
         setPassword('');
         setTimeout(() => {
+          if (teacherSearchInputRef.current) {
+            teacherSearchInputRef.current.blur();
+          }
           scrollSearchToTop();
         }, 80);
       } else {
@@ -518,6 +527,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 <input 
                   ref={teacherSearchInputRef}
                   type="text" 
+                  autoFocus={false}
                   placeholder="ابحث عن اسمك..." 
                   value={teacherSearchTerm} 
                   onChange={e => {
@@ -528,7 +538,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   onClick={scrollSearchToTop}
                   className="input-style pr-12 pl-10 font-bold py-3.5 sm:py-4 w-full shadow-xs focus:ring-2 focus:ring-green-600 transition-all text-right" 
                   disabled={isLoadingFirebase} 
-                  autoFocus
                 />
                 <svg className="absolute right-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 {teacherSearchTerm && (
@@ -572,20 +581,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
                 <div className="flex items-center gap-2 mt-2">
                     <button 
+                      type="button"
                       onClick={() => setMode('teacher_category')} 
-                      className="flex-grow py-3 px-4 text-base font-black bg-red-50 text-red-700 border-2 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50 rounded-2xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-all shadow-sm active:scale-95 cursor-pointer"
+                      className="py-3 px-5 text-base font-black bg-red-50 text-red-700 border-2 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/50 rounded-2xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
                     >
                         رجوع
                     </button>
-                    <label className="flex items-center gap-2 cursor-pointer p-3 bg-amber-50 border-2 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800 rounded-2xl hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors shrink-0 active:scale-95 shadow-xs">
+                    <label className="flex-1 flex items-center justify-center gap-2 cursor-pointer p-3 bg-amber-50 border-2 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800 rounded-2xl hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors active:scale-95 shadow-xs">
                         <input 
                             type="checkbox" 
                             checked={rememberTeacher} 
                             onChange={e => setRememberTeacher(e.target.checked)}
                             className="w-4 h-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
                         />
-                        <span className="text-[11px] sm:text-xs font-black text-amber-900 dark:text-amber-200">
-                          تذكر دخولي كمعلم (الاحتفاظ بالاسم وكلمة المرور في زر دخول المعلم)
+                        <span className="text-xs sm:text-sm font-black text-amber-900 dark:text-amber-200">
+                          تذكر بيانات الدخول
                         </span>
                     </label>
                 </div>
