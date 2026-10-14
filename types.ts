@@ -288,6 +288,7 @@ export interface FullBackupData {
   cardConfig?: any;
   showAmeerToTeachers?: boolean;
   reviewFeatureConfig?: ReviewFeatureConfig;
+  parentReportsEnabled?: boolean;
 }
 
 export interface TeacherReviewPermission {

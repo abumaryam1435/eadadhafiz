@@ -15,6 +15,7 @@ import { MutoonManager } from "./MutoonManager";
 import { gregorianToHijriFormatted, HIJRI_MONTHS } from "../utils/exportPdf";
 import { HalaqaExcelImportModal } from "./HalaqaExcelImportModal";
 import { findSimilarHalaqa } from "../utils/searchUtils";
+import { generateParentLink, generateParentDirectPathLink, generateParentWhatsAppMessage, normalizeParentPhone, getParentRandomCode } from "../utils/parentReportUtils";
 
 declare const XLSX: any;
 
@@ -80,8 +81,26 @@ export const Settings: React.FC = () => {
   const setReviewFeatureConfig = context?.setReviewFeatureConfig || (() => {});
   const [reviewTeacherSearch, setReviewTeacherSearch] = useState<string>("");
   const [expandedReviewTeacherId, setExpandedReviewTeacherId] = useState<number | null>(null);
+  const parentReportsEnabled = context?.parentReportsEnabled ?? true;
+  const setParentReportsEnabled = context?.setParentReportsEnabled || (() => {});
+  const [parentSearchTerm, setParentSearchTerm] = useState('');
+  const [parentPortalBaseUrl, setParentPortalBaseUrl] = useState(() => {
+    return localStorage.getItem('parentPortalBaseUrl') || '';
+  });
+  const [customWhatsAppTemplate, setCustomWhatsAppTemplate] = useState(() => {
+    return localStorage.getItem('parentWhatsAppTemplate') || '';
+  });
+  const [bulkSentPhones, setBulkSentPhones] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('parent_bulk_sent_phones');
+      return s ? JSON.parse(s) : [];
+    } catch (_) {
+      return [];
+    }
+  });
+  const [parentFilterTab, setParentFilterTab] = useState<'all' | 'unsent' | 'sent'>('all');
 
-  const [activeSettingsView, setActiveSettingsView] = useState<"main" | "tests" | "customization" | "mutoon" | "review" | "passwords">("main");
+  const [activeSettingsView, setActiveSettingsView] = useState<"main" | "tests" | "customization" | "mutoon" | "review" | "passwords" | "parentReports">("main");
   
   // حالات تحرير كلمات المرور الجديدة (تكون الخانات فارغة للكتابة المباشرة)
   const [editingSupervisorPass, setEditingSupervisorPass] = useState('');
@@ -822,6 +841,13 @@ export const Settings: React.FC = () => {
         >
           <span>🔐</span>
           <span>إدارة كلمات المرور</span>
+        </button>
+        <button
+          className={`px-6 py-3 font-bold transition-all border-b-4 flex items-center gap-2 ${activeSettingsView === "parentReports" ? "text-green-700 border-green-700 dark:text-green-300" : "text-gray-400 border-transparent"}`}
+          onClick={() => setActiveSettingsView("parentReports")}
+        >
+          <span>🔗</span>
+          <span>روابط أولياء الأمور</span>
         </button>
       </div>
 
@@ -2261,6 +2287,501 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* تبويب روابط أولياء الأمور */}
+      {activeSettingsView === "parentReports" && (() => {
+        // تجميع أولياء الأمور الفريدين حسب أرقام الهواتف لتفادي التكرار
+        const parentGroups = (() => {
+          const map = new Map<string, { phone: string; norm: string; studentNames: string[]; students: any[] }>();
+          students.forEach(st => {
+            if (st.parentPhone && st.parentPhone.trim()) {
+              const norm = normalizeParentPhone(st.parentPhone);
+              if (norm) {
+                if (!map.has(norm)) {
+                  map.set(norm, { phone: st.parentPhone.trim(), norm, studentNames: [], students: [] });
+                }
+                const entry = map.get(norm)!;
+                entry.studentNames.push(st.name);
+                entry.students.push(st);
+              }
+            }
+          });
+          return Array.from(map.values());
+        })();
+
+        const totalParents = parentGroups.length;
+        const sentCount = parentGroups.filter(p => bulkSentPhones.includes(p.norm)).length;
+        const progressPercent = totalParents > 0 ? Math.round((sentCount / totalParents) * 100) : 0;
+        const nextTargetParent = parentGroups.find(p => !bulkSentPhones.includes(p.norm));
+        const nextIndex = nextTargetParent ? parentGroups.findIndex(p => p.norm === nextTargetParent.norm) : -1;
+
+        const handleSendNextBulk = () => {
+          if (!nextTargetParent) {
+            showToast('🎉 تم إرسال الروابط لجميع أولياء الأمور المسجلين!', 'info');
+            return;
+          }
+          const norm = nextTargetParent.norm;
+          const link = generateParentLink(nextTargetParent.phone);
+          const msg = generateParentWhatsAppMessage(nextTargetParent.studentNames, link, appName, customWhatsAppTemplate);
+          const waUrl = `https://wa.me/968${norm}?text=${encodeURIComponent(msg)}`;
+          
+          window.open(waUrl, '_blank');
+
+          const updated = Array.from(new Set([...bulkSentPhones, norm]));
+          setBulkSentPhones(updated);
+          localStorage.setItem('parent_bulk_sent_phones', JSON.stringify(updated));
+
+          showToast(`💬 تم فتح واتساب لولي أمر ${nextTargetParent.studentNames.join(' و ')} (${updated.length} / ${totalParents}). عند العودة اضغط للإرسال التالي.`, 'success');
+        };
+
+        const handleResetBulk = () => {
+          setBulkSentPhones([]);
+          localStorage.removeItem('parent_bulk_sent_phones');
+          showToast('🔄 تم إعادة تعيين مؤشر الإرسال للبدء من أول رقم', 'info');
+        };
+
+        return (
+          <div className="space-y-6 animate-fade-in" dir="rtl">
+            {/* قسم تفعيل الخدمة ورابط الموقع المعتمد */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* تفعيل / تعطيل الخدمة */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-200 dark:border-slate-800 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">🔗</span>
+                    <h4 className="text-base font-black text-gray-900 dark:text-white">
+                      حالة خدمة تقارير أولياء الأمور
+                    </h4>
+                  </div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-black ${
+                    parentReportsEnabled 
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                      : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300'
+                  }`}>
+                    {parentReportsEnabled ? 'مفعلة وتعمل ✅' : 'معطلة مؤقتاً ⛔'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newState = !parentReportsEnabled;
+                    setParentReportsEnabled(newState);
+                    showToast(newState ? '✅ تم تفعيل خدمة التقارير' : '⛔ تم تعطيل خدمة التقارير مؤقتاً', newState ? 'success' : 'info');
+                  }}
+                  className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-95 ${
+                    parentReportsEnabled
+                      ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {parentReportsEnabled ? 'تعطيل الخدمة' : 'تفعيل الخدمة'}
+                </button>
+              </div>
+
+              {/* رابط الموقع المعتمد (Netlify / Domain) */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-200 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                    <span>🌐</span>
+                    <span>رابط الموقع المعتمد (Netlify أو النطاق الخاص):</span>
+                  </label>
+                  {parentPortalBaseUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setParentPortalBaseUrl('');
+                        localStorage.removeItem('parentPortalBaseUrl');
+                        showToast('🔄 تم اعتماد الرابط التلقائي للصفحة', 'info');
+                      }}
+                      className="text-[11px] text-rose-600 hover:text-rose-700 font-bold underline"
+                    >
+                      استعادة التلقائي
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={parentPortalBaseUrl}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setParentPortalBaseUrl(val);
+                      localStorage.setItem('parentPortalBaseUrl', val.trim());
+                    }}
+                    placeholder="تلقائي: يعتمد على رابط الصفحة الحالي"
+                    className="flex-1 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 font-mono text-xs text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('parentPortalBaseUrl', parentPortalBaseUrl.trim());
+                      showToast('✅ تم حفظ رابط الموقع المعتمد', 'success');
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 cursor-pointer"
+                  >
+                    حفظ
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* الأداة الرئيسية: زر الإرسال الذكي لأولياء الأمور المتبقين */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-200 dark:border-slate-800 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-slate-800">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">⚡</span>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                      زر الإرسال الذكي (للمتبقين فقط)
+                    </h3>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    يرسل تلقائياً فقط لأولياء الأمور الذين لم يتم الإرسال لهم بعد — يمكنك إرسال دفعة اليوم ثم المتابعة غداً بكل سهولة
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {sentCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetBulk}
+                      className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      🔄 تصفير السجل للبدء من جديد
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* شريط مؤشر التقدم والإحصائيات */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2 py-2">
+                  <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl p-3 text-center">
+                    <span className="block text-[11px] font-bold text-emerald-800 dark:text-emerald-300">تم إرسالها ✅</span>
+                    <strong className="text-lg font-black font-mono text-emerald-700 dark:text-emerald-400">{sentCount}</strong>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 rounded-2xl p-3 text-center">
+                    <span className="block text-[11px] font-bold text-amber-800 dark:text-amber-300">المتبقي للإرسال ⏳</span>
+                    <strong className="text-lg font-black font-mono text-amber-700 dark:text-amber-400">{totalParents - sentCount}</strong>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/40 rounded-2xl p-3 text-center">
+                    <span className="block text-[11px] font-bold text-blue-800 dark:text-blue-300">الإجمالي المسجل 👥</span>
+                    <strong className="text-lg font-black font-mono text-blue-700 dark:text-blue-400">{totalParents}</strong>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-bold pt-1">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    نسبة الإنجاز:
+                  </span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black">
+                    {progressPercent}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full transition-all duration-300 rounded-full"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* الزر الرئيسي للإرسال الذكي */}
+              <div className="pt-2">
+                {nextTargetParent ? (
+                  <button
+                    type="button"
+                    onClick={handleSendNextBulk}
+                    className="w-full py-3.5 px-4 sm:px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black shadow-lg shadow-emerald-600/20 active:scale-98 transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center"
+                  >
+                    {/* السطر الأول: الإجراء ورقم الهاتف */}
+                    <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-bold flex-wrap">
+                      <span className="text-base sm:text-lg animate-bounce">⚡</span>
+                      <span>إرسال الرابط لولي الأمر التالي:</span>
+                      <span className="font-mono text-[11px] sm:text-xs bg-black/25 px-2 py-0.5 rounded-lg" dir="ltr">
+                        {nextTargetParent.phone}
+                      </span>
+                    </div>
+
+                    {/* السطر الثاني: اسم الطالب بوضوح في سطر مستقل */}
+                    <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
+                      <span className="text-xs sm:text-sm text-emerald-100 font-medium">الطالب:</span>
+                      <strong className="text-amber-300 text-sm sm:text-lg font-black underline underline-offset-4">
+                        {nextTargetParent.studentNames.join(' و ')}
+                      </strong>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="w-full py-4 px-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 font-black text-center text-sm flex items-center justify-center gap-2">
+                    <span className="text-xl">🎉</span>
+                    <span>اكتمل الإرسال! تم إرسال الروابط لجميع أولياء الأمور المسجلين ({totalParents} ولي أمر) بنجاح.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* تخصيص نص رسالة الواتساب */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs sm:text-sm font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+                  <span>✍️</span>
+                  <span>نص رسالة الواتساب المرسلة لولي الأمر:</span>
+                </h4>
+                {customWhatsAppTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomWhatsAppTemplate('');
+                      localStorage.removeItem('parentWhatsAppTemplate');
+                      showToast('🔄 تم استعادة النص الافتراضي', 'info');
+                    }}
+                    className="text-[11px] text-rose-600 hover:text-rose-700 font-bold underline"
+                  >
+                    استعادة النص الافتراضي
+                  </button>
+                )}
+              </div>
+
+              <textarea
+                rows={3}
+                value={customWhatsAppTemplate}
+                onChange={e => setCustomWhatsAppTemplate(e.target.value)}
+                placeholder={`السلام عليكم ورحمة الله وبركاته 🌿\n\nأهلاً بكم في *{appName}*.\n\nيسرنا مشاركتكم رابط تقرير متابعة الحفظ والمراجعة الأسبوعية الخاص بـ {student_names}:\n\n🔗 {link}\n\nنسأل الله تعالى لهم التوفيق والبركة في حفظ القرآن الكريم.`}
+                className="w-full p-3 rounded-2xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-900 dark:text-white leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-sans"
+                dir="rtl"
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                  <span>المتغيرات:</span>
+                  <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-mono text-emerald-600 dark:text-emerald-400 font-bold">{'{student_names}'}</code>
+                  <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-mono text-teal-600 dark:text-teal-400 font-bold">{'{link}'}</code>
+                  <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-mono text-blue-600 dark:text-blue-400 font-bold">{'{appName}'}</code>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('parentWhatsAppTemplate', customWhatsAppTemplate);
+                    showToast('✅ تم حفظ نص الرسالة', 'success');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  حفظ نص الرسالة
+                </button>
+              </div>
+            </div>
+            {/* دليل روابط الطلاب مع مؤشر حالة الإرسال والكود العشوائي */}
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-7 shadow-sm border border-gray-200 dark:border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-base font-black text-gray-900 dark:text-white">
+                    قائمة أولياء الأمور والطلاب المسجلين ({students.filter(s => s.parentPhone && s.parentPhone.trim()).length} طالب)
+                  </h4>
+                  <p className="text-xs text-gray-500">
+                    يمكنك إرسال أو نسخ الرابط لأي طالب مباشرة مع رمز الكود الخاص به
+                  </p>
+                </div>
+
+                <div className="w-full sm:w-64">
+                  <input
+                    type="text"
+                    value={parentSearchTerm}
+                    onChange={e => setParentSearchTerm(e.target.value)}
+                    placeholder="بحث باسم الطالب أو الهاتف..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* أزرار الفرز الذكي: الكل / غير المرسل لهم / تم الإرسال */}
+              <div className="flex items-center gap-2 p-1 bg-gray-100 dark:bg-slate-800/70 rounded-2xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => setParentFilterTab('all')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    parentFilterTab === 'all'
+                      ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+                  }`}
+                >
+                  الكل ({totalParents})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setParentFilterTab('unsent')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    parentFilterTab === 'unsent'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-amber-700 dark:text-amber-400 hover:bg-amber-100/50 dark:hover:bg-amber-950/40'
+                  }`}
+                >
+                  <span>⏳ غير المرسل لهم</span>
+                  <span className="font-mono bg-white/20 px-1.5 py-0.2 rounded-full text-[10px]">
+                    {totalParents - sentCount}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setParentFilterTab('sent')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    parentFilterTab === 'sent'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-950/40'
+                  }`}
+                >
+                  <span>✅ تم الإرسال لهم</span>
+                  <span className="font-mono bg-white/20 px-1.5 py-0.2 rounded-full text-[10px]">
+                    {sentCount}
+                  </span>
+                </button>
+              </div>
+
+              <div className="overflow-x-auto max-h-[500px] divide-y divide-gray-100 dark:divide-slate-800 border border-gray-200/60 dark:border-slate-800 rounded-2xl">
+                {students
+                  .filter(s => {
+                    const hasPhone = !!s.parentPhone && s.parentPhone.trim().length > 0;
+                    if (!hasPhone) return parentFilterTab === 'all';
+                    const norm = normalizeParentPhone(s.parentPhone!);
+                    const isSent = bulkSentPhones.includes(norm);
+
+                    if (parentFilterTab === 'unsent' && isSent) return false;
+                    if (parentFilterTab === 'sent' && !isSent) return false;
+
+                    if (!parentSearchTerm.trim()) return true;
+                    const term = parentSearchTerm.toLowerCase();
+                    return s.name.toLowerCase().includes(term) || (s.parentPhone && s.parentPhone.includes(term));
+                  })
+                  .map(st => {
+                    const hasPhone = !!st.parentPhone && st.parentPhone.trim().length > 0;
+                    const link = hasPhone ? generateParentLink(st.parentPhone!) : '';
+                    const norm = hasPhone ? normalizeParentPhone(st.parentPhone!) : '';
+                    const parentCode = hasPhone ? getParentRandomCode(norm) : '';
+                    const isSent = hasPhone && bulkSentPhones.includes(norm);
+                    const isNext = hasPhone && nextTargetParent?.norm === norm;
+
+                    return (
+                      <div key={st.id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-black text-sm flex items-center justify-center shrink-0">
+                            {st.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-gray-900 dark:text-white">
+                                {st.name}
+                              </span>
+                              {st.schoolStage && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400">
+                                  {st.schoolStage}
+                                </span>
+                              )}
+                              {hasPhone && (
+                                <>
+                                  {isSent ? (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                                      ✅ تم الإرسال
+                                    </span>
+                                  ) : isNext ? (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 animate-pulse">
+                                      👉 التالي للإرسال
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400">
+                                      ⏳ بانتظار الإرسال
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 flex items-center gap-2.5 mt-0.5 flex-wrap">
+                              <span>الهاتف:</span>
+                              {hasPhone ? (
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400" dir="ltr">
+                                  {st.parentPhone}
+                                </span>
+                              ) : (
+                                <span className="text-rose-500 font-bold">غير مسجل</span>
+                              )}
+                              {hasPhone && parentCode && (
+                                <span className="font-mono text-[11px] text-gray-400 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                  #{parentCode}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                          {hasPhone ? (
+                            <>
+                              <a
+                                href={link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold text-xs transition-colors"
+                              >
+                                عرض
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(link);
+                                  showToast(`📋 تم نسخ رابط تقرير ${st.name} مع الكود`, 'success');
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-300 font-bold text-xs cursor-pointer transition-colors"
+                              >
+                                نسخ الرابط
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const msg = generateParentWhatsAppMessage([st.name], link, appName, customWhatsAppTemplate);
+                                  const waUrl = `https://wa.me/968${norm}?text=${encodeURIComponent(msg)}`;
+                                  window.open(waUrl, '_blank');
+                                  
+                                  const updated = Array.from(new Set([...bulkSentPhones, norm]));
+                                  setBulkSentPhones(updated);
+                                  localStorage.setItem('parent_bulk_sent_phones', JSON.stringify(updated));
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors shadow-xs cursor-pointer"
+                              >
+                                واتساب
+                              </button>
+                              {/* زر لتبديل حالة الإرسال يدوياً */}
+                              <button
+                                type="button"
+                                title={isSent ? 'تحديد كغير مرسل' : 'تحديد كتم الإرسال'}
+                                onClick={() => {
+                                  let updated: string[];
+                                  if (isSent) {
+                                    updated = bulkSentPhones.filter(p => p !== norm);
+                                  } else {
+                                    updated = Array.from(new Set([...bulkSentPhones, norm]));
+                                  }
+                                  setBulkSentPhones(updated);
+                                  localStorage.setItem('parent_bulk_sent_phones', JSON.stringify(updated));
+                                  showToast(isSent ? '⏳ تم التحديد كـ غير مرسل' : '✅ تم التحديد كـ مرسل', 'info');
+                                }}
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer"
+                              >
+                                {isSent ? '↩️' : '✔️'}
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400">سجل الرقم لتفعيل الرابط</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

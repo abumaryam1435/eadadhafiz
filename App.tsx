@@ -17,6 +17,33 @@ import { preloadPagesOnIdle } from './utils/mushafPreload';
 import { initSwipeNavigation } from './utils/navigationHistory';
 import { PwaUpdater } from './PwaUpdater';
 import { findSimilarHalaqa } from './utils/searchUtils';
+import { ParentPortal } from './components/ParentPortal';
+import { normalizeParentPhone } from './utils/parentReportUtils';
+
+export const getParentPhoneFromUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const url = new URL(window.location.href);
+    // 1. Check search parameters (?parent=99375259 or ?phone=... or ?p=...)
+    const pParam = url.searchParams.get('parent') || url.searchParams.get('phone') || url.searchParams.get('p');
+    if (pParam) return decodeURIComponent(pParam).trim();
+
+    // 2. Check hash query params or hash path e.g. #?parent=99375259 or #/parent/99375259 or #parent=99375259
+    if (url.hash) {
+      const hash = url.hash;
+      const hashMatch = hash.match(/^#\/?parent\/([^/?#]+)/i);
+      if (hashMatch && hashMatch[1]) return decodeURIComponent(hashMatch[1]).trim();
+
+      const hashParamMatch = hash.match(/[?&#](?:parent|phone|p)=([^&#]+)/i);
+      if (hashParamMatch && hashParamMatch[1]) return decodeURIComponent(hashParamMatch[1]).trim();
+    }
+
+    // 3. Check pathname e.g. /parent/99375259
+    const pathMatch = url.pathname.match(/^\/parent\/([^/?#]+)/i);
+    if (pathMatch && pathMatch[1]) return decodeURIComponent(pathMatch[1]).trim();
+  } catch (_) {}
+  return null;
+};
 
 interface Toast {
   message: string;
@@ -158,6 +185,8 @@ interface AppContextType {
   resetCloudSettings: () => void;
   teacherSessionState?: TeacherSessionState;
   setTeacherSessionState?: React.Dispatch<React.SetStateAction<TeacherSessionState>>;
+  parentReportsEnabled?: boolean;
+  setParentReportsEnabled?: (enabled: boolean) => void;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -381,6 +410,22 @@ const App: React.FC = () => {
   const [unevaluatedQuranStudents, setUnevaluatedQuranStudents] = useState<string[]>([]);
   const [unevaluatedMutoonStudents, setUnevaluatedMutoonStudents] = useState<string[]>([]);
   const [unevaluatedSardStudents, setUnevaluatedSardStudents] = useState<string[]>([]);
+  const [parentReportsEnabledState, setParentReportsEnabledState] = useState<boolean>(() => initialBackupData?.parentReportsEnabled ?? true);
+  const [parentPortalPhone, setParentPortalPhone] = useState<string | null>(() => getParentPhoneFromUrl());
+
+  useEffect(() => {
+    document.title = 'إعداد حافظ';
+    const handleUrlChange = () => {
+      setParentPortalPhone(getParentPhoneFromUrl());
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
+
   const [teacherSessionState, setTeacherSessionState] = useState<TeacherSessionState>({
     activeView: 'evaluate',
     step: 'selectHalaqa',
@@ -473,6 +518,7 @@ const App: React.FC = () => {
       if (loadedConfig.manualRanks !== undefined) setManualRanksState(loadedConfig.manualRanks);
       if (loadedConfig.certificateConfig !== undefined) setCertificateConfigState(loadedConfig.certificateConfig);
       if (loadedConfig.cardConfig !== undefined) setCardConfigState(loadedConfig.cardConfig);
+      if (loadedConfig.parentReportsEnabled !== undefined) setParentReportsEnabledState(loadedConfig.parentReportsEnabled);
       if (loadedConfig.isDistributable) {
           setIsDistributable(true);
           setIsPublishedConnected(!!loadedConfig.isPublishedConnected);
@@ -515,11 +561,12 @@ const App: React.FC = () => {
             allowTeacherEditOldMemorized: allowTeacherEditOldMemorizedState,
             showAmeerToTeachers: showAmeerToTeachersState,
             reviewFeatureConfig: reviewFeatureConfigState,
+            parentReportsEnabled: parentReportsEnabledState,
             isDistributable, isPublishedConnected, firebaseConfig: firebaseConfigState
         };
         localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(dataToSave));
     }
-  }, [data, appName, customLogo, supervisorPassword, maghribPassword, teacherIbriPassword, teacherOutsidePassword, hijriAdjustments, colorMap, saveColors, rankColors, manualRanks, certificateConfig, cardConfig, isTestActiveState, testScoreState, testNameState, testDeductionsState, firebaseConfigState, isDistributable, isPublishedConnected, isLoading, allowTeacherEditOldMemorizedState, showAmeerToTeachersState, reviewFeatureConfigState]);
+  }, [data, appName, customLogo, supervisorPassword, maghribPassword, teacherIbriPassword, teacherOutsidePassword, hijriAdjustments, colorMap, saveColors, rankColors, manualRanks, certificateConfig, cardConfig, isTestActiveState, testScoreState, testNameState, testDeductionsState, firebaseConfigState, isDistributable, isPublishedConnected, isLoading, allowTeacherEditOldMemorizedState, showAmeerToTeachersState, reviewFeatureConfigState, parentReportsEnabledState]);
 
   useEffect(() => {
     if (!firebaseConfigState || Object.keys(firebaseConfigState).length === 0) {
@@ -575,6 +622,7 @@ const App: React.FC = () => {
             if(val.manualRanks !== undefined) setManualRanksState(val.manualRanks);
             if(val.certificateConfig !== undefined) setCertificateConfigState(val.certificateConfig);
             if(val.cardConfig !== undefined) setCardConfigState(val.cardConfig);
+            if(val.parentReportsEnabled !== undefined) setParentReportsEnabledState(val.parentReportsEnabled);
           }
           setIsLoadingFirebase(false);
           clearTimeout(timeoutId);
@@ -1144,6 +1192,10 @@ const App: React.FC = () => {
     setTestDeductionsState(safe);
     writeData('config/testDeductions', safe);
   }, [writeData]);
+  const setParentReportsEnabled = useCallback((enabled: boolean) => {
+    setParentReportsEnabledState(enabled);
+    writeData('config/parentReportsEnabled', enabled);
+  }, [writeData]);
   const toggleDarkMode = useCallback(() => setDarkMode(prev => !prev), []);
   const setColorMap = useCallback((map: Record<string, string>) => { setColorMapState(map); localStorage.setItem('testReportColorMap', JSON.stringify(map)); }, []);
   const setSaveColors = useCallback((save: boolean) => { setSaveColorsState(save); localStorage.setItem('testReportSaveColors', JSON.stringify(save)); }, []);
@@ -1259,7 +1311,9 @@ const App: React.FC = () => {
     syncSettingsToCloud,
     resetCloudSettings,
     teacherSessionState,
-    setTeacherSessionState
+    setTeacherSessionState,
+    parentReportsEnabled: parentReportsEnabledState,
+    setParentReportsEnabled
   }), [
     data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa, addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
@@ -1279,8 +1333,29 @@ const App: React.FC = () => {
     cardConfig, setCardConfig,
     testsSummaryFilteredData, setTestsSummaryFilteredData,
     syncSettingsToCloud, resetCloudSettings,
-    teacherSessionState, setTeacherSessionState
+    teacherSessionState, setTeacherSessionState,
+    parentReportsEnabledState, setParentReportsEnabled
   ]);
+
+  if (parentPortalPhone) {
+    return (
+      <AppContext.Provider value={contextValue}>
+        <div className={`min-h-screen min-h-[100dvh] w-full flex-1 transition-colors duration-300 flex flex-col ${darkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-gray-900'}`}>
+          <PwaUpdater />
+          <ParentPortal 
+            parentPhone={parentPortalPhone} 
+            onExit={() => {
+              setParentPortalPhone(null);
+              try {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, '', cleanUrl);
+              } catch (_) {}
+            }} 
+          />
+        </div>
+      </AppContext.Provider>
+    );
+  }
 
   return (
     <AppContext.Provider value={contextValue}>
