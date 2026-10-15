@@ -91,14 +91,60 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   }, [currentStudent, context?.evaluations, initialEvaluation.weekNumber, initialEvaluation.id]);
 
   const completedJuzsSet = studentQuranHistory.allFullJuzs;
-  const previousWeekPages = studentQuranHistory.prevWeekFullPages;
+  const previousWeekPages = useMemo(() => {
+    const combined = new Set<number>();
+    studentQuranHistory.prevWeekFullPages.forEach(p => combined.add(p));
+    studentQuranHistory.prevWeekPartialPages.forEach(p => combined.add(p));
+    return combined;
+  }, [studentQuranHistory]);
   const previouslyMemorizedPages = studentQuranHistory.priorFullPages;
 
   const [attendance, setAttendance] = useState<AttendanceStatus>(initialEvaluation.attendance);
   const [absenceReason, setAbsenceReason] = useState<AbsenceReason | undefined>(initialEvaluation.absenceReason);
   const [evaluationType, setEvaluationType] = useState<EvaluationType | undefined>(initialEvaluation.evaluationType);
   const [pages, setPages] = useState<number | 'not_ready' | 'review' | ''>(initialEvaluation.subject === 'mutoon' ? (initialEvaluation.evaluationType === EvaluationType.REVIEW ? 'review' : (initialEvaluation.pages === 0 ? 'not_ready' : (initialEvaluation.pages ?? ''))) : (initialEvaluation.pages ?? ''));
-  const [newMemorizedPages, setNewMemorizedPages] = useState<number[]>(initialEvaluation.newMemorizedPages || []);
+
+  // التحقق الدقيق مما إذا كان التحديد الأصلي تم بالسورة كاملة أم بالصفحات:
+  // إذا كانت الصفحات المسجلة موجودة ولكنها لا تشمل كامل صفحات السور المذكورة (مثل حفظ صفحة واحدة من سورة)،
+  // فإن التحديد كان قطعاً بالصفحات وليس بالسورة كاملة؛ ويجب عدم تحديد السورة حتى لا يتم استدعاء كامل صفحاتها بالخطأ!
+  const isOriginallySurahSelection = useMemo(() => {
+    if (initialEvaluation.subject === 'mutoon') return false;
+    if (!initialEvaluation.surahs || initialEvaluation.surahs.length === 0) return false;
+    if (!initialEvaluation.newMemorizedPages || initialEvaluation.newMemorizedPages.length === 0) return true;
+
+    const sIds = initialEvaluation.surahs.map(name => surahNames.indexOf(name)).filter(idx => idx > 0);
+    if (sIds.length === 0) return false;
+
+    const expectedPages = new Set<number>();
+    sIds.forEach(id => {
+      (surahPagesMap[id] || []).forEach(p => expectedPages.add(p));
+    });
+
+    const savedPages = new Set(initialEvaluation.newMemorizedPages);
+    if (savedPages.size !== expectedPages.size) return false;
+    for (const p of expectedPages) {
+      if (!savedPages.has(p)) return false;
+    }
+    return true;
+  }, [initialEvaluation]);
+
+  // إما التحديد بالصفحات أو بالسورة حصراً (تطبيق القاعدة بدقة تامة):
+  const [newMemorizedPages, setNewMemorizedPages] = useState<number[]>(() => {
+    if (isOriginallySurahSelection) return [];
+    return initialEvaluation.newMemorizedPages || [];
+  });
+
+  const [selectedSurahIds, setSelectedSurahIds] = useState<number[]>(() => {
+    if (isOriginallySurahSelection) {
+      return (initialEvaluation.surahs || []).map(name => surahNames.indexOf(name)).filter(idx => idx > 0);
+    }
+    return [];
+  });
+
+  const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>(() => {
+    return isOriginallySurahSelection ? 'surahs' : 'pages';
+  });
+
   const [selectedJuzForPages, setSelectedJuzForPages] = useState<number | null>(() => {
     if (initialEvaluation.subject === 'mutoon') return null;
     
@@ -119,18 +165,6 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     }
     // 3. كقيمة افتراضية فتح الجزء 30 ليكون التبويب ظاهراً وجاهزاً
     return 30;
-  });
-  const [selectedSurahIds, setSelectedSurahIds] = useState<number[]>(() => {
-    if (initialEvaluation.surahs && initialEvaluation.subject !== 'mutoon') {
-      return initialEvaluation.surahs.map(name => surahNames.indexOf(name)).filter(idx => idx > 0);
-    }
-    return [];
-  });
-  const [quranSelectionTab, setQuranSelectionTab] = useState<'pages' | 'surahs'>(() => {
-    if (initialEvaluation.surahs && initialEvaluation.surahs.length > 0 && (!initialEvaluation.newMemorizedPages || initialEvaluation.newMemorizedPages.length === 0)) {
-      return 'surahs';
-    }
-    return 'pages';
   });
   const juzPagesContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
@@ -1545,7 +1579,8 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
         isOpen={isMushafModalOpen}
         onClose={() => setIsMushafModalOpen(false)}
         newPages={selectionState.allActivePages}
-        previousWeekPages={previousWeekPages}
+        previousWeekPages={studentQuranHistory.prevWeekFullPages}
+        previousWeekPartialPages={studentQuranHistory.prevWeekPartialPages}
         studentName={student?.name}
         evalFath={initialEvaluation.isTest ? (Number(testFath) || 0) : (Number(evalFath) || 0)}
         setEvalFath={initialEvaluation.isTest ? setTestFath : setEvalFath}

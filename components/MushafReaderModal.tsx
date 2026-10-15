@@ -14,6 +14,7 @@ interface MushafReaderModalProps {
   onClose: () => void;
   newPages: number[];
   previousWeekPages?: Set<number> | number[];
+  previousWeekPartialPages?: Set<number> | number[];
   studentName?: string;
   evalFath?: number;
   setEvalFath?: (val: number | ((prev: number) => number)) => void;
@@ -48,6 +49,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   onClose,
   newPages,
   previousWeekPages = [],
+  previousWeekPartialPages = [],
   studentName,
   evalFath = 0,
   setEvalFath,
@@ -83,8 +85,12 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       ? Array.from(previousWeekPages)
       : (previousWeekPages || [])
     ).slice().sort((a, b) => a - b).join(',');
-    return `${n}|${p}`;
-  }, [newPages, previousWeekPages]);
+    const part = (previousWeekPartialPages instanceof Set
+      ? Array.from(previousWeekPartialPages)
+      : (previousWeekPartialPages || [])
+    ).slice().sort((a, b) => a - b).join(',');
+    return `${n}|${p}|${part}`;
+  }, [newPages, previousWeekPages, previousWeekPartialPages]);
 
   // Convert previousWeekPages to Set for fast lookup
   const prevWeekSet = useMemo(() => {
@@ -92,17 +98,25 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
     return new Set<number>(previousWeekPages || []);
   }, [pagesKey, previousWeekPages]);
 
+  const prevWeekPartialSet = useMemo(() => {
+    if (previousWeekPartialPages instanceof Set) return previousWeekPartialPages;
+    return new Set<number>(previousWeekPartialPages || []);
+  }, [pagesKey, previousWeekPartialPages]);
+
   const newPagesSet = useMemo(() => new Set<number>(newPages || []), [pagesKey, newPages]);
 
-  // Combine and sort relevant pages only
+  // Combine and sort relevant pages only: new pages + previous week full pages + previous week partial pages (dotted)
   const targetPages = useMemo(() => {
     const combined = new Set<number>();
     (newPages || []).forEach(p => combined.add(p));
     if (previousWeekPages) {
       previousWeekPages.forEach(p => combined.add(p));
     }
+    if (previousWeekPartialPages) {
+      previousWeekPartialPages.forEach(p => combined.add(p));
+    }
     return Array.from(combined).sort((a, b) => a - b);
-  }, [pagesKey, newPages, previousWeekPages]);
+  }, [pagesKey, newPages, previousWeekPages, previousWeekPartialPages]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState(false);
@@ -323,9 +337,10 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
     return sIds.map(id => surahNames[id]).filter(Boolean);
   }, [currentPage]);
 
-  // Page status: new memorization or previous week
+  // Page status: new memorization, previous week full, or previous week partial (منقطة)
   const isNew = newPagesSet.has(currentPage);
-  const isPrevWeek = prevWeekSet.has(currentPage);
+  const isPrevPartial = prevWeekPartialSet.has(currentPage) && !isNew;
+  const isPrevWeek = (prevWeekSet.has(currentPage) || isPrevPartial) && !isNew;
 
   const handleNext = useCallback(() => {
     if (currentIndex < targetPages.length - 1) {
@@ -525,7 +540,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 sm:bg-black/90 p-0 sm:p-2 overflow-hidden animate-fade-in select-none w-full h-full top-0 left-0 right-0 bottom-0" dir="rtl">
+    <div className="fixed inset-0 z-[50000] flex items-center justify-center bg-black/95 sm:bg-black/90 p-0 sm:p-2 overflow-hidden animate-fade-in select-none w-full h-full top-0 left-0 right-0 bottom-0" dir="rtl">
       <div 
         ref={containerRef}
         className={`bg-[#fbf9f4] dark:bg-gray-950 w-full h-full max-w-5xl rounded-none sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-amber-900/20 dark:border-gray-800 transition-all relative ${
@@ -673,8 +688,13 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                             جديد
                           </span>
                         )}
-                        {isPrevWeek && !isNew && (
-                          <span className="px-1.5 sm:px-2 py-0.5 rounded bg-[#8B4513] text-amber-100 text-[10px] sm:text-[11px] font-black shadow-xs shrink-0">
+                        {!isNew && isPrevPartial && (
+                          <span className="px-1.5 sm:px-2 py-0.5 rounded bg-amber-50 text-[#8B4513] border border-dashed border-[#8B4513] dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-500 text-[10px] sm:text-[11px] font-black shadow-xs shrink-0" title="صفحة غير مكتملة من الأسبوع السابق (منقطة الإطار)">
+                            سابق (منقط)
+                          </span>
+                        )}
+                        {!isNew && !isPrevPartial && isPrevWeek && (
+                          <span className="px-1.5 sm:px-2 py-0.5 rounded bg-[#8B4513] text-amber-100 text-[10px] sm:text-[11px] font-black shadow-xs shrink-0" title="صفحة مكتملة من الأسبوع السابق (بنية)">
                             سابق
                           </span>
                         )}
@@ -1382,7 +1402,8 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                   ) : (
                     filteredDropdownPages.map(page => {
                       const isPNew = newPagesSet.has(page);
-                      const isPPrev = prevWeekSet.has(page) && !isPNew;
+                      const isPPartial = prevWeekPartialSet.has(page) && !isPNew;
+                      const isPPrev = (prevWeekSet.has(page) || isPPartial) && !isPNew;
                       const isSelected = page === currentPage;
                       const pSurahs = (pageSurahsMap[page] || []).map(id => surahNames[id]).filter(Boolean);
 
@@ -1423,9 +1444,14 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                                     حفظ جديد
                                   </span>
                                 )}
-                                {isPPrev && (
+                                {isPPartial && (
+                                  <span className="text-[9px] bg-amber-50 text-[#8B4513] border border-dashed border-[#8B4513] dark:bg-amber-950/40 dark:text-amber-300 px-1.5 py-0.5 rounded-md font-bold">
+                                    سابق (منقط)
+                                  </span>
+                                )}
+                                {!isPPartial && isPPrev && (
                                   <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-500/30 px-1.5 py-0.5 rounded-md font-bold">
-                                    حفظ قديم
+                                    حفظ سابق
                                   </span>
                                 )}
                               </>

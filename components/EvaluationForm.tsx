@@ -234,7 +234,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   }, [student, context?.evaluations, selectedWeek, currentEval?.id]);
 
   const previousWeekPages = useMemo(() => {
-    return studentQuranHistory.prevWeekFullPages;
+    const combined = new Set<number>();
+    studentQuranHistory.prevWeekFullPages.forEach(p => combined.add(p));
+    studentQuranHistory.prevWeekPartialPages.forEach(p => combined.add(p));
+    return combined;
   }, [studentQuranHistory]);
 
   const previouslyMemorizedPages = useMemo(() => {
@@ -4472,7 +4475,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         isOpen={isMushafModalOpen}
         onClose={() => setIsMushafModalOpen(false)}
         newPages={subject === 'sard' ? sardActivePages : (evalType === EvaluationType.REVIEW ? Array.from(studentQuranHistory.newEvalsFullPages) : selectionState.allActivePages)}
-        previousWeekPages={subject === 'sard' ? undefined : (evalType === EvaluationType.REVIEW ? studentQuranHistory.oldFullPages : previousWeekPages)}
+        previousWeekPages={subject === 'sard' ? undefined : (evalType === EvaluationType.REVIEW ? studentQuranHistory.oldFullPages : studentQuranHistory.prevWeekFullPages)}
+        previousWeekPartialPages={subject === 'sard' ? undefined : (evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory.prevWeekPartialPages)}
         studentName={activeStudent?.name}
         evalFath={Number(subject === 'sard' ? sardFathErrors : evalFath) || 0}
         setEvalFath={subject === 'sard' ? setSardFathErrors : setEvalFath}
