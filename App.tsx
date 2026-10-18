@@ -1,6 +1,6 @@
 
 import React, { useState, createContext, useEffect, useCallback, useRef, useMemo } from 'react';
-import { User, Evaluation, UserRole, Student, Halaqa, FullBackupData, DeletedItem, MaghribAttendance, Suggestion, StudentBehavior, Matn, SardHalaqa, SardEvaluation, NewStudentTest, ReviewFeatureConfig } from './types';
+import { User, Evaluation, UserRole, Student, Halaqa, FullBackupData, DeletedItem, MaghribAttendance, Suggestion, StudentBehavior, Matn, SardHalaqa, SardEvaluation, IlmiyyaHalaqa, IlmiyyaAttendance, NewStudentTest, ReviewFeatureConfig, AttendanceStatus, AbsenceReason, MaghribAttendanceStatus, EvaluationType } from './types';
 import { INITIAL_USERS, DEFAULT_APP_NAME, DEFAULT_MAGHRIB_PASSWORD } from './constants';
 import LoginScreen from './components/LoginScreen';
 import SupervisorDashboard from './components/SupervisorDashboard';
@@ -52,7 +52,7 @@ interface Toast {
 }
 
 export interface TeacherSessionState {
-  activeView: 'menu' | 'evaluate' | 'test' | 'newStudentTest' | 'behaviors';
+  activeView: 'menu' | 'evaluate' | 'test' | 'newStudentTest' | 'behaviors' | 'ilmiyya';
   step: string;
   selectedWeek: number | null;
 }
@@ -62,8 +62,10 @@ interface AppContextType {
   students: Student[];
   halaqas: Halaqa[];
   sardHalaqas: SardHalaqa[];
+  ilmiyyaHalaqas: IlmiyyaHalaqa[];
   evaluations: Evaluation[];
   sardEvaluations: SardEvaluation[];
+  ilmiyyaAttendances: IlmiyyaAttendance[];
   maghribAttendances: MaghribAttendance[]; 
   suggestions: Suggestion[];
   studentBehaviors: StudentBehavior[];
@@ -89,6 +91,7 @@ interface AppContextType {
   deleteStudent: (studentId: number) => void;
   resetAllStudentsLevelToAuto: () => void;
   assignStudentToSardHalaqa: (studentId: number, sardHalaqaId?: number) => void;
+  assignStudentToIlmiyyaHalaqa: (studentId: number, ilmiyyaHalaqaId?: number) => void;
   addHalaqa: (halaqa: Omit<Halaqa, 'id'>) => number;
   updateHalaqa: (halaqa: Halaqa) => void;
   deleteHalaqa: (halaqaId: number) => void;
@@ -97,6 +100,12 @@ interface AppContextType {
   updateSardHalaqa: (sardHalaqa: SardHalaqa) => void;
   deleteSardHalaqa: (sardHalaqaId: number) => void;
   assignTeacherToSardHalaqa: (sardHalaqaId: number, teacherId: number) => void;
+  addIlmiyyaHalaqa: (halaqa: Omit<IlmiyyaHalaqa, 'id'>) => number;
+  updateIlmiyyaHalaqa: (halaqa: IlmiyyaHalaqa) => void;
+  deleteIlmiyyaHalaqa: (halaqaId: number) => void;
+  assignTeachersToIlmiyyaHalaqa: (halaqaId: number, teacherIds: number[]) => void;
+  saveIlmiyyaAttendances: (records: Omit<IlmiyyaAttendance, 'id' | 'updatedAt'>[]) => void;
+  deleteIlmiyyaAttendance: (id: number) => void;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'updatedAt'>) => void;
   updateSuggestion: (suggestion: Suggestion) => void;
   deleteSuggestion: (suggestionId: number) => void;
@@ -273,9 +282,11 @@ const App: React.FC = () => {
     users: User[];
     halaqas: Halaqa[];
     sardHalaqas: SardHalaqa[];
+    ilmiyyaHalaqas: IlmiyyaHalaqa[];
     students: Student[];
     evaluations: Evaluation[];
     sardEvaluations: SardEvaluation[];
+    ilmiyyaAttendances: IlmiyyaAttendance[];
     maghribAttendances: MaghribAttendance[];
     suggestions: Suggestion[];
     studentBehaviors: StudentBehavior[];
@@ -285,6 +296,7 @@ const App: React.FC = () => {
     users: initialBackupData?.users || INITIAL_USERS,
     halaqas: initialBackupData?.halaqas || [],
     sardHalaqas: initialBackupData?.sardHalaqas || [],
+    ilmiyyaHalaqas: initialBackupData?.ilmiyyaHalaqas || [],
     students: (initialBackupData?.students || []).map(s => ({
       ...s,
       isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true,
@@ -294,6 +306,7 @@ const App: React.FC = () => {
     })),
     evaluations: initialBackupData?.evaluations || [],
     sardEvaluations: initialBackupData?.sardEvaluations || [],
+    ilmiyyaAttendances: initialBackupData?.ilmiyyaAttendances || [],
     maghribAttendances: initialBackupData?.maghribAttendances || [],
     suggestions: initialBackupData?.suggestions || [],
     studentBehaviors: initialBackupData?.studentBehaviors || [],
@@ -489,9 +502,11 @@ const App: React.FC = () => {
         users: loadedConfig?.users || prev.users || INITIAL_USERS,
         halaqas: loadedConfig?.halaqas || prev.halaqas || [],
         sardHalaqas: loadedConfig?.sardHalaqas || prev.sardHalaqas || [],
+        ilmiyyaHalaqas: loadedConfig?.ilmiyyaHalaqas || prev.ilmiyyaHalaqas || [],
         students: loadedConfig?.students || prev.students || [],
         evaluations: loadedConfig?.evaluations || prev.evaluations || [],
         sardEvaluations: loadedConfig?.sardEvaluations || prev.sardEvaluations || [],
+        ilmiyyaAttendances: loadedConfig?.ilmiyyaAttendances || prev.ilmiyyaAttendances || [],
         maghribAttendances: loadedConfig?.maghribAttendances || prev.maghribAttendances || [],
         suggestions: loadedConfig?.suggestions || prev.suggestions || [],
         studentBehaviors: loadedConfig?.studentBehaviors || prev.studentBehaviors || [],
@@ -662,9 +677,11 @@ const App: React.FC = () => {
         syncTable('users', 'data/users');
         syncTable('halaqas', 'data/halaqas');
         syncTable('sardHalaqas', 'data/sardHalaqas');
+        syncTable('ilmiyyaHalaqas', 'data/ilmiyyaHalaqas');
         syncTable('students', 'data/students');
         syncTable('evaluations', 'data/evaluations');
         syncTable('sardEvaluations', 'data/sardEvaluations');
+        syncTable('ilmiyyaAttendances', 'data/ilmiyyaAttendances');
         syncTable('maghribAttendances', 'data/maghribAttendances');
         syncTable('suggestions', 'data/suggestions');
         syncTable('studentBehaviors', 'data/studentBehaviors');
@@ -686,9 +703,11 @@ const App: React.FC = () => {
             db.ref('data/users').off();
             db.ref('data/halaqas').off();
             db.ref('data/sardHalaqas').off();
+            db.ref('data/ilmiyyaHalaqas').off();
             db.ref('data/students').off();
             db.ref('data/evaluations').off();
             db.ref('data/sardEvaluations').off();
+            db.ref('data/ilmiyyaAttendances').off();
             db.ref('data/maghribAttendances').off();
             db.ref('data/suggestions').off();
             db.ref('data/studentBehaviors').off();
@@ -765,19 +784,276 @@ const App: React.FC = () => {
     }
   };
 
+  // مزامنة تقييم الحفظ والمتون (برنامج العصر) مع إدارة الحضور وبرنامج المغرب
+  const syncEvaluationToMaghribAttendance = (ev: any) => {
+    if (!ev || !ev.studentId || !ev.weekNumber || ev.isTest) return;
+    const existingAsr = (data.maghribAttendances || []).find(
+      m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && m.programType === 'asr'
+    );
+    if (ev.attendance === AttendanceStatus.ABSENT) {
+      const status = ev.absenceReason === AbsenceReason.WITH_EXCUSE 
+        ? MaghribAttendanceStatus.EXCUSED 
+        : MaghribAttendanceStatus.ABSENT;
+      const asrId = existingAsr ? existingAsr.id : generateId();
+      writeData(`data/maghribAttendances/${asrId}`, {
+        id: asrId,
+        studentId: ev.studentId,
+        weekNumber: Number(ev.weekNumber),
+        status,
+        date: ev.evaluationDate || new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        programType: 'asr',
+        updatedAt: Date.now(),
+      });
+
+      // التسجيل التلقائي كغائب في برنامج المغرب (السرد والحلقات العلمية وإدارة حضور المغرب) إن لم يثبت حضوره
+      const existingMaghrib = (data.maghribAttendances || []).find(
+        m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+      );
+      if (!existingMaghrib || existingMaghrib.status === MaghribAttendanceStatus.ABSENT || existingMaghrib.status === MaghribAttendanceStatus.EXCUSED) {
+        const maghribId = existingMaghrib ? existingMaghrib.id : generateId();
+        const maghribAtt = {
+          id: maghribId,
+          studentId: ev.studentId,
+          weekNumber: Number(ev.weekNumber),
+          status,
+          date: ev.evaluationDate || new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
+          programType: 'maghrib',
+          updatedAt: Date.now(),
+        };
+        writeData(`data/maghribAttendances/${maghribId}`, maghribAtt);
+        syncAttendanceToEvaluations(maghribAtt);
+      }
+    } else if (existingAsr && existingAsr.status !== MaghribAttendanceStatus.LATE) {
+      const hasOtherAsrAbsence = (data.evaluations || []).some(
+        e => e.id !== ev.id && e.studentId === ev.studentId && Number(e.weekNumber) === Number(ev.weekNumber) && !e.isTest && e.attendance === AttendanceStatus.ABSENT
+      );
+      if (!hasOtherAsrAbsence) {
+        writeData(`data/maghribAttendances/${existingAsr.id}`, null);
+      }
+    }
+  };
+
+  // مزامنة تقييم السرد (برنامج المغرب) مع إدارة الحضور
+  const syncSardToMaghribAttendance = (ev: any) => {
+    if (!ev || !ev.studentId || !ev.weekNumber) return;
+    const existing = (data.maghribAttendances || []).find(
+      m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+    );
+    if (ev.attendance === AttendanceStatus.ABSENT) {
+      const status = ev.absenceReason === AbsenceReason.WITH_EXCUSE 
+        ? MaghribAttendanceStatus.EXCUSED 
+        : MaghribAttendanceStatus.ABSENT;
+      const id = existing ? existing.id : generateId();
+      writeData(`data/maghribAttendances/${id}`, {
+        id,
+        studentId: ev.studentId,
+        weekNumber: Number(ev.weekNumber),
+        status,
+        date: ev.date || new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        programType: 'maghrib',
+        updatedAt: Date.now(),
+      });
+    } else if (existing && existing.status !== MaghribAttendanceStatus.LATE) {
+      const isAbsentInIlmiyya = (data.ilmiyyaAttendances || []).some(
+        ia => ia.studentId === ev.studentId && Number(ia.weekNumber) === Number(ev.weekNumber) && ia.status === AttendanceStatus.ABSENT
+      );
+      if (!isAbsentInIlmiyya) {
+        writeData(`data/maghribAttendances/${existing.id}`, null);
+      }
+    }
+  };
+
+  // مزامنة تسجيل إدارة الحضور مع استمارة التقييم (والعكس صحيح)
+  const syncAttendanceToEvaluations = (att: any) => {
+    if (!att || !att.studentId || !att.weekNumber) return;
+    const student = (data.students || []).find(s => s.id === att.studentId);
+    if (!student) return;
+
+    const isAsr = att.programType === 'asr';
+    const isAbsent = att.status === MaghribAttendanceStatus.ABSENT || att.status === MaghribAttendanceStatus.EXCUSED;
+    const absenceReason = att.status === MaghribAttendanceStatus.EXCUSED 
+      ? AbsenceReason.WITH_EXCUSE 
+      : AbsenceReason.WITHOUT_EXCUSE;
+
+    if (isAsr) {
+      // برنامج العصر هو برنامج الحفظ في التقييم
+      const existingEval = (data.evaluations || []).find(
+        e => e.studentId === att.studentId && 
+             Number(e.weekNumber) === Number(att.weekNumber) && 
+             e.subject !== 'mutoon' && 
+             !e.isTest
+      );
+
+      if (isAbsent) {
+        if (existingEval) {
+          if (existingEval.attendance !== AttendanceStatus.ABSENT || existingEval.absenceReason !== absenceReason) {
+            writeData(`data/evaluations/${existingEval.id}`, {
+              ...existingEval,
+              attendance: AttendanceStatus.ABSENT,
+              absenceReason,
+              updatedAt: Date.now(),
+            });
+          }
+        } else {
+          const id = generateId();
+          const halaqa = (data.halaqas || []).find(h => h.id === student.halaqaId);
+          writeData(`data/evaluations/${id}`, {
+            id,
+            studentId: student.id,
+            halaqaId: student.halaqaId || 0,
+            teacherId: halaqa?.teacherId || 0,
+            weekNumber: Number(att.weekNumber),
+            attendance: AttendanceStatus.ABSENT,
+            absenceReason,
+            evaluationType: EvaluationType.DID_NOT_MEMORIZE,
+            pages: 0,
+            notes: 'مسجل غائب من إدارة الحضور (برنامج العصر)',
+            evaluationDate: att.date || new Date().toISOString().split('T')[0],
+            updatedAt: id,
+          });
+        }
+
+        // التسجيل التلقائي كغائب في برنامج المغرب إن لم يثبت حضوره بعد
+        const existingMaghrib = (data.maghribAttendances || []).find(
+          m => m.studentId === att.studentId && Number(m.weekNumber) === Number(att.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+        );
+        if (!existingMaghrib || existingMaghrib.status === MaghribAttendanceStatus.ABSENT || existingMaghrib.status === MaghribAttendanceStatus.EXCUSED) {
+          const maghribId = existingMaghrib ? existingMaghrib.id : generateId();
+          const maghribAtt = {
+            id: maghribId,
+            studentId: att.studentId,
+            weekNumber: Number(att.weekNumber),
+            status: att.status,
+            date: att.date || new Date().toISOString().split('T')[0],
+            time: att.time || new Date().toTimeString().slice(0, 5),
+            programType: 'maghrib',
+            updatedAt: Date.now(),
+          };
+          writeData(`data/maghribAttendances/${maghribId}`, maghribAtt);
+          syncAttendanceToEvaluations(maghribAtt);
+        }
+      }
+    } else {
+      // برنامج المغرب هو برنامج السرد أو الحلقات العلمية
+      if (student.sardHalaqaId) {
+        const existingSard = (data.sardEvaluations || []).find(
+          se => se.studentId === att.studentId && Number(se.weekNumber) === Number(att.weekNumber)
+        );
+        if (isAbsent) {
+          if (existingSard) {
+            if (existingSard.attendance !== AttendanceStatus.ABSENT || existingSard.absenceReason !== absenceReason) {
+              writeData(`data/sardEvaluations/${existingSard.id}`, {
+                ...existingSard,
+                attendance: AttendanceStatus.ABSENT,
+                absenceReason,
+                grade: 'غائب',
+                updatedAt: Date.now(),
+              });
+            }
+          } else {
+            const id = generateId();
+            const sardHalaqa = (data.sardHalaqas || []).find(sh => sh.id === student.sardHalaqaId);
+            writeData(`data/sardEvaluations/${id}`, {
+              id,
+              studentId: student.id,
+              sardHalaqaId: student.sardHalaqaId,
+              teacherId: sardHalaqa?.teacherId || 0,
+              weekNumber: Number(att.weekNumber),
+              date: att.date || new Date().toISOString().split('T')[0],
+              attendance: AttendanceStatus.ABSENT,
+              absenceReason,
+              juzList: [],
+              surahs: [],
+              pageRanges: [],
+              pagesCount: 0,
+              hesitationErrors: 0,
+              fathErrors: 0,
+              tajweedErrors: 0,
+              totalErrors: 0,
+              grade: 'غائب',
+              notes: 'مسجل غائب من إدارة الحضور (برنامج المغرب)',
+              updatedAt: id,
+            });
+          }
+        }
+      }
+
+      // الحلقات العلمية (خاصة بطلاب الأمين)
+      if (student.isAlAmeen || student.ilmiyyaHalaqaId) {
+        const existingIlmiyya = (data.ilmiyyaAttendances || []).find(
+          ia => ia.studentId === att.studentId && Number(ia.weekNumber) === Number(att.weekNumber)
+        );
+        if (isAbsent) {
+          const ilmiyyaHalaqa = (data.ilmiyyaHalaqas || []).find(ih => ih.id === student.ilmiyyaHalaqaId) || data.ilmiyyaHalaqas?.[0];
+          const id = existingIlmiyya ? existingIlmiyya.id : generateId();
+          writeData(`data/ilmiyyaAttendances/${id}`, {
+            id,
+            studentId: student.id,
+            ilmiyyaHalaqaId: ilmiyyaHalaqa?.id || 0,
+            teacherId: ilmiyyaHalaqa?.teacherId || (ilmiyyaHalaqa?.teacherIds?.[0]) || 0,
+            weekNumber: Number(att.weekNumber),
+            date: att.date || new Date().toISOString().split('T')[0],
+            status: AttendanceStatus.ABSENT,
+            absenceReason,
+            notes: 'مسجل غائب من إدارة الحضور (برنامج المغرب)',
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
+  };
+
   const addEvaluation = (ev: any) => {
     const id = generateId();
     writeData(`data/evaluations/${id}`, { ...ev, id, updatedAt: id });
+    syncEvaluationToMaghribAttendance(ev);
   };
-  const updateEvaluation = (ev: any) => writeData(`data/evaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
-  const deleteEvaluation = (id: number) => writeData(`data/evaluations/${id}`, null);
+  const updateEvaluation = (ev: any) => {
+    writeData(`data/evaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
+    syncEvaluationToMaghribAttendance(ev);
+  };
+  const deleteEvaluation = (id: number) => {
+    const ev = (data.evaluations || []).find(e => e.id === id);
+    writeData(`data/evaluations/${id}`, null);
+    if (ev && ev.attendance === AttendanceStatus.ABSENT) {
+      const existing = (data.maghribAttendances || []).find(
+        m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && m.programType === 'asr'
+      );
+      if (existing) {
+        writeData(`data/maghribAttendances/${existing.id}`, null);
+      }
+    }
+  };
 
   const addSardEvaluation = (ev: any) => {
     const id = generateId();
     writeData(`data/sardEvaluations/${id}`, { ...ev, id, updatedAt: id });
+    syncSardToMaghribAttendance(ev);
   };
-  const updateSardEvaluation = (ev: any) => writeData(`data/sardEvaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
-  const deleteSardEvaluation = (id: number) => writeData(`data/sardEvaluations/${id}`, null);
+  const updateSardEvaluation = (ev: any) => {
+    writeData(`data/sardEvaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
+    syncSardToMaghribAttendance(ev);
+  };
+  const deleteSardEvaluation = (id: number) => {
+    const ev = (data.sardEvaluations || []).find(e => e.id === id);
+    writeData(`data/sardEvaluations/${id}`, null);
+    if (ev && ev.attendance === AttendanceStatus.ABSENT) {
+      const existing = (data.maghribAttendances || []).find(
+        m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+      );
+      if (existing) {
+        const isAbsentInIlmiyya = (data.ilmiyyaAttendances || []).some(
+          ia => ia.studentId === ev.studentId && Number(ia.weekNumber) === Number(ev.weekNumber) && ia.status === AttendanceStatus.ABSENT
+        );
+        if (!isAbsentInIlmiyya) {
+          writeData(`data/maghribAttendances/${existing.id}`, null);
+        }
+      }
+    }
+  };
   const deleteAllSardEvaluations = useCallback(async () => {
     writeData('data/sardEvaluations', null);
   }, []);
@@ -786,8 +1062,67 @@ const App: React.FC = () => {
     const existing = (data.maghribAttendances || []).find(m => m.studentId === att.studentId && m.weekNumber === att.weekNumber && (m.programType === att.programType || (!m.programType && att.programType === 'maghrib')));
     const id = existing ? existing.id : generateId();
     writeData(`data/maghribAttendances/${id}`, { ...att, id, updatedAt: Date.now() });
+    syncAttendanceToEvaluations(att);
   };
-  const deleteMaghribAttendance = (id: number) => writeData(`data/maghribAttendances/${id}`, null);
+  const deleteMaghribAttendance = (id: number) => {
+    const att = (data.maghribAttendances || []).find(m => m.id === id);
+    writeData(`data/maghribAttendances/${id}`, null);
+    if (att) {
+      if (att.programType === 'asr') {
+        const ev = (data.evaluations || []).find(
+          e => e.studentId === att.studentId && 
+               Number(e.weekNumber) === Number(att.weekNumber) && 
+               e.subject !== 'mutoon' && 
+               !e.isTest && 
+               e.attendance === AttendanceStatus.ABSENT
+        );
+        if (ev) {
+          if (ev.notes === 'مسجل غائب من إدارة الحضور (برنامج العصر)' || (!ev.pages || ev.pages === 0)) {
+            writeData(`data/evaluations/${ev.id}`, null);
+          } else {
+            writeData(`data/evaluations/${ev.id}`, {
+              ...ev,
+              attendance: AttendanceStatus.PRESENT,
+              absenceReason: undefined,
+              updatedAt: Date.now(),
+            });
+          }
+        }
+      } else {
+        const sardEv = (data.sardEvaluations || []).find(
+          se => se.studentId === att.studentId && 
+                Number(se.weekNumber) === Number(att.weekNumber) && 
+                se.attendance === AttendanceStatus.ABSENT
+        );
+        if (sardEv) {
+          if (sardEv.notes === 'مسجل غائب من إدارة الحضور (برنامج المغرب)' || (!sardEv.pagesCount && sardEv.grade === 'غائب')) {
+            writeData(`data/sardEvaluations/${sardEv.id}`, null);
+          } else {
+            writeData(`data/sardEvaluations/${sardEv.id}`, {
+              ...sardEv,
+              attendance: AttendanceStatus.PRESENT,
+              absenceReason: undefined,
+              grade: '',
+              updatedAt: Date.now(),
+            });
+          }
+        }
+        const ilmiyyaAtt = (data.ilmiyyaAttendances || []).find(
+          ia => ia.studentId === att.studentId && 
+                Number(ia.weekNumber) === Number(att.weekNumber) &&
+                ia.status === AttendanceStatus.ABSENT
+        );
+        if (ilmiyyaAtt) {
+          writeData(`data/ilmiyyaAttendances/${ilmiyyaAtt.id}`, {
+            ...ilmiyyaAtt,
+            status: AttendanceStatus.PRESENT,
+            absenceReason: undefined,
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
+  };
 
   const addStudent = (s: any) => {
     const id = generateId();
@@ -820,6 +1155,13 @@ const App: React.FC = () => {
     const s = (data.students || []).find(x => x.id === studentId);
     if (s) {
       writeData(`data/students/${studentId}`, { ...s, sardHalaqaId: sardHalaqaId || null, updatedAt: Date.now() });
+    }
+  };
+
+  const assignStudentToIlmiyyaHalaqa = (studentId: number, ilmiyyaHalaqaId?: number) => {
+    const s = (data.students || []).find(x => x.id === studentId);
+    if (s) {
+      writeData(`data/students/${studentId}`, { ...s, ilmiyyaHalaqaId: ilmiyyaHalaqaId || null, updatedAt: Date.now() });
     }
   };
 
@@ -879,6 +1221,76 @@ const App: React.FC = () => {
   const assignTeacherToSardHalaqa = (sardHalaqaId: number, teacherId: number) => {
     const h = (data.sardHalaqas || []).find(x => x.id === sardHalaqaId);
     if (h) writeData(`data/sardHalaqas/${sardHalaqaId}`, { ...h, teacherId, updatedAt: Date.now() });
+  };
+
+  const addIlmiyyaHalaqa = (h: any) => {
+    const id = generateId();
+    writeData(`data/ilmiyyaHalaqas/${id}`, { ...h, id, updatedAt: id });
+    return id;
+  };
+  const updateIlmiyyaHalaqa = (h: any) => {
+    writeData(`data/ilmiyyaHalaqas/${h.id}`, { ...h, updatedAt: Date.now() });
+  };
+  const deleteIlmiyyaHalaqa = (id: number) => {
+    const studentsInHalaqa = (data.students || []).filter(s => s.ilmiyyaHalaqaId === id);
+    studentsInHalaqa.forEach(s => writeData(`data/students/${s.id}`, { ...s, ilmiyyaHalaqaId: null, updatedAt: Date.now() }));
+    writeData(`data/ilmiyyaHalaqas/${id}`, null);
+  };
+  const assignTeachersToIlmiyyaHalaqa = (halaqaId: number, teacherIds: number[]) => {
+    const h = (data.ilmiyyaHalaqas || []).find(x => x.id === halaqaId);
+    if (h) {
+      writeData(`data/ilmiyyaHalaqas/${halaqaId}`, {
+        ...h,
+        teacherIds,
+        teacherId: teacherIds[0] || 0,
+        updatedAt: Date.now()
+      });
+    }
+  };
+  const syncIlmiyyaToMaghribAttendance = (records: any[]) => {
+    records.forEach(rec => {
+      if (!rec || !rec.studentId || !rec.weekNumber) return;
+      const existing = (data.maghribAttendances || []).find(
+        m => m.studentId === rec.studentId && Number(m.weekNumber) === Number(rec.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+      );
+      if (rec.status === AttendanceStatus.ABSENT) {
+        const status = rec.absenceReason === AbsenceReason.WITH_EXCUSE 
+          ? MaghribAttendanceStatus.EXCUSED 
+          : MaghribAttendanceStatus.ABSENT;
+        const id = existing ? existing.id : generateId();
+        writeData(`data/maghribAttendances/${id}`, {
+          id,
+          studentId: rec.studentId,
+          weekNumber: Number(rec.weekNumber),
+          status,
+          date: rec.date || new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
+          programType: 'maghrib',
+          updatedAt: Date.now(),
+        });
+      } else if (existing && existing.status !== MaghribAttendanceStatus.LATE) {
+        const isAbsentInSard = (data.sardEvaluations || []).some(
+          se => se.studentId === rec.studentId && Number(se.weekNumber) === Number(rec.weekNumber) && se.attendance === AttendanceStatus.ABSENT
+        );
+        if (!isAbsentInSard) {
+          writeData(`data/maghribAttendances/${existing.id}`, null);
+        }
+      }
+    });
+  };
+
+  const saveIlmiyyaAttendances = (records: Omit<IlmiyyaAttendance, 'id' | 'updatedAt'>[]) => {
+    records.forEach(rec => {
+      const existing = (data.ilmiyyaAttendances || []).find(
+        a => a.studentId === rec.studentId && Number(a.weekNumber) === Number(rec.weekNumber) && Number(a.ilmiyyaHalaqaId) === Number(rec.ilmiyyaHalaqaId)
+      );
+      const id = existing ? existing.id : generateId();
+      writeData(`data/ilmiyyaAttendances/${id}`, { ...rec, id, updatedAt: Date.now() });
+    });
+    syncIlmiyyaToMaghribAttendance(records);
+  };
+  const deleteIlmiyyaAttendance = (id: number) => {
+    writeData(`data/ilmiyyaAttendances/${id}`, null);
   };
 
   const addMatn = (m: any) => {
@@ -1129,9 +1541,11 @@ const App: React.FC = () => {
               users: toObj(d.users || []),
               halaqas: toObj(d.halaqas || []),
               sardHalaqas: toObj(d.sardHalaqas || []),
+              ilmiyyaHalaqas: toObj(d.ilmiyyaHalaqas || []),
               students: toObj(d.students || []),
               evaluations: toObj(d.evaluations || []),
               sardEvaluations: toObj(d.sardEvaluations || []),
+              ilmiyyaAttendances: toObj(d.ilmiyyaAttendances || []),
               maghribAttendances: toObj(d.maghribAttendances || []),
               suggestions: toObj(d.suggestions || []),
               studentBehaviors: toObj(d.studentBehaviors || []),
@@ -1143,7 +1557,7 @@ const App: React.FC = () => {
               appName: d.appName, customLogo: d.customLogo, supervisorPassword: d.supervisorPassword, maghribPassword: d.maghribPassword, teacherIbriPassword: d.teacherIbriPassword, teacherOutsidePassword: d.teacherOutsidePassword, hijriAdjustments: d.hijriAdjustments, isTestActive: d.isTestActive, testScore: d.testScore, testName: d.testName, lastUsedWeek: d.lastUsedWeek, showAmeerToTeachers: d.showAmeerToTeachers ?? false
           }));
       }
-      setData({ users: d.users, halaqas: d.halaqas, sardHalaqas: d.sardHalaqas || [], students: d.students, evaluations: d.evaluations, sardEvaluations: d.sardEvaluations || [], maghribAttendances: d.maghribAttendances || [], suggestions: d.suggestions || [], studentBehaviors: d.studentBehaviors || [], matns: d.matns || [], newStudentTests: d.newStudentTests || [] });
+      setData({ users: d.users, halaqas: d.halaqas, sardHalaqas: d.sardHalaqas || [], ilmiyyaHalaqas: d.ilmiyyaHalaqas || [], students: d.students, evaluations: d.evaluations, sardEvaluations: d.sardEvaluations || [], ilmiyyaAttendances: d.ilmiyyaAttendances || [], maghribAttendances: d.maghribAttendances || [], suggestions: d.suggestions || [], studentBehaviors: d.studentBehaviors || [], matns: d.matns || [], newStudentTests: d.newStudentTests || [] });
       if(d.appName) setAppNameState(d.appName);
       if(d.customLogo !== undefined) setCustomLogoState(d.customLogo);
       if(d.supervisorPassword) setSupervisorPasswordState(d.supervisorPassword);
@@ -1265,12 +1679,13 @@ const App: React.FC = () => {
   }, [data.users]);
 
   const contextValue = useMemo(() => ({
-    users: data.users || [], students: data.students || [], halaqas: data.halaqas || [], sardHalaqas: data.sardHalaqas || [], evaluations: data.evaluations || [], sardEvaluations: data.sardEvaluations || [], maghribAttendances: data.maghribAttendances || [], suggestions: data.suggestions || [], studentBehaviors: data.studentBehaviors || [], matns: data.matns || [], newStudentTests: data.newStudentTests || [],
+    users: data.users || [], students: data.students || [], halaqas: data.halaqas || [], sardHalaqas: data.sardHalaqas || [], ilmiyyaHalaqas: data.ilmiyyaHalaqas || [], evaluations: data.evaluations || [], sardEvaluations: data.sardEvaluations || [], ilmiyyaAttendances: data.ilmiyyaAttendances || [], maghribAttendances: data.maghribAttendances || [], suggestions: data.suggestions || [], studentBehaviors: data.studentBehaviors || [], matns: data.matns || [], newStudentTests: data.newStudentTests || [],
     addEvaluation, updateEvaluation, deleteEvaluation,
     addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations,
-    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
+    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa, assignStudentToIlmiyyaHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa,
     addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
+    addIlmiyyaHalaqa, updateIlmiyyaHalaqa, deleteIlmiyyaHalaqa, assignTeachersToIlmiyyaHalaqa, saveIlmiyyaAttendances, deleteIlmiyyaAttendance,
     addSuggestion, updateSuggestion, deleteSuggestion, addMatn, updateMatn, deleteMatn,
     addStudentBehavior, updateStudentBehavior, deleteStudentBehavior, deleteAllStudentBehaviors,
     deleteAllSuggestions,
@@ -1316,7 +1731,9 @@ const App: React.FC = () => {
     setParentReportsEnabled
   }), [
     data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
-    addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa, addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
+    addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
+    addIlmiyyaHalaqa, updateIlmiyyaHalaqa, deleteIlmiyyaHalaqa, assignTeachersToIlmiyyaHalaqa, saveIlmiyyaAttendances, deleteIlmiyyaAttendance, assignStudentToIlmiyyaHalaqa,
+    addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
     addStudentBehavior, updateStudentBehavior, deleteStudentBehavior, deleteAllStudentBehaviors,
     customLogo, setCustomLogo, addTeacher, updateTeacher, deleteTeacher, handleImportFullBackup,
     supervisorPassword, setSupervisorPassword, maghribPassword, setMaghribPassword, teacherIbriPassword, setTeacherIbriPassword, teacherOutsidePassword, setTeacherOutsidePassword,

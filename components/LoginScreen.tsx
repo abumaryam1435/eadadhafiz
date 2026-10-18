@@ -73,21 +73,34 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const teachers = useMemo(() => users.filter(u => u.role === UserRole.TEACHER), [users]);
 
   // Teachers filtered by selected category
+  const sardHalaqas = context.sardHalaqas || [];
+  const ilmiyyaHalaqas = context.ilmiyyaHalaqas || [];
   const categoryTeachers = useMemo(() => {
     return teachers.filter(t => {
       const teacherHalaqas = halaqas.filter(h => h.teacherId === t.id || h.testTeacherId === t.id);
+      const teacherSards = sardHalaqas.filter(sh => sh.teacherId === t.id);
+      const teacherIlmiyyas = ilmiyyaHalaqas.filter(ih => {
+        if (ih.teacherIds && Array.isArray(ih.teacherIds)) return ih.teacherIds.includes(t.id);
+        return ih.teacherId === t.id;
+      });
       if (selectedTeacherCategory === 'outside') {
         const hasOutsideHalaqa = teacherHalaqas.some(h => h.category === 'outside');
-        return hasOutsideHalaqa || (t.category === 'outside' && teacherHalaqas.length === 0);
+        const hasOutsideSard = teacherSards.some(sh => sh.category === 'outside');
+        const hasOutsideIlmiyya = teacherIlmiyyas.some(ih => ih.category === 'outside');
+        return hasOutsideHalaqa || hasOutsideSard || hasOutsideIlmiyya || (t.category === 'outside' && teacherHalaqas.length === 0 && teacherSards.length === 0 && teacherIlmiyyas.length === 0);
       } else {
         const hasIbriHalaqa = teacherHalaqas.some(h => (h.category || 'ibri') === 'ibri');
+        const hasIbriSard = teacherSards.some(sh => (sh.category || 'ibri') === 'ibri');
+        const hasIbriIlmiyya = teacherIlmiyyas.some(ih => (ih.category || 'ibri') === 'ibri');
         const hasOutsideHalaqa = teacherHalaqas.some(h => h.category === 'outside');
-        if (hasIbriHalaqa) return true;
-        if (hasOutsideHalaqa) return false;
+        const hasOutsideSard = teacherSards.some(sh => sh.category === 'outside');
+        const hasOutsideIlmiyya = teacherIlmiyyas.some(ih => ih.category === 'outside');
+        if (hasIbriHalaqa || hasIbriSard || hasIbriIlmiyya) return true;
+        if (hasOutsideHalaqa || hasOutsideSard || hasOutsideIlmiyya) return false;
         return t.category !== 'outside';
       }
     });
-  }, [teachers, halaqas, selectedTeacherCategory]);
+  }, [teachers, halaqas, sardHalaqas, ilmiyyaHalaqas, selectedTeacherCategory]);
 
   const filteredTeachers = useMemo(() => {
     return categoryTeachers
@@ -102,7 +115,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const savedTeacher = useMemo(() => {
     if (!savedTeacherId) return null;
     const found = teachers.find(t => t.id.toString() === savedTeacherId);
-    if (found) return found;
+    if (found) return { ...found, category: savedTeacherCategory };
     if (savedTeacherName) {
       return { id: Number(savedTeacherId) || 0, name: savedTeacherName, role: UserRole.TEACHER, category: savedTeacherCategory } as User;
     }
@@ -119,7 +132,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     // إذا كانت كلمة المرور متطابقة، دخول فوري مباشر
     if (savedPass && (savedPass.trim() === expectedPass.trim() || savedPass.trim().toLowerCase() === expectedPass.trim().toLowerCase())) {
       const fullTeacher = teachers.find(t => t.id.toString() === savedTeacher.id.toString()) || savedTeacher;
-      onLogin(fullTeacher);
+      onLogin({ ...fullTeacher, category: cat });
     } else {
       // إذا لم تكن محفوظة أو تم تغييرها من المشرف، فتح شاشة كلمة المرور للقسم
       setSelectedTeacherCategory(cat);
@@ -263,7 +276,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           localStorage.removeItem(REMEMBER_TEACHER_CAT_KEY);
           localStorage.removeItem(REMEMBER_TEACHER_PASS_KEY);
       }
-      onLogin(t);
+      onLogin({ ...t, category: selectedTeacherCategory });
   };
 
   if (!context) return null;

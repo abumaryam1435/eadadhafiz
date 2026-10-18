@@ -1,12 +1,14 @@
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { EvaluationForm } from './EvaluationForm';
 import { TestEvaluationForm } from './TestEvaluationForm';
 import { NewStudentTestForm } from './NewStudentTestForm';
+import { IlmiyyaAttendanceForm } from './IlmiyyaAttendanceForm';
 import { AppContext } from '../App';
 import { SupervisorSuggestionsView } from './SupervisorSuggestionsView';
 import { registerBackHandler } from '../utils/navigationHistory';
 import { ErrorBoundary } from './ErrorBoundary';
+import { isTeacherFromOutside } from '../utils/categoryUtils';
 
 interface TeacherDashboardProps {
   teacherId: number;
@@ -24,10 +26,27 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
   const isNewStudentTestActive = context?.isNewStudentTestActive;
   const hasActiveMatns = (context?.matns || []).some(m => m.isActive !== false);
 
-  // إذا كانت ميزة تقييم الاختبار أو اختبار طالب جديد مفعلة، نظهر قائمة الاختيار أولاً (menu)
-  // أما إذا لم تكن مفعلة، فيدخل المعلم مباشرة إلى التقييم (evaluate)
-  const hasSpecialFeatures = Boolean(isTestActive || isNewStudentTestActive);
-  const [activeView, setActiveView] = useState<'menu' | 'evaluate' | 'test' | 'newStudentTest' | 'behaviors'>(
+  const rawHalaqas = context?.halaqas || [];
+  const rawSardHalaqas = context?.sardHalaqas || [];
+  const isOutsideTeacher = useMemo(() => {
+    return isTeacherFromOutside(teacherId, currentUser, rawHalaqas, rawSardHalaqas);
+  }, [teacherId, currentUser, rawHalaqas, rawSardHalaqas]);
+
+  // الحلقات العلمية المكلف بها هذا المعلم (مشتركة بين معلمي جامع عبري وخارج عبري)
+  const teacherIlmiyyaHalaqas = useMemo(() => {
+    return (context?.ilmiyyaHalaqas || []).filter(h => {
+      if (h.teacherIds && Array.isArray(h.teacherIds) && h.teacherIds.length > 0) {
+        return h.teacherIds.includes(teacherId);
+      }
+      return h.teacherId === teacherId;
+    });
+  }, [context?.ilmiyyaHalaqas, teacherId]);
+
+  const hasIlmiyya = teacherIlmiyyaHalaqas.length > 0;
+
+  // إذا كانت ميزة تقييم الاختبار أو اختبار طالب جديد أو الحلقة العلمية مفعلة، نظهر قائمة الاختيار أولاً (menu)
+  const hasSpecialFeatures = Boolean(isTestActive || isNewStudentTestActive || hasIlmiyya);
+  const [activeView, setActiveView] = useState<'menu' | 'evaluate' | 'test' | 'newStudentTest' | 'behaviors' | 'ilmiyya'>(
     () => (hasSpecialFeatures ? 'menu' : 'evaluate')
   );
   const [evaluationStep, setEvaluationStep] = useState<string>('selectHalaqa');
@@ -151,6 +170,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
                   </div>
                   <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block mt-0.5">
                     تسجيل وتقييم الطلاب المستجدين
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {hasIlmiyya && (
+              <button 
+                type="button"
+                onClick={() => setActiveView('ilmiyya')} 
+                className="p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl border-2 border-amber-500/50 hover:border-amber-600 hover:shadow-xl transition-all flex flex-col items-center text-center justify-center gap-2.5 sm:gap-3 group active:scale-95 relative overflow-hidden shadow-sm cursor-pointer w-full touch-manipulation"
+              >
+                <div className="w-13 h-13 sm:w-16 sm:h-16 shrink-0 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 transition-transform shadow-xs">
+                  📜
+                </div>
+                <div className="w-full text-center">
+                  <span className="block text-base sm:text-lg font-black text-gray-900 dark:text-white">
+                    الحلقة العلمية
+                  </span>
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block mt-0.5">
+                    تسجيل غياب وحضور طلاب الأمين
                   </span>
                 </div>
               </button>
@@ -300,6 +339,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId })
           <NewStudentTestForm 
             teacherId={teacherId} 
             onReturnToMenu={handleReturnToMenu}
+          />
+        </ErrorBoundary>
+      )}
+
+      {activeView === 'ilmiyya' && hasIlmiyya && (
+        <ErrorBoundary fallbackTitle="تنبيه في كشف الحلقة العلمية">
+          <IlmiyyaAttendanceForm 
+            teacherId={teacherId} 
+            onBackToMenu={hasSpecialFeatures ? handleReturnToMenu : undefined}
           />
         </ErrorBoundary>
       )}

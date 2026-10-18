@@ -10,6 +10,7 @@ import { toArabicDigits, parseSafeNumber, safeInputNumber } from '../utils/juzUt
 import { preloadMushafPages } from '../utils/mushafPreload';
 import { generateSuggestedTestPassages, generateSingleReplacementPassage, SuggestedTestPassage, formatPassageDescription } from '../utils/testPassageGenerator';
 import { registerBackHandler } from '../utils/navigationHistory';
+import { isTeacherFromOutside, isStudentFromOutside } from '../utils/categoryUtils';
 import { 
   BookOpen, 
   CheckCircle2, 
@@ -31,8 +32,9 @@ interface TestEvaluationFormProps {
 export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherId, onFormSubmit, onReturnToMenu }) => {
   const context = useContext(AppContext);
 
-  const students = context?.students || [];
-  const halaqas = context?.halaqas || [];
+  const rawStudents = context?.students || [];
+  const rawHalaqas = context?.halaqas || [];
+  const rawSardHalaqas = context?.sardHalaqas || [];
   const evaluations = context?.evaluations || [];
   const addEvaluation = context?.addEvaluation || (async () => {});
   const updateEvaluation = context?.updateEvaluation || (async () => {});
@@ -42,6 +44,24 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
   const testName = context?.testName;
   const testDeductions = context?.testDeductions;
   const currentUser = context?.currentUser;
+
+  // فحص ما إذا كان المعلم من خارج جامع عبري
+  const isOutsideTeacher = useMemo(() => {
+    return isTeacherFromOutside(teacherId, currentUser, rawHalaqas, rawSardHalaqas);
+  }, [teacherId, currentUser, rawHalaqas, rawSardHalaqas]);
+
+  // الطلاب المتاحون: إذا كان المعلم من خارج جامع عبري، يظهر له طلاب خارج جامع عبري فقط
+  const students = useMemo(() => {
+    if (!isOutsideTeacher) return rawStudents;
+    return rawStudents.filter(s => isStudentFromOutside(s, rawHalaqas, rawSardHalaqas));
+  }, [isOutsideTeacher, rawStudents, rawHalaqas, rawSardHalaqas]);
+
+  // حلقات الحفظ المتاحة: إذا كان المعلم من خارج جامع عبري، تظهر له حلقات خارج عبري فقط
+  const halaqas = useMemo(() => {
+    if (!isOutsideTeacher) return rawHalaqas;
+    return rawHalaqas.filter(h => h.category === 'outside');
+  }, [isOutsideTeacher, rawHalaqas]);
+
   const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
   const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
 

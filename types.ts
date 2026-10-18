@@ -69,6 +69,7 @@ export interface Student {
   name: string;
   halaqaId: number;
   sardHalaqaId?: number; // حلقة السرد
+  ilmiyyaHalaqaId?: number; // الحلقة العلمية (خاصة بطلاب الأمين)
   schoolStage?: string;
   parentPhone?: string; // هاتف ولي الأمر
   manualStudentLevel?: string;
@@ -82,6 +83,28 @@ export interface Student {
   manualSavedParts?: (number | string)[];
   manualLevel?: string;
   studentLevel?: string;
+}
+
+export interface IlmiyyaHalaqa {
+  id: number;
+  name: string;
+  teacherId?: number; // المعلم الرئيسي
+  teacherIds?: number[]; // قائمة المعلمين المكلفين (للمناوبة)
+  category?: 'ibri' | 'outside' | 'shared';
+  updatedAt?: number;
+}
+
+export interface IlmiyyaAttendance {
+  id: number;
+  studentId: number;
+  ilmiyyaHalaqaId: number;
+  teacherId?: number;
+  weekNumber: number;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  absenceReason?: AbsenceReason;
+  notes?: string;
+  updatedAt: number;
 }
 
 export interface SardHalaqa {
@@ -251,6 +274,8 @@ export interface FullBackupData {
   evaluations: Evaluation[];
   sardHalaqas?: SardHalaqa[];
   sardEvaluations?: SardEvaluation[];
+  ilmiyyaHalaqas?: IlmiyyaHalaqa[];
+  ilmiyyaAttendances?: IlmiyyaAttendance[];
   maghribAttendances?: MaghribAttendance[];
   deletedItems?: DeletedItem[];
   suggestions?: Suggestion[];

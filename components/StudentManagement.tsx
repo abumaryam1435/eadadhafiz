@@ -13,6 +13,7 @@ import { exportToExcel } from '../utils/exportExcel';
 import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
+import { IlmiyyaManagement } from './IlmiyyaManagement';
 
 const StudentManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -37,7 +38,7 @@ const StudentManagement: React.FC = () => {
     const setShowAmeerToTeachers = context?.setShowAmeerToTeachers || (() => {});
     const currentUser = context?.currentUser;
 
-    const [managementTab, setManagementTab] = useState<'main' | 'sard'>('main');
+    const [managementTab, setManagementTab] = useState<'main' | 'sard' | 'ilmiyya'>('main');
     const [openHalaqaId, setOpenHalaqaId] = useState<number | null>(null);
     const [newStudentName, setNewStudentName] = useState('');
     const [newHalaqaName, setNewHalaqaName] = useState('');
@@ -598,13 +599,13 @@ const StudentManagement: React.FC = () => {
             />
 
             <div className="space-y-8 animate-fade-in pb-20">
-                {/* تبويبات إدارة الحلقات الرئيسية وحلقات السرد */}
-                <div className="flex justify-center no-print my-2">
-                    <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                {/* تبويبات إدارة الحلقات الرئيسية وحلقات السرد والحلقات العلمية */}
+                <div className="flex justify-center no-print my-2 px-1">
+                    <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                         <button
                             type="button"
                             onClick={() => setManagementTab('main')}
-                            className={`px-8 py-3 rounded-xl font-black text-base transition-all flex items-center gap-2 ${
+                            className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
                                 managementTab === 'main'
                                     ? 'bg-green-700 text-white shadow-md'
                                     : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
@@ -616,7 +617,7 @@ const StudentManagement: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setManagementTab('sard')}
-                            className={`px-8 py-3 rounded-xl font-black text-base transition-all flex items-center gap-2 ${
+                            className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
                                 managementTab === 'sard'
                                     ? 'bg-emerald-700 text-white shadow-md'
                                     : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
@@ -625,10 +626,24 @@ const StudentManagement: React.FC = () => {
                             <span>📖</span>
                             <span>حلقات السرد</span>
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setManagementTab('ilmiyya')}
+                            className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+                                managementTab === 'ilmiyya'
+                                    ? 'bg-amber-600 text-white shadow-md'
+                                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+                            }`}
+                        >
+                            <span>📜</span>
+                            <span>الحلقات العلمية</span>
+                        </button>
                     </div>
                 </div>
 
-                {managementTab === 'sard' ? (
+                {managementTab === 'ilmiyya' ? (
+                    <IlmiyyaManagement />
+                ) : managementTab === 'sard' ? (
                     <SardManagement />
                 ) : (
                     <>

@@ -2,8 +2,8 @@
 import React, { useState, useContext, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { AppContext } from '../App';
 import { QURAN_SURAHS } from '../constants';
-import { Student, AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, SardEvaluation, SardHalaqa, SardPageRange, UserRole } from '../types';
-import { BookOpen, ScrollText, Sparkles, RotateCw, Check, ArrowLeft, Shuffle } from "lucide-react";
+import { Student, AttendanceStatus, AbsenceReason, EvaluationType, PerformanceLevel, PeriodicReviewStatus, Evaluation, SardEvaluation, SardHalaqa, SardPageRange, UserRole, MaghribAttendanceStatus } from '../types';
+import { BookOpen, ScrollText, Sparkles, RotateCw, Check, ArrowLeft, Shuffle, GraduationCap } from "lucide-react";
 import Modal from './Modal';
 import { translationMap, toArabicDigits, formatRtlRange } from '../utils/exportWord';
 import { toEnglishDigits, parseSafeNumber, safeInputNumber, safeNumberVal } from '../utils/juzUtils';
@@ -16,6 +16,8 @@ import { SardEvaluationEditModal } from './SardEvaluationEditModal';
 import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 import { isSmartMatch } from '../utils/searchUtils';
 import { registerBackHandler } from '../utils/navigationHistory';
+import { isTeacherFromOutside, isStudentFromOutside, isSardHalaqaFromOutside } from '../utils/categoryUtils';
+import { IlmiyyaAttendanceForm } from './IlmiyyaAttendanceForm';
 import { 
   surahNames, 
   quranPageMap, 
@@ -99,10 +101,10 @@ const FormNav: React.FC<NavProps> = ({ back, next, sub, onEdit, isSticky = true 
 export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFormSubmit, onBackToMenu, onStepChange }) => {
   const context = useContext(AppContext);
 
-  const students = context?.students || [];
-  const halaqas = context?.halaqas || [];
+  const rawStudents = context?.students || [];
+  const rawHalaqas = context?.halaqas || [];
   const evaluations = context?.evaluations || [];
-  const sardHalaqas = context?.sardHalaqas || [];
+  const rawSardHalaqas = context?.sardHalaqas || [];
   const sardEvaluations = context?.sardEvaluations || [];
   const matns = context?.matns || [];
   const addEvaluation = context?.addEvaluation;
@@ -115,6 +117,30 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const isTestActive = context?.isTestActive;
   const testScore = context?.testScore;
   const testDeductions = context?.testDeductions;
+  const currentUser = context?.currentUser;
+
+  // فحص ما إذا كان المعلم من خارج جامع عبري
+  const isOutsideTeacher = useMemo(() => {
+    return isTeacherFromOutside(teacherId, currentUser, rawHalaqas, rawSardHalaqas);
+  }, [teacherId, currentUser, rawHalaqas, rawSardHalaqas]);
+
+  // الطلاب المتاحون: إذا كان المعلم من خارج جامع عبري، يظهر له طلاب خارج جامع عبري فقط
+  const students = useMemo(() => {
+    if (!isOutsideTeacher) return rawStudents;
+    return rawStudents.filter(s => isStudentFromOutside(s, rawHalaqas, rawSardHalaqas));
+  }, [isOutsideTeacher, rawStudents, rawHalaqas, rawSardHalaqas]);
+
+  // حلقات السرد المتاحة: إذا كان المعلم من خارج جامع عبري، تظهر له حلقات سرد خارج عبري فقط ولا تظهر حلقات سرد جامع عبري
+  const sardHalaqas = useMemo(() => {
+    if (!isOutsideTeacher) return rawSardHalaqas;
+    return rawSardHalaqas.filter(sh => isSardHalaqaFromOutside(sh));
+  }, [isOutsideTeacher, rawSardHalaqas]);
+
+  // حلقات الحفظ المتاحة: إذا كان المعلم من خارج جامع عبري، تظهر له حلقات خارج عبري فقط
+  const halaqas = useMemo(() => {
+    if (!isOutsideTeacher) return rawHalaqas;
+    return rawHalaqas.filter(h => h.category === 'outside');
+  }, [isOutsideTeacher, rawHalaqas]);
 
   const [error, setError] = useState<string | null>(null);
   const [pendingMatnsAlert, setPendingMatnsAlert] = useState<string[] | null>(null);
@@ -154,9 +180,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [selectedHalaqa, setSelectedHalaqa] = useState<number | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
-  const [subject, setSubject] = useState<'quran' | 'mutoon' | 'sard'>('quran');
+  const [subject, setSubject] = useState<'quran' | 'mutoon' | 'sard' | 'ilmiyya'>('quran');
 
-  const currentUser = context?.currentUser;
   const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
   const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
 
@@ -1054,8 +1079,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
     if (found) {
         setCurrentEval(found);
-        setUiMode('summary');
-                setAttendance(found.attendance);
+        setAttendance(found.attendance);
         setAbsenceReason(found.absenceReason);
         setEvalType(found.evaluationType);
         setPages(found.pages ?? '');
@@ -1073,6 +1097,13 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         setTestFath(Number(found.testFathErrors) || 0);
         setTestTashkeel(Number(found.testTashkeelErrors) || 0);
         setTestTajweed(Number(found.testTajweedErrors) || 0);
+
+        if (found.attendance === AttendanceStatus.ABSENT) {
+            setUiMode('edit');
+            setCurrentStep('selectAttendance');
+        } else {
+            setUiMode('summary');
+        }
     } else {
         setCurrentEval(null);
         setUiMode('new');
@@ -1272,7 +1303,67 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             grade: attendance === AttendanceStatus.ABSENT ? 'غائب' : grade,
             notes: sardGroupNotes[studentId]?.trim() || undefined,
           };
-          addSardEvaluation(sardData);
+          if (addSardEvaluation) addSardEvaluation(sardData);
+        }
+
+        // تسجيل غياب بقية طلاب الحلقة الذين لم يحددوا في السرد الجماعي تلقائياً
+        // (إلا إذا تم تقييم الطالب مسبقاً في حلقة أخرى خلال هذا الأسبوع)
+        const targetSardHalaqaIds = new Set<number>();
+        if (selectedSardHalaqaFilter) {
+          targetSardHalaqaIds.add(Number(selectedSardHalaqaFilter));
+        } else {
+          selectedSardGroupIds.forEach(id => {
+            const st = students.find(s => s.id === id);
+            if (st?.sardHalaqaId) targetSardHalaqaIds.add(Number(st.sardHalaqaId));
+          });
+          if (targetSardHalaqaIds.size === 0 && activeSardHalaqaId) {
+            targetSardHalaqaIds.add(Number(activeSardHalaqaId));
+          }
+        }
+
+        const circleStudents = targetSardHalaqaIds.size > 0
+          ? students.filter(s => s.sardHalaqaId && targetSardHalaqaIds.has(Number(s.sardHalaqaId)))
+          : students.filter(s => isStudentInSardView(s));
+
+        const unselectedStudents = circleStudents.filter(s => !selectedSardGroupIds.includes(s.id));
+
+        for (const unselected of unselectedStudents) {
+          // فحص هل تم تقييم الطالب لهذا الأسبوع في أي حلقة سرد أخرى
+          const existingEval = (sardEvaluations || []).find(
+            se => se.studentId === unselected.id && Number(se.weekNumber) === Number(selectedWeek)
+          );
+          if (!existingEval) {
+            const absentData: Omit<SardEvaluation, 'id' | 'updatedAt'> = {
+              studentId: unselected.id,
+              sardHalaqaId: unselected.sardHalaqaId || activeSardHalaqaId || undefined,
+              teacherId,
+              weekNumber: selectedWeek,
+              date: new Date().toISOString().split('T')[0],
+              attendance: AttendanceStatus.ABSENT,
+              absenceReason: AbsenceReason.WITHOUT_EXCUSE,
+              juzList: [],
+              surahs: [],
+              pageRanges: [],
+              pagesCount: 0,
+              hesitationErrors: 0,
+              fathErrors: 0,
+              tajweedErrors: 0,
+              totalErrors: 0,
+              grade: 'غائب',
+              notes: 'غائب (بدون عذر)',
+            };
+            if (addSardEvaluation) addSardEvaluation(absentData);
+          } else if (existingEval.attendance === AttendanceStatus.ABSENT && !existingEval.absenceReason) {
+            // إذا كان الطالب مسجلاً كغائب سابقاً بدون تحديد سبب الغياب، نحدده تلقائياً كـ بدون عذر
+            if (updateSardEvaluation) {
+              updateSardEvaluation({
+                ...existingEval,
+                absenceReason: AbsenceReason.WITHOUT_EXCUSE,
+                notes: existingEval.notes || 'غائب (بدون عذر)',
+                updatedAt: Date.now(),
+              });
+            }
+          }
         }
       } else {
         const activeStud = students.find(s => s.id === selectedStudent);
@@ -1666,22 +1757,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         
         {currentStep === 'selectStudent' && (
           <div className="space-y-6">
-            {/* التبويبات: القرآن الكريم (الحفظ)، المتون، السرد */}
-            <div className={`grid ${activeMatns.length > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-4 scroll-mt-6`}>
+            {/* التبويبات بعد كتابة رقم الأسبوع: حفظ، متون، سرد، حلقة علمية */}
+            <div className={`grid ${activeMatns.length > 0 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-2 sm:gap-3.5 scroll-mt-6`}>
               <button 
                 type="button" 
                 onClick={() => { 
                   setSubject('quran'); 
                   setIsGuest(false);
                 }} 
-                className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
+                className={`py-3 sm:py-3.5 px-2 rounded-xl font-black flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 touch-manipulation ${
                   subject === 'quran' 
                     ? 'bg-green-100 border-green-600 shadow-sm text-green-900 dark:bg-green-950/40 dark:text-green-300 dark:border-green-600' 
                     : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
                 }`}
               >
-                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>القرآن الكريم (الحفظ)</span>
+                <BookOpen className="w-4 h-4 shrink-0" />
+                <span>حفظ</span>
               </button>
 
               {activeMatns.length > 0 && (
@@ -1691,14 +1782,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     setSubject('mutoon'); 
                     setIsGuest(false);
                   }} 
-                  className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
+                  className={`py-3 sm:py-3.5 px-2 rounded-xl font-black flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 touch-manipulation ${
                     subject === 'mutoon' 
                       ? 'bg-blue-100 border-blue-600 shadow-sm text-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-600' 
                       : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
                   }`}
                 >
-                  <ScrollText className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>المتون</span>
+                  <ScrollText className="w-4 h-4 shrink-0" />
+                  <span>متون</span>
                 </button>
               )}
 
@@ -1710,19 +1801,42 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   setSelectedSardHalaqaFilter(null);
                   setSardSearch('');
                 }} 
-                className={`py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-base cursor-pointer active:scale-95 ${
+                className={`py-3 sm:py-3.5 px-2 rounded-xl font-black flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 touch-manipulation ${
                   subject === 'sard' 
                     ? 'bg-emerald-100 border-emerald-600 shadow-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-600' 
                     : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
                 }`}
               >
-                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
-                <span>السرد</span>
+                <Sparkles className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>سرد</span>
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => { 
+                  setSubject('ilmiyya'); 
+                }} 
+                className={`py-3 sm:py-3.5 px-2 rounded-xl font-black flex items-center justify-center gap-1.5 sm:gap-2 border-2 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 touch-manipulation ${
+                  subject === 'ilmiyya' 
+                    ? 'bg-purple-100 border-purple-600 shadow-sm text-purple-900 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-600' 
+                    : 'bg-gray-50 border-transparent hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400" />
+                <span>حلقة علمية</span>
               </button>
             </div>
             
-            {/* في حال اختيار السرد: يتم عرض قائمة طلاب حلقة السرد مثل آلية تبويب الحفظ */}
-            {subject === 'sard' ? (
+            {/* عرض محتوى التبويب المختار */}
+            {subject === 'ilmiyya' ? (
+              <div className="space-y-4">
+                <IlmiyyaAttendanceForm 
+                  teacherId={teacherId}
+                  initialWeekNumber={selectedWeek || undefined}
+                  hideHeader={true}
+                />
+              </div>
+            ) : subject === 'sard' ? (
               <div className="space-y-4">
                 <div className="flex justify-between items-center gap-2">
                   <div className="flex items-center gap-2">
@@ -1913,6 +2027,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       const isEvaluated = (sardEvaluations || []).some(
                         e => e.studentId === s.id && e.weekNumber === selectedWeek
                       );
+                      const existingSard = (sardEvaluations || []).find(
+                        e => e.studentId === s.id && e.weekNumber === selectedWeek
+                      );
+                      const isSardAbsent = existingSard?.attendance === AttendanceStatus.ABSENT;
+                      const isAbsentInAsr = (evaluations || []).some(
+                        e => e.studentId === s.id && 
+                             Number(e.weekNumber) === Number(selectedWeek) && 
+                             e.subject !== 'mutoon' && 
+                             !e.isTest && 
+                             e.attendance === AttendanceStatus.ABSENT
+                      ) || (context?.maghribAttendances || []).some(
+                        m => m.studentId === s.id && 
+                             Number(m.weekNumber) === Number(selectedWeek) && 
+                             m.programType === 'asr' && 
+                             (m.status === MaghribAttendanceStatus.ABSENT || m.status === MaghribAttendanceStatus.EXCUSED)
+                      );
                       const isGroupSelected = selectedSardGroupIds.includes(s.id);
                       const isAmeer = isStudentHalaqaAmeer(s);
                       return (
@@ -1934,10 +2064,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           } sm:text-base whitespace-nowrap overflow-hidden ${
                             (sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected)
                               ? 'bg-emerald-600 text-white border-emerald-700 shadow-md' 
+                              : isSardAbsent
+                              ? 'bg-rose-50 text-rose-950 hover:bg-rose-100 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800'
                               : isEvaluated 
                               ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700' 
                               : isAmeer
                               ? 'bg-amber-50/70 text-amber-950 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800'
+                              : isAbsentInAsr
+                              ? 'bg-amber-50/60 text-gray-800 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/20 dark:text-gray-200 dark:border-amber-800'
                               : 'bg-gray-50 text-gray-800 hover:bg-emerald-50 border-gray-100 dark:bg-gray-700 dark:text-gray-200'
                           }`}
                         >
@@ -1953,6 +2087,15 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                 (من طلاب الأمين)
                               </span>
                             )}
+                            {isAbsentInAsr && (
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 ${
+                                (sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected)
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300 dark:border-rose-800'
+                              }`}>
+                                ⚠️ مسجل غائب في العصر
+                              </span>
+                            )}
                           </div>
                           {sardEvalMode === 'group' && (
                             <div className={`w-5 h-5 rounded border flex items-center justify-center mr-2 ${isGroupSelected ? 'bg-white text-emerald-700' : 'border-gray-400 dark:border-gray-500'}`}>
@@ -1960,8 +2103,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             </div>
                           )}
                           {isEvaluated && sardEvalMode === 'individual' && (
-                            <span className="text-[10px] bg-emerald-200 text-emerald-900 dark:bg-emerald-800 dark:text-emerald-100 px-2 py-0.5 rounded-full font-bold mr-2">
-                              تم التقييم
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold mr-2 ${
+                              isSardAbsent
+                                ? 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100'
+                                : 'bg-emerald-200 text-emerald-900 dark:bg-emerald-800 dark:text-emerald-100'
+                            }`}>
+                              {isSardAbsent ? 'غائب بالسرد' : 'تم التقييم'}
                             </span>
                           )}
                         </button>
@@ -2039,7 +2186,16 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     .filter(s => (isGuest || s.halaqaId === selectedHalaqa) && isSmartMatch(s.name, isGuest ? guestSearch : primarySearch) && (subject !== 'mutoon' || s.isAlAmeen))
                     .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
                     .map(s => {
-                    const isEvaluated = evaluations.some(e => e.studentId === s.id && e.weekNumber === selectedWeek && (subject === 'mutoon' ? e.subject === 'mutoon' : e.subject !== 'mutoon') && !e.isTest);
+                    const evalRecord = evaluations.find(e => e.studentId === s.id && e.weekNumber === selectedWeek && (subject === 'mutoon' ? e.subject === 'mutoon' : e.subject !== 'mutoon') && !e.isTest);
+                    const isEvaluated = !!evalRecord;
+                    const isAbsentInEvaluation = evalRecord?.attendance === AttendanceStatus.ABSENT;
+                    const isAbsentInAsrAttendance = (context?.maghribAttendances || []).some(
+                      m => m.studentId === s.id && 
+                           Number(m.weekNumber) === Number(selectedWeek) && 
+                           m.programType === 'asr' && 
+                           (m.status === MaghribAttendanceStatus.ABSENT || m.status === MaghribAttendanceStatus.EXCUSED)
+                    );
+                    const isAbsent = isAbsentInEvaluation || isAbsentInAsrAttendance;
                     const isAmeer = isStudentHalaqaAmeer(s);
                     return (
                       <button 
@@ -2049,7 +2205,17 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           resetFormFields();
                           setSelectedStudent(s.id);
                         }} 
-                        className={`p-4 rounded-xl text-right font-bold transition-all border-2 ${s.name.length > 35 ? 'text-[11px]' : 'text-sm'} sm:text-base whitespace-nowrap overflow-hidden ${selectedStudent === s.id ? 'bg-green-600 text-white border-green-700 shadow-md' : isEvaluated ? 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700' : isAmeer ? 'bg-amber-50/70 text-amber-950 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800' : 'bg-gray-50 text-gray-800 hover:bg-green-50 border-gray-100 dark:bg-gray-700 dark:text-gray-200'}`}
+                        className={`p-4 rounded-xl text-right font-bold transition-all border-2 ${s.name.length > 35 ? 'text-[11px]' : 'text-sm'} sm:text-base whitespace-nowrap overflow-hidden ${
+                          selectedStudent === s.id 
+                            ? 'bg-green-600 text-white border-green-700 shadow-md' 
+                            : isAbsent
+                            ? 'bg-rose-50 text-rose-950 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 hover:bg-rose-100'
+                            : isEvaluated 
+                            ? 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700' 
+                            : isAmeer 
+                            ? 'bg-amber-50/70 text-amber-950 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800' 
+                            : 'bg-gray-50 text-gray-800 hover:bg-green-50 border-gray-100 dark:bg-gray-700 dark:text-gray-200'
+                        }`}
                       >
                         <div className="flex flex-col justify-center items-start w-full">
                           <span className={`truncate w-full ${selectedStudent === s.id ? 'text-white' : isAmeer ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
@@ -2061,6 +2227,13 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           {s.isAlAmeen && (
                             <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-normal leading-tight mt-0.5">
                               (من طلاب الأمين)
+                            </span>
+                          )}
+                          {isAbsent && (
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 ${
+                              selectedStudent === s.id ? 'bg-white/20 text-white' : 'bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-200 border border-red-200 dark:border-red-800'
+                            }`}>
+                              🚫 مسجل غائب (برنامج العصر)
                             </span>
                           )}
                         </div>
@@ -2102,6 +2275,28 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 تحديد حالة حضور الطالب {subject === 'sard' ? 'في السرد' : subject === 'mutoon' ? 'في المتون' : 'في الحفظ'}
               </p>
             </div>
+
+            {/* تنبيه إذا كان الطالب مسجلاً كغائب في العصر */}
+            {(() => {
+              const isAbsentInAsr = (context?.maghribAttendances || []).some(
+                m => m.studentId === activeStudent.id && 
+                     Number(m.weekNumber) === Number(selectedWeek) && 
+                     m.programType === 'asr' && 
+                     (m.status === MaghribAttendanceStatus.ABSENT || m.status === MaghribAttendanceStatus.EXCUSED)
+              );
+              if (!isAbsentInAsr) return null;
+              return (
+                <div className="bg-amber-50/90 dark:bg-amber-950/60 border-2 border-amber-300 dark:border-amber-700 p-3.5 rounded-2xl text-center text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200 shadow-xs space-y-1">
+                  <div className="flex items-center justify-center gap-1.5 font-black text-amber-800 dark:text-amber-300">
+                    <span>⚠️</span>
+                    <span>الطالب مسجل كغائب في برنامج العصر (الحفظ / المتون)</span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs opacity-90 font-medium">
+                    يمكنك تسجيل حضوره الآن في برنامج المغرب ({subject === 'sard' ? 'السرد' : subject === 'mutoon' ? 'المتون' : 'الحفظ'}) بضغط "حاضر" وإكمال التقييم بشكل طبيعي.
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* بيانات تقدم الطالب (الحفظ القديم والجديد) */}
             <StudentProgressInfo student={activeStudent} subject={subject} />
