@@ -35,7 +35,7 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
   }, [teacherId, currentUser, rawHalaqas, rawSardHalaqas]);
 
   // الحلقات العلمية المكلف بها هذا المعلم (مشتركة بين معلمي جامع عبري وخارج عبري)
-  const teacherIlmiyyaHalaqas = useMemo(() => {
+  const assignedIlmiyyaHalaqas = useMemo(() => {
     return ilmiyyaHalaqas.filter(h => {
       if (h.teacherIds && Array.isArray(h.teacherIds) && h.teacherIds.length > 0) {
         return h.teacherIds.includes(teacherId);
@@ -43,6 +43,12 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
       return h.teacherId === teacherId;
     });
   }, [ilmiyyaHalaqas, teacherId]);
+
+  const hasNoAssignedIlmiyya = assignedIlmiyyaHalaqas.length === 0;
+
+  const teacherIlmiyyaHalaqas = useMemo(() => {
+    return assignedIlmiyyaHalaqas.length > 0 ? assignedIlmiyyaHalaqas : ilmiyyaHalaqas;
+  }, [assignedIlmiyyaHalaqas, ilmiyyaHalaqas]);
 
   const [selectedHalaqaId, setSelectedHalaqaId] = useState<number | null>(() => {
     return teacherIlmiyyaHalaqas[0]?.id || null;
@@ -76,6 +82,7 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'present' | 'absent'>('all');
   const [sectionFilter, setSectionFilter] = useState<'all' | 'ibri' | 'outside'>('all');
+  const [showGuestList, setShowGuestList] = useState(false);
 
   // خريطة حالة التحضير لكل طالب: studentId -> { status, reason, notes }
   const [attendanceMap, setAttendanceMap] = useState<
@@ -330,6 +337,44 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
           )}
         </div>
 
+        {/* تنبيه المعلم المتنقل عندما تكون الأسماء مخفية */}
+        {hasNoAssignedIlmiyya && !showGuestList ? (
+          <div className="bg-amber-950/60 border-2 border-amber-300/40 p-6 rounded-2xl text-center space-y-4 my-4 text-white shadow-sm">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-3xl">ℹ️</span>
+              <span className="font-black text-amber-200 text-base sm:text-lg">
+                معلم متنقل (ليس لديك حلقة علمية مخصصة)
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-amber-100 font-bold leading-relaxed max-w-md mx-auto">
+              لا توجد لديك حلقة علمية مخصصة. انقر على الزر أدناه لإظهار قائمة الحلقات العلمية والطلاب المتاحين للتحضير.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowGuestList(true)}
+              className="px-6 py-3 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer mx-auto"
+            >
+              <span>🔍</span>
+              <span>اختيار طالب من حلقة علمية أخرى</span>
+            </button>
+          </div>
+        ) : (
+          <>
+            {hasNoAssignedIlmiyya && showGuestList && (
+              <div className="flex justify-between items-center bg-amber-950/40 p-3 rounded-xl border border-amber-300/30 text-white mt-4">
+                <span className="text-xs font-bold text-amber-200">
+                  🔍 يتم عرض طلاب الحلقات العلمية الأخرى (نمط معلم متنقل)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowGuestList(false)}
+                  className="text-xs font-bold text-amber-300 underline hover:text-white cursor-pointer"
+                >
+                  إخفاء القائمة والعودة
+                </button>
+              </div>
+            )}
+
         {/* Controls: Select Halaqa, Week, Date */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 pt-5 border-t border-white/20">
           {/* Halaqa Selector */}
@@ -381,10 +426,14 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
             />
           </div>
         </div>
-      </div>
+      </>
+    )}
+    </div>
 
-      {/* Summary KPI Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Summary KPI Bar, Quick Actions & Student List - Hidden by default for floating teachers */}
+      {(!hasNoAssignedIlmiyya || showGuestList) && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-2xs text-center">
           <span className="text-xs text-gray-400 font-bold block">إجمالي طلاب الأمين</span>
           <span className="text-xl font-black text-gray-900 dark:text-white">{stats.total}</span>
@@ -677,6 +726,8 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
           </button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

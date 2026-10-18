@@ -168,7 +168,35 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   );
   const hasTeacherSardHalaqas = teacherSardHalaqas.length > 0;
 
+  // الحلقات العلمية الخاصة بالمعلم
+  const teacherIlmiyyaHalaqas = useMemo(() => {
+    const rawIlmiyya = context?.ilmiyyaHalaqas || [];
+    return rawIlmiyya.filter(h => {
+      if (h.teacherIds && Array.isArray(h.teacherIds) && h.teacherIds.length > 0) {
+        return h.teacherIds.includes(teacherId);
+      }
+      return h.teacherId === teacherId;
+    });
+  }, [context?.ilmiyyaHalaqas, teacherId]);
+
+  const hasHifz = teacherHalaqas.length > 0;
+  const hasSard = teacherSardHalaqas.length > 0;
+  const hasIlmiyya = teacherIlmiyyaHalaqas.length > 0;
+
+  const hasOnlyIlmiyya = !hasHifz && !hasSard && hasIlmiyya;
+  const hasOnlySard = !hasHifz && hasSard && !hasIlmiyya;
+
   const [currentStep, setCurrentStep] = useState<FormStep>('selectHalaqa');
+
+  useEffect(() => {
+    if (currentStep === 'selectStudent') {
+      if (hasOnlyIlmiyya) {
+        setSubject('ilmiyya');
+      } else if (hasOnlySard) {
+        setSubject('sard');
+      }
+    }
+  }, [currentStep, hasOnlyIlmiyya, hasOnlySard]);
 
   useEffect(() => {
     if (onStepChange) {
@@ -1747,6 +1775,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             return;
                         }
                         scrollToHeaderSafe('instant');
+                        if (hasOnlyIlmiyya) {
+                          setSubject('ilmiyya');
+                        } else if (hasOnlySard) {
+                          setSubject('sard');
+                        }
                         setCurrentStep('selectStudent');
                     }} className="px-10 py-2.5 bg-green-700 text-white rounded-xl font-bold hover:bg-green-800 transition-colors shadow-sm active:scale-95 text-center w-full cursor-pointer">التالي</button>
                 </div>
@@ -1838,6 +1871,46 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               </div>
             ) : subject === 'sard' ? (
               <div className="space-y-4">
+                {!hasTeacherSardHalaqas && !isSardGuest ? (
+                  /* التنبيه يحل محل أسماء الطلاب عند عدم وجود حلقة مخصصة */
+                  <div className="bg-emerald-50/90 dark:bg-emerald-950/50 border-2 border-emerald-300 dark:border-emerald-700/80 p-6 rounded-2xl text-center space-y-4 my-4 shadow-sm">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-3xl">ℹ️</span>
+                      <span className="font-black text-emerald-900 dark:text-emerald-200 text-base sm:text-lg">
+                        معلم متنقل (ليس لديك حلقة سرد مخصصة)
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 font-bold leading-relaxed max-w-md mx-auto">
+                      لا توجد لديك حلقة سرد مخصصة. انقر على الزر أدناه لإظهار طلاب حلقات السرد الأخرى والبحث عن الطالب المطلوب لتقييمه.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSardGuest(true);
+                        setSelectedSardHalaqaFilter(null);
+                      }}
+                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer mx-auto"
+                    >
+                      <span>🔍</span>
+                      <span>اختيار طالب من حلقة سرد أخرى</span>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {!hasTeacherSardHalaqas && isSardGuest && (
+                      <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                          🔍 يتم عرض طلاب حلقات السرد الأخرى (نمط معلم متنقل)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsSardGuest(false)}
+                          className="text-xs font-bold text-emerald-700 underline hover:text-emerald-900 dark:text-emerald-400 cursor-pointer"
+                        >
+                          إخفاء القائمة والعودة
+                        </button>
+                      </div>
+                    )}
                 <div className="flex justify-between items-center gap-2">
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-lg">اختر الطلاب للسرد:</p>
@@ -2144,22 +2217,61 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     </button>
                   )}
                 </div>
+              </>
+            )}
               </div>
             ) : (
               /* في حال اختيار القرآن أو المتون: يتم عرض قائمة الطلاب التابعة لحلقة المعلم */
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="font-bold text-lg">اختر الطالب لتقييمه:</p>
-                  {!isFloating && (
-                    <button 
-                      type="button" 
-                      onClick={() => setIsGuest(!isGuest)} 
-                      className="text-xs font-bold text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
+                {isFloating && !isGuest ? (
+                  /* التنبيه يحل محل الأسماء للمعلم المتنقل */
+                  <div className="bg-amber-50/90 dark:bg-amber-950/50 border-2 border-amber-300 dark:border-amber-700/80 p-6 rounded-2xl text-center space-y-4 my-4 shadow-sm">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-3xl">ℹ️</span>
+                      <span className="font-black text-amber-900 dark:text-amber-200 text-base sm:text-lg">
+                        معلم متنقل (ليس لديك حلقة {subject === 'mutoon' ? 'متون' : 'حفظ'} مخصصة)
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-300 font-bold leading-relaxed max-w-md mx-auto">
+                      لا توجد لديك حلقة مخصصة. انقر على الزر أدناه لإظهار قائمة الطلاب من الحلقات الأخرى لتقييمهم.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsGuest(true)}
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-sm rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer mx-auto"
                     >
-                      {isGuest ? 'العودة لطلابي' : 'تقييم طالب من حلقة أخرى'}
+                      <span>🔍</span>
+                      <span>اختيار طالب من حلقة أخرى</span>
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <>
+                    {isFloating && isGuest && (
+                      <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-950/40 p-3 rounded-xl border border-amber-200 dark:border-amber-800">
+                        <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                          🔍 يتم عرض طلاب الحلقات الأخرى (نمط معلم متنقل)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsGuest(false)}
+                          className="text-xs font-bold text-amber-700 underline hover:text-amber-900 dark:text-amber-400 cursor-pointer"
+                        >
+                          إخفاء القائمة والعودة
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <p className="font-bold text-lg">اختر الطالب لتقييمه:</p>
+                      {!isFloating && (
+                        <button 
+                          type="button" 
+                          onClick={() => setIsGuest(!isGuest)} 
+                          className="text-xs font-bold text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
+                        >
+                          {isGuest ? 'العودة لطلابي' : 'تقييم طالب من حلقة أخرى'}
+                        </button>
+                      )}
+                    </div>
                 <div className="relative">
                   <input 
                     type="text" 
@@ -2242,10 +2354,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   })}
                 </div>
                 <FormNav back={() => setCurrentStep('selectWeek')} />
-              </div>
-            )}
+            </>
+          )}
           </div>
         )}
+      </div>
+    )}
 
         {currentStep === 'selectAttendance' && activeStudent && (() => {
           const isAmeer = isStudentHalaqaAmeer(activeStudent);

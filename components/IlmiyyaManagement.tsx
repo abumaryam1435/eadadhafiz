@@ -217,60 +217,60 @@ export const IlmiyyaManagement: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Header and stats */}
-      <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white rounded-3xl p-4 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 sm:gap-6">
           <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-3xl shadow-inner backdrop-blur-xs">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/15 flex items-center justify-center text-2xl sm:text-3xl shadow-inner backdrop-blur-xs shrink-0">
                 📜
               </span>
               <div>
-                <h2 className="text-2xl sm:text-3xl font-black">إدارة الحلقات العلمية</h2>
-                <p className="text-amber-100 font-bold text-xs sm:text-sm">
-                  مشتركة بين معلمي جامع عبري وخارج عبري - يظهر الطلاب لجميع المعلمين المكلفين سواء كانوا في جامع عبري أو خارج جامع عبري
+                <h2 className="text-xl sm:text-3xl font-black">إدارة الحلقات العلمية</h2>
+                <p className="text-amber-100 font-bold text-[11px] sm:text-sm leading-tight mt-0.5">
+                  مشتركة بين معلمي جامع عبري وخارج عبري - يظهر الطلاب لجميع المعلمين المكلفين
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={openAddModal}
-              className="flex-1 md:flex-initial px-5 py-3 rounded-2xl bg-white text-amber-900 hover:bg-amber-50 font-black text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-white text-amber-900 hover:bg-amber-50 font-black text-xs sm:text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
             >
-              <span className="text-lg">➕</span>
+              <span className="text-base sm:text-lg">➕</span>
               <span>إضافة حلقة علمية</span>
             </button>
             <button
               type="button"
               onClick={() => setIsStudentsModalOpen(true)}
-              className="flex-1 md:flex-initial px-5 py-3 rounded-2xl bg-amber-900/60 hover:bg-amber-900/80 text-white font-black text-sm border border-white/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-amber-900/60 hover:bg-amber-900/80 text-white font-black text-xs sm:text-sm border border-white/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
             >
-              <span className="text-lg">🎓</span>
+              <span className="text-base sm:text-lg">🎓</span>
               <span>تحديد طلاب الأمين ({alAmeenStudents.length})</span>
             </button>
           </div>
         </div>
 
         {/* Quick summary badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/20">
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 text-center">
-            <span className="text-xs font-bold text-amber-200 block">إجمالي الحلقات</span>
-            <span className="text-2xl font-black">{ilmiyyaHalaqas.length}</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20">
+          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-2.5 sm:p-3 text-center">
+            <span className="text-[11px] sm:text-xs font-bold text-amber-200 block">إجمالي الحلقات</span>
+            <span className="text-lg sm:text-2xl font-black">{ilmiyyaHalaqas.length}</span>
           </div>
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 text-center">
-            <span className="text-xs font-bold text-amber-200 block">إجمالي طلاب الأمين</span>
-            <span className="text-2xl font-black">{alAmeenStudents.length}</span>
+          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-2.5 sm:p-3 text-center">
+            <span className="text-[11px] sm:text-xs font-bold text-amber-200 block">طلاب الأمين</span>
+            <span className="text-lg sm:text-2xl font-black">{alAmeenStudents.length}</span>
           </div>
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 text-center">
-            <span className="text-xs font-bold text-amber-200 block">عبري / خارج عبري</span>
-            <span className="text-lg font-black">{ibriAlAmeenStudents.length} / {outsideAlAmeenStudents.length}</span>
+          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-2.5 sm:p-3 text-center">
+            <span className="text-[11px] sm:text-xs font-bold text-amber-200 block">عبري / خارج</span>
+            <span className="text-base sm:text-lg font-black">{ibriAlAmeenStudents.length} / {outsideAlAmeenStudents.length}</span>
           </div>
-          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 text-center">
-            <span className="text-xs font-bold text-amber-200 block">المعلمون المكلفون</span>
-            <span className="text-2xl font-black">
+          <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-2.5 sm:p-3 text-center">
+            <span className="text-[11px] sm:text-xs font-bold text-amber-200 block">المعلمون المكلفون</span>
+            <span className="text-lg sm:text-2xl font-black">
               {new Set(ilmiyyaHalaqas.flatMap(h => h.teacherIds || (h.teacherId ? [h.teacherId] : []))).size}
             </span>
           </div>
@@ -278,12 +278,12 @@ export const IlmiyyaManagement: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-        <div className="flex flex-wrap gap-1.5 p-1 bg-gray-100 dark:bg-gray-750 rounded-xl w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 p-1 bg-gray-100 dark:bg-gray-750 rounded-xl w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setCategoryTab('all')}
-            className={`px-3 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${
+            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-black text-xs sm:text-sm transition-all text-center ${
               categoryTab === 'all'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
@@ -294,7 +294,7 @@ export const IlmiyyaManagement: React.FC = () => {
           <button
             type="button"
             onClick={() => setCategoryTab('shared')}
-            className={`px-3 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center gap-1 ${
+            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-black text-xs sm:text-sm transition-all flex items-center justify-center gap-1 ${
               categoryTab === 'shared'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
@@ -306,7 +306,7 @@ export const IlmiyyaManagement: React.FC = () => {
           <button
             type="button"
             onClick={() => setCategoryTab('ibri')}
-            className={`px-3 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center gap-1 ${
+            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-black text-xs sm:text-sm transition-all flex items-center justify-center gap-1 ${
               categoryTab === 'ibri'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
@@ -318,7 +318,7 @@ export const IlmiyyaManagement: React.FC = () => {
           <button
             type="button"
             onClick={() => setCategoryTab('outside')}
-            className={`px-3 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all flex items-center gap-1 ${
+            className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg font-black text-xs sm:text-sm transition-all flex items-center justify-center gap-1 ${
               categoryTab === 'outside'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
