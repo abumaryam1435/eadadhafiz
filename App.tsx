@@ -784,12 +784,103 @@ const App: React.FC = () => {
     }
   };
 
+  // دالة مساعدة لمعرفة هل التقييم يحتوي على إنجاز فعلي (صفحات أو أبيات أو مراجعة)
+  const hasRealEvaluationContent = (ev: any) => {
+    if (!ev) return false;
+    if (Number(ev.pages) > 0) return true;
+    if (ev.newMemorizedPages && Array.isArray(ev.newMemorizedPages) && ev.newMemorizedPages.length > 0) return true;
+    if (ev.evaluationType === EvaluationType.REVIEW && (ev.testTotalScore !== undefined || (ev.surahs && ev.surahs.length > 0))) return true;
+    if (ev.subject === 'mutoon' && ev.evaluationType === EvaluationType.MEMORIZATION && ev.performance && ev.notes !== 'مسجل غائب من إدارة الحضور (برنامج العصر)' && !String(ev.notes || '').includes('مسجل غائب')) return true;
+    return false;
+  };
+
+  // مزامنة حالة الحضور (حاضر / متأخر / غائب) من الحفظ إلى المتون مباشرة لنفس الأسبوع
+  const syncHifzAttendanceToMutoon = (ev: any) => {
+    if (!ev || !ev.studentId || !ev.weekNumber || ev.isTest || ev.subject === 'mutoon') return;
+    const student = (data.students || []).find(s => s.id === ev.studentId);
+    if (!student || !student.isAlAmeen) return;
+    const activeMatnsList = (data.matns || []).filter(m => m.isActive !== false);
+    if (activeMatnsList.length === 0) return;
+
+    const existingMutoonEvals = (data.evaluations || []).filter(
+      e => e.studentId === ev.studentId && Number(e.weekNumber) === Number(ev.weekNumber) && e.subject === 'mutoon' && !e.isTest
+    );
+
+    if (ev.attendance === AttendanceStatus.ABSENT) {
+      // إذا لم يكن لديه تقييم متون فعلي، نسجله غائباً في المتون مباشرة
+      const hasRealMutoon = existingMutoonEvals.some(m => m.attendance !== AttendanceStatus.ABSENT && Number(m.pages) > 0);
+      if (!hasRealMutoon) {
+        if (existingMutoonEvals.length > 0) {
+          existingMutoonEvals.forEach((m, idx) => {
+            if (idx === 0) {
+              writeData(`data/evaluations/${m.id}`, {
+                ...m,
+                attendance: AttendanceStatus.ABSENT,
+                absenceReason: ev.absenceReason || AbsenceReason.WITHOUT_EXCUSE,
+                pages: 0,
+                updatedAt: Date.now(),
+              });
+            } else {
+              writeData(`data/evaluations/${m.id}`, null);
+            }
+          });
+        } else {
+          const mutoonId = generateId() + 1;
+          writeData(`data/evaluations/${mutoonId}`, {
+            id: mutoonId,
+            studentId: student.id,
+            studentName: student.name || '',
+            halaqaId: ev.halaqaId || student.halaqaId || 0,
+            teacherId: ev.teacherId || 0,
+            subject: 'mutoon',
+            weekNumber: Number(ev.weekNumber),
+            attendance: AttendanceStatus.ABSENT,
+            absenceReason: ev.absenceReason || AbsenceReason.WITHOUT_EXCUSE,
+            evaluationType: EvaluationType.MEMORIZATION,
+            pages: 0,
+            surahs: [activeMatnsList[0].name],
+            performance: PerformanceLevel.MORE_THAN_FIVE_ERRORS,
+            evalFathErrors: 0,
+            evalTashkeelErrors: 0,
+            evalTajweedErrors: 0,
+            notes: ev.notes || undefined,
+            evaluationDate: ev.evaluationDate || new Date().toLocaleDateString('ar-EG'),
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    } else if (ev.attendance === AttendanceStatus.PRESENT || ev.attendance === AttendanceStatus.LATE) {
+      // إذا تم تحديده حاضر أو متأخر في الحفظ:
+      // 1. نحذف أي سجل غياب تلقائي في المتون لهذا الأسبوع حتى يتمكن المعلم من تقييم المتون مباشرة بالحالة الجديدة
+      // 2. إذا كان قد قيّم المتون مسبقاً، نحدّث حالة الحضور فيها (حاضر / متأخر) لتطابق الحفظ مباشرة
+      existingMutoonEvals.forEach(m => {
+        if (m.attendance === AttendanceStatus.ABSENT && (!m.pages || Number(m.pages) === 0)) {
+          writeData(`data/evaluations/${m.id}`, null);
+        } else if (m.attendance !== ev.attendance) {
+          writeData(`data/evaluations/${m.id}`, {
+            ...m,
+            attendance: ev.attendance,
+            absenceReason: null,
+            updatedAt: Date.now(),
+          });
+        }
+      });
+    }
+  };
+
   // مزامنة تقييم الحفظ والمتون (برنامج العصر) مع إدارة الحضور وبرنامج المغرب
   const syncEvaluationToMaghribAttendance = (ev: any) => {
     if (!ev || !ev.studentId || !ev.weekNumber || ev.isTest) return;
+
+    // مزامنة الحفظ مع المتون مباشرة
+    if (ev.subject !== 'mutoon') {
+      syncHifzAttendanceToMutoon(ev);
+    }
+
     const existingAsr = (data.maghribAttendances || []).find(
       m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && m.programType === 'asr'
     );
+
     if (ev.attendance === AttendanceStatus.ABSENT) {
       const status = ev.absenceReason === AbsenceReason.WITH_EXCUSE 
         ? MaghribAttendanceStatus.EXCUSED 
@@ -806,30 +897,51 @@ const App: React.FC = () => {
         updatedAt: Date.now(),
       });
 
-      // التسجيل التلقائي كغائب في برنامج المغرب (السرد والحلقات العلمية وإدارة حضور المغرب) إن لم يثبت حضوره
-      const existingMaghrib = (data.maghribAttendances || []).find(
-        m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+      // التسجيل التلقائي كغائب في برنامج المغرب إن لم يكن مقيماً كحاضر أو متأخر في السرد أو الحلقة العلمية
+      const existingSard = (data.sardEvaluations || []).find(
+        se => se.studentId === ev.studentId && Number(se.weekNumber) === Number(ev.weekNumber)
       );
-      if (!existingMaghrib || existingMaghrib.status === MaghribAttendanceStatus.ABSENT || existingMaghrib.status === MaghribAttendanceStatus.EXCUSED) {
-        const maghribId = existingMaghrib ? existingMaghrib.id : generateId();
-        const maghribAtt = {
-          id: maghribId,
-          studentId: ev.studentId,
-          weekNumber: Number(ev.weekNumber),
-          status,
-          date: ev.evaluationDate || new Date().toISOString().split('T')[0],
-          time: new Date().toTimeString().slice(0, 5),
-          programType: 'maghrib',
-          updatedAt: Date.now(),
-        };
-        writeData(`data/maghribAttendances/${maghribId}`, maghribAtt);
-        syncAttendanceToEvaluations(maghribAtt);
+      const isPresentInSard = existingSard && (existingSard.attendance === AttendanceStatus.PRESENT || existingSard.attendance === AttendanceStatus.LATE || Number(existingSard.pagesCount) > 0);
+      const isPresentInIlmiyya = (data.ilmiyyaAttendances || []).some(
+        ia => ia.studentId === ev.studentId && Number(ia.weekNumber) === Number(ev.weekNumber) && ia.status === AttendanceStatus.PRESENT
+      );
+
+      if (!isPresentInSard && !isPresentInIlmiyya) {
+        const existingMaghrib = (data.maghribAttendances || []).find(
+          m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+        );
+        if (!existingMaghrib || existingMaghrib.status === MaghribAttendanceStatus.ABSENT || existingMaghrib.status === MaghribAttendanceStatus.EXCUSED) {
+          const maghribId = existingMaghrib ? existingMaghrib.id : generateId();
+          const maghribAtt = {
+            id: maghribId,
+            studentId: ev.studentId,
+            weekNumber: Number(ev.weekNumber),
+            status,
+            date: ev.evaluationDate || new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().slice(0, 5),
+            programType: 'maghrib',
+            updatedAt: Date.now(),
+          };
+          writeData(`data/maghribAttendances/${maghribId}`, maghribAtt);
+          syncAttendanceToEvaluations(maghribAtt);
+        }
       }
-    } else if (existingAsr && existingAsr.status !== MaghribAttendanceStatus.LATE) {
-      const hasOtherAsrAbsence = (data.evaluations || []).some(
-        e => e.id !== ev.id && e.studentId === ev.studentId && Number(e.weekNumber) === Number(ev.weekNumber) && !e.isTest && e.attendance === AttendanceStatus.ABSENT
-      );
-      if (!hasOtherAsrAbsence) {
+    } else if (ev.attendance === AttendanceStatus.LATE) {
+      // إذا تم تسجيله متأخراً في التقييم، يظهر في إدارة الحضور كـ متأخر
+      const asrId = existingAsr ? existingAsr.id : generateId();
+      writeData(`data/maghribAttendances/${asrId}`, {
+        id: asrId,
+        studentId: ev.studentId,
+        weekNumber: Number(ev.weekNumber),
+        status: MaghribAttendanceStatus.LATE,
+        date: existingAsr?.date || new Date().toISOString().split('T')[0],
+        time: existingAsr?.time || new Date().toTimeString().slice(0, 5),
+        programType: 'asr',
+        updatedAt: Date.now(),
+      });
+    } else if (ev.attendance === AttendanceStatus.PRESENT) {
+      // إذا تم تسجيله حاضراً في التقييم، لا يظهر اسمه في إدارة الحضور (يحذف أي سجل غياب أو تأخر سابق له في هذا الأسبوع)
+      if (existingAsr) {
         writeData(`data/maghribAttendances/${existingAsr.id}`, null);
       }
     }
@@ -856,7 +968,19 @@ const App: React.FC = () => {
         programType: 'maghrib',
         updatedAt: Date.now(),
       });
-    } else if (existing && existing.status !== MaghribAttendanceStatus.LATE) {
+    } else if (ev.attendance === AttendanceStatus.LATE) {
+      const id = existing ? existing.id : generateId();
+      writeData(`data/maghribAttendances/${id}`, {
+        id,
+        studentId: ev.studentId,
+        weekNumber: Number(ev.weekNumber),
+        status: MaghribAttendanceStatus.LATE,
+        date: existing?.date || ev.date || new Date().toISOString().split('T')[0],
+        time: existing?.time || new Date().toTimeString().slice(0, 5),
+        programType: 'maghrib',
+        updatedAt: Date.now(),
+      });
+    } else if (existing) {
       const isAbsentInIlmiyya = (data.ilmiyyaAttendances || []).some(
         ia => ia.studentId === ev.studentId && Number(ia.weekNumber) === Number(ev.weekNumber) && ia.status === AttendanceStatus.ABSENT
       );
@@ -866,7 +990,7 @@ const App: React.FC = () => {
     }
   };
 
-  // مزامنة تسجيل إدارة الحضور مع استمارة التقييم (والعكس صحيح)
+  // مزامنة تسجيل إدارة الحضور مع استمارة التقييم (مع اعتماد استمارة التقييم كأساس عند وجود تقييم فعلي)
   const syncAttendanceToEvaluations = (att: any) => {
     if (!att || !att.studentId || !att.weekNumber) return;
     const student = (data.students || []).find(s => s.id === att.studentId);
@@ -874,12 +998,13 @@ const App: React.FC = () => {
 
     const isAsr = att.programType === 'asr';
     const isAbsent = att.status === MaghribAttendanceStatus.ABSENT || att.status === MaghribAttendanceStatus.EXCUSED;
+    const isLate = att.status === MaghribAttendanceStatus.LATE;
     const absenceReason = att.status === MaghribAttendanceStatus.EXCUSED 
       ? AbsenceReason.WITH_EXCUSE 
       : AbsenceReason.WITHOUT_EXCUSE;
 
     if (isAsr) {
-      // برنامج العصر هو برنامج الحفظ في التقييم
+      // برنامج العصر هو برنامج الحفظ والمتون في التقييم
       const existingEval = (data.evaluations || []).find(
         e => e.studentId === att.studentId && 
              Number(e.weekNumber) === Number(att.weekNumber) && 
@@ -888,6 +1013,11 @@ const App: React.FC = () => {
       );
 
       if (isAbsent) {
+        // إذا كان الطالب قد قيّم فعلياً كحاضر أو متأخر في استمارة التقييم، نعتمد استمارة التقييم ولا نمسح تقييمه
+        if (existingEval && (existingEval.attendance === AttendanceStatus.PRESENT || existingEval.attendance === AttendanceStatus.LATE || hasRealEvaluationContent(existingEval))) {
+          return;
+        }
+
         if (existingEval) {
           if (existingEval.attendance !== AttendanceStatus.ABSENT || existingEval.absenceReason !== absenceReason) {
             writeData(`data/evaluations/${existingEval.id}`, {
@@ -900,7 +1030,7 @@ const App: React.FC = () => {
         } else {
           const id = generateId();
           const halaqa = (data.halaqas || []).find(h => h.id === student.halaqaId);
-          writeData(`data/evaluations/${id}`, {
+          const newAbsEval = {
             id,
             studentId: student.id,
             halaqaId: student.halaqaId || 0,
@@ -913,27 +1043,52 @@ const App: React.FC = () => {
             notes: 'مسجل غائب من إدارة الحضور (برنامج العصر)',
             evaluationDate: att.date || new Date().toISOString().split('T')[0],
             updatedAt: id,
-          });
+          };
+          writeData(`data/evaluations/${id}`, newAbsEval);
+          syncHifzAttendanceToMutoon(newAbsEval);
         }
 
         // التسجيل التلقائي كغائب في برنامج المغرب إن لم يثبت حضوره بعد
-        const existingMaghrib = (data.maghribAttendances || []).find(
-          m => m.studentId === att.studentId && Number(m.weekNumber) === Number(att.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+        const existingSard = (data.sardEvaluations || []).find(
+          se => se.studentId === att.studentId && Number(se.weekNumber) === Number(att.weekNumber)
         );
-        if (!existingMaghrib || existingMaghrib.status === MaghribAttendanceStatus.ABSENT || existingMaghrib.status === MaghribAttendanceStatus.EXCUSED) {
-          const maghribId = existingMaghrib ? existingMaghrib.id : generateId();
-          const maghribAtt = {
-            id: maghribId,
-            studentId: att.studentId,
-            weekNumber: Number(att.weekNumber),
-            status: att.status,
-            date: att.date || new Date().toISOString().split('T')[0],
-            time: att.time || new Date().toTimeString().slice(0, 5),
-            programType: 'maghrib',
-            updatedAt: Date.now(),
-          };
-          writeData(`data/maghribAttendances/${maghribId}`, maghribAtt);
-          syncAttendanceToEvaluations(maghribAtt);
+        const isPresentInSard = existingSard && (existingSard.attendance === AttendanceStatus.PRESENT || existingSard.attendance === AttendanceStatus.LATE || Number(existingSard.pagesCount) > 0);
+        if (!isPresentInSard) {
+          const existingMaghrib = (data.maghribAttendances || []).find(
+            m => m.studentId === att.studentId && Number(m.weekNumber) === Number(att.weekNumber) && (m.programType === 'maghrib' || !m.programType)
+          );
+          if (!existingMaghrib || existingMaghrib.status === MaghribAttendanceStatus.ABSENT || existingMaghrib.status === MaghribAttendanceStatus.EXCUSED) {
+            const maghribId = existingMaghrib ? existingMaghrib.id : generateId();
+            const maghribAtt = {
+              id: maghribId,
+              studentId: att.studentId,
+              weekNumber: Number(att.weekNumber),
+              status: att.status,
+              date: att.date || new Date().toISOString().split('T')[0],
+              time: att.time || new Date().toTimeString().slice(0, 5),
+              programType: 'maghrib',
+              updatedAt: Date.now(),
+            };
+            writeData(`data/maghribAttendances/${maghribId}`, maghribAtt);
+            syncAttendanceToEvaluations(maghribAtt);
+          }
+        }
+      } else if (isLate) {
+        // إذا تم تعديله أو تسجيله كمتأخر في إدارة الحضور
+        if (existingEval) {
+          if (existingEval.attendance === AttendanceStatus.ABSENT && !hasRealEvaluationContent(existingEval)) {
+            // حذف سجل الغياب المؤقت ليتمكن المعلم من تقييمه كمتأخر
+            writeData(`data/evaluations/${existingEval.id}`, null);
+          } else if (existingEval.attendance !== AttendanceStatus.LATE) {
+            const updatedEval = {
+              ...existingEval,
+              attendance: AttendanceStatus.LATE,
+              absenceReason: null,
+              updatedAt: Date.now(),
+            };
+            writeData(`data/evaluations/${existingEval.id}`, updatedEval);
+            syncHifzAttendanceToMutoon(updatedEval);
+          }
         }
       }
     } else {
@@ -943,6 +1098,10 @@ const App: React.FC = () => {
           se => se.studentId === att.studentId && Number(se.weekNumber) === Number(att.weekNumber)
         );
         if (isAbsent) {
+          // عدم الكتابة فوق تقييم سرد فعلي مسجل كحاضر أو متأخر
+          if (existingSard && (existingSard.attendance === AttendanceStatus.PRESENT || existingSard.attendance === AttendanceStatus.LATE || Number(existingSard.pagesCount) > 0)) {
+            return;
+          }
           if (existingSard) {
             if (existingSard.attendance !== AttendanceStatus.ABSENT || existingSard.absenceReason !== absenceReason) {
               writeData(`data/sardEvaluations/${existingSard.id}`, {
@@ -978,6 +1137,17 @@ const App: React.FC = () => {
               updatedAt: id,
             });
           }
+        } else if (isLate && existingSard) {
+          if (existingSard.attendance === AttendanceStatus.ABSENT && (!existingSard.pagesCount || Number(existingSard.pagesCount) === 0)) {
+            writeData(`data/sardEvaluations/${existingSard.id}`, null);
+          } else if (existingSard.attendance !== AttendanceStatus.LATE) {
+            writeData(`data/sardEvaluations/${existingSard.id}`, {
+              ...existingSard,
+              attendance: AttendanceStatus.LATE,
+              absenceReason: undefined,
+              updatedAt: Date.now(),
+            });
+          }
         }
       }
 
@@ -987,6 +1157,9 @@ const App: React.FC = () => {
           ia => ia.studentId === att.studentId && Number(ia.weekNumber) === Number(att.weekNumber)
         );
         if (isAbsent) {
+          if (existingIlmiyya && existingIlmiyya.status === AttendanceStatus.PRESENT) {
+            // إذا لم يكن مسجلاً غائباً، نحدّثه فقط إن لم يكن محفوظاً يدوياً من المعلم
+          }
           const ilmiyyaHalaqa = (data.ilmiyyaHalaqas || []).find(ih => ih.id === student.ilmiyyaHalaqaId) || data.ilmiyyaHalaqas?.[0];
           const id = existingIlmiyya ? existingIlmiyya.id : generateId();
           writeData(`data/ilmiyyaAttendances/${id}`, {
@@ -1006,10 +1179,175 @@ const App: React.FC = () => {
     }
   };
 
+  // معالجة وتنقية أي بيانات متعارضة حالياً بين إدارة الحضور واستمارة التقييم (اعتماد استمارة التقييم كأساس)
+  const hasReconciledConflictsRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || isLoadingFirebase || hasReconciledConflictsRef.current) return;
+    if (!data.students || data.students.length === 0) return;
+
+    hasReconciledConflictsRef.current = true;
+
+    const evals = data.evaluations || [];
+    const sardEvals = data.sardEvaluations || [];
+    const maghribAtts = data.maghribAttendances || [];
+
+    // 1. استعادة أي تقييم حقيقي (يحتوي على صفحات أو مراجعة) تم تحويل حالته بالخطأ إلى غائب بسبب إدارة الحضور
+    evals.forEach(ev => {
+      if (!ev.isTest && ev.attendance === AttendanceStatus.ABSENT && hasRealEvaluationContent(ev)) {
+        const asrRec = maghribAtts.find(m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && m.programType === 'asr');
+        const restoredAttendance = asrRec?.status === MaghribAttendanceStatus.LATE ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
+        const cleanedNotes = String(ev.notes || '').includes('مسجل غائب') ? null : (ev.notes || null);
+        writeData(`data/evaluations/${ev.id}`, {
+          ...ev,
+          attendance: restoredAttendance,
+          absenceReason: null,
+          notes: cleanedNotes,
+          updatedAt: Date.now(),
+        });
+      }
+    });
+
+    // 2. حذف سجلات الغياب الوهمية المكررة إذا كان للطالب تقييم فعلي في نفس الأسبوع والمادة
+    evals.forEach(ev => {
+      if (!ev.isTest && ev.attendance === AttendanceStatus.ABSENT && !hasRealEvaluationContent(ev)) {
+        const hasRealSibling = evals.some(
+          other => other.id !== ev.id &&
+                   other.studentId === ev.studentId &&
+                   Number(other.weekNumber) === Number(ev.weekNumber) &&
+                   !other.isTest &&
+                   (ev.subject === 'mutoon' ? other.subject === 'mutoon' : other.subject !== 'mutoon') &&
+                   (other.attendance === AttendanceStatus.PRESENT || other.attendance === AttendanceStatus.LATE || hasRealEvaluationContent(other))
+        );
+        if (hasRealSibling) {
+          writeData(`data/evaluations/${ev.id}`, null);
+        }
+      }
+    });
+
+    // 3. استعادة تقييمات السرد الفعلية التي تحولت بالخطأ إلى غائب أو حذف المكرر الوهمي
+    sardEvals.forEach(se => {
+      if (se.attendance === AttendanceStatus.ABSENT && Number(se.pagesCount) > 0 && ((se.juzList && se.juzList.length > 0) || (se.surahs && se.surahs.length > 0) || (se.pageRanges && se.pageRanges.length > 0))) {
+        const cleanedNotes = String(se.notes || '').includes('مسجل غائب') ? undefined : se.notes;
+        writeData(`data/sardEvaluations/${se.id}`, {
+          ...se,
+          attendance: AttendanceStatus.PRESENT,
+          absenceReason: undefined,
+          grade: se.grade === 'غائب' ? 'ممتاز' : se.grade,
+          notes: cleanedNotes,
+          updatedAt: Date.now(),
+        });
+      } else if (se.attendance === AttendanceStatus.ABSENT && (!se.pagesCount || Number(se.pagesCount) === 0)) {
+        const hasRealSardSibling = sardEvals.some(
+          other => other.id !== se.id &&
+                   other.studentId === se.studentId &&
+                   Number(other.weekNumber) === Number(se.weekNumber) &&
+                   (other.attendance === AttendanceStatus.PRESENT || other.attendance === AttendanceStatus.LATE || Number(other.pagesCount) > 0)
+        );
+        if (hasRealSardSibling) {
+          writeData(`data/sardEvaluations/${se.id}`, null);
+        }
+      }
+    });
+
+    // 4. مطابقة سجلات إدارة الحضور مع استمارة التقييم:
+    // إذا كان الطالب مقيماً كحاضر في التقييم، نحذف اسمه من إدارة الحضور (إلا إذا كان متأخراً)
+    maghribAtts.forEach(m => {
+      if (m.programType === 'asr') {
+        const studentWeekEvals = evals.filter(
+          e => e.studentId === m.studentId && Number(e.weekNumber) === Number(m.weekNumber) && !e.isTest
+        );
+        const isEvaluatedLate = studentWeekEvals.some(e => e.attendance === AttendanceStatus.LATE);
+        const isEvaluatedPresent = studentWeekEvals.some(e => e.attendance === AttendanceStatus.PRESENT || hasRealEvaluationContent(e));
+
+        if (isEvaluatedLate) {
+          if (m.status !== MaghribAttendanceStatus.LATE) {
+            writeData(`data/maghribAttendances/${m.id}`, { ...m, status: MaghribAttendanceStatus.LATE, updatedAt: Date.now() });
+          }
+        } else if (isEvaluatedPresent) {
+          // الطالب مقيم كحاضر -> لا يظهر اسمه في إدارة الحضور
+          writeData(`data/maghribAttendances/${m.id}`, null);
+        }
+      } else {
+        const studentWeekSards = sardEvals.filter(
+          se => se.studentId === m.studentId && Number(se.weekNumber) === Number(m.weekNumber)
+        );
+        const isSardLate = studentWeekSards.some(se => se.attendance === AttendanceStatus.LATE);
+        const isSardPresent = studentWeekSards.some(se => se.attendance === AttendanceStatus.PRESENT || Number(se.pagesCount) > 0);
+
+        if (isSardLate) {
+          if (m.status !== MaghribAttendanceStatus.LATE) {
+            writeData(`data/maghribAttendances/${m.id}`, { ...m, status: MaghribAttendanceStatus.LATE, updatedAt: Date.now() });
+          }
+        } else if (isSardPresent) {
+          writeData(`data/maghribAttendances/${m.id}`, null);
+        }
+      }
+    });
+
+    // 5. إذا كان الطالب مسجلاً كـ (متأخر) في استمارة التقييم وليس له سجل في إدارة الحضور، نضيفه كـ متأخر
+    evals.forEach(ev => {
+      if (!ev.isTest && ev.attendance === AttendanceStatus.LATE) {
+        const hasAsrRec = maghribAtts.some(
+          m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && m.programType === 'asr'
+        );
+        if (!hasAsrRec) {
+          const id = generateId();
+          writeData(`data/maghribAttendances/${id}`, {
+            id,
+            studentId: ev.studentId,
+            weekNumber: Number(ev.weekNumber),
+            status: MaghribAttendanceStatus.LATE,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().slice(0, 5),
+            programType: 'asr',
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    });
+  }, [isLoading, isLoadingFirebase, data.students, data.evaluations, data.sardEvaluations, data.maghribAttendances]);
+
   const addEvaluation = (ev: any) => {
+    if (!ev.isTest) {
+      if (ev.subject !== 'mutoon') {
+        // إذا كان هناك تقييم سابق لنفس الطالب والأسبوع في الحفظ (مثل سجل غياب من إدارة الحضور)، نستبدله بدلاً من تكراره
+        const existingQuranEvals = (data.evaluations || []).filter(
+          e => e.studentId === ev.studentId && Number(e.weekNumber) === Number(ev.weekNumber) && e.subject !== 'mutoon' && !e.isTest
+        );
+        if (existingQuranEvals.length > 0) {
+          const primaryId = existingQuranEvals[0].id;
+          const updatedEv = { ...ev, id: primaryId, updatedAt: Date.now() };
+          writeData(`data/evaluations/${primaryId}`, updatedEv);
+          existingQuranEvals.slice(1).forEach(dup => writeData(`data/evaluations/${dup.id}`, null));
+          syncEvaluationToMaghribAttendance(updatedEv);
+          return;
+        }
+      } else {
+        // في المتون: حذف أي سجل غياب سابق عند إضافة تقييم متون جديد، أو تحديث نفس المتن إن وجد
+        const existingMutoonEvals = (data.evaluations || []).filter(
+          e => e.studentId === ev.studentId && Number(e.weekNumber) === Number(ev.weekNumber) && e.subject === 'mutoon' && !e.isTest
+        );
+        if (ev.attendance !== AttendanceStatus.ABSENT) {
+          existingMutoonEvals
+            .filter(e => e.attendance === AttendanceStatus.ABSENT)
+            .forEach(absRec => writeData(`data/evaluations/${absRec.id}`, null));
+        }
+        const targetMatnName = ev.surahs?.[0];
+        const sameMatnEval = targetMatnName
+          ? existingMutoonEvals.find(e => e.attendance !== AttendanceStatus.ABSENT && e.surahs?.includes(targetMatnName))
+          : existingMutoonEvals.find(e => e.attendance === AttendanceStatus.ABSENT);
+        if (sameMatnEval) {
+          const updatedEv = { ...ev, id: sameMatnEval.id, updatedAt: Date.now() };
+          writeData(`data/evaluations/${sameMatnEval.id}`, updatedEv);
+          syncEvaluationToMaghribAttendance(updatedEv);
+          return;
+        }
+      }
+    }
     const id = generateId();
-    writeData(`data/evaluations/${id}`, { ...ev, id, updatedAt: id });
-    syncEvaluationToMaghribAttendance(ev);
+    const newEv = { ...ev, id, updatedAt: id };
+    writeData(`data/evaluations/${id}`, newEv);
+    syncEvaluationToMaghribAttendance(newEv);
   };
   const updateEvaluation = (ev: any) => {
     writeData(`data/evaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
@@ -1018,20 +1356,39 @@ const App: React.FC = () => {
   const deleteEvaluation = (id: number) => {
     const ev = (data.evaluations || []).find(e => e.id === id);
     writeData(`data/evaluations/${id}`, null);
-    if (ev && ev.attendance === AttendanceStatus.ABSENT) {
+    if (ev) {
       const existing = (data.maghribAttendances || []).find(
         m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && m.programType === 'asr'
       );
       if (existing) {
         writeData(`data/maghribAttendances/${existing.id}`, null);
       }
+      if (ev.subject !== 'mutoon' && ev.attendance === AttendanceStatus.ABSENT) {
+        // حذف الغياب التلقائي المرتبط في المتون أيضاً
+        const mutoonAbs = (data.evaluations || []).filter(
+          e => e.studentId === ev.studentId && Number(e.weekNumber) === Number(ev.weekNumber) && e.subject === 'mutoon' && e.attendance === AttendanceStatus.ABSENT
+        );
+        mutoonAbs.forEach(m => writeData(`data/evaluations/${m.id}`, null));
+      }
     }
   };
 
   const addSardEvaluation = (ev: any) => {
+    const existingSardEvals = (data.sardEvaluations || []).filter(
+      se => se.studentId === ev.studentId && Number(se.weekNumber) === Number(ev.weekNumber)
+    );
+    if (existingSardEvals.length > 0) {
+      const primaryId = existingSardEvals[0].id;
+      const updatedEv = { ...ev, id: primaryId, updatedAt: Date.now() };
+      writeData(`data/sardEvaluations/${primaryId}`, updatedEv);
+      existingSardEvals.slice(1).forEach(dup => writeData(`data/sardEvaluations/${dup.id}`, null));
+      syncSardToMaghribAttendance(updatedEv);
+      return;
+    }
     const id = generateId();
-    writeData(`data/sardEvaluations/${id}`, { ...ev, id, updatedAt: id });
-    syncSardToMaghribAttendance(ev);
+    const newEv = { ...ev, id, updatedAt: id };
+    writeData(`data/sardEvaluations/${id}`, newEv);
+    syncSardToMaghribAttendance(newEv);
   };
   const updateSardEvaluation = (ev: any) => {
     writeData(`data/sardEvaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
@@ -1040,7 +1397,7 @@ const App: React.FC = () => {
   const deleteSardEvaluation = (id: number) => {
     const ev = (data.sardEvaluations || []).find(e => e.id === id);
     writeData(`data/sardEvaluations/${id}`, null);
-    if (ev && ev.attendance === AttendanceStatus.ABSENT) {
+    if (ev) {
       const existing = (data.maghribAttendances || []).find(
         m => m.studentId === ev.studentId && Number(m.weekNumber) === Number(ev.weekNumber) && (m.programType === 'maghrib' || !m.programType)
       );
@@ -1059,7 +1416,7 @@ const App: React.FC = () => {
   }, []);
   
   const addMaghribAttendance = (att: any) => {
-    const existing = (data.maghribAttendances || []).find(m => m.studentId === att.studentId && m.weekNumber === att.weekNumber && (m.programType === att.programType || (!m.programType && att.programType === 'maghrib')));
+    const existing = (data.maghribAttendances || []).find(m => m.studentId === att.studentId && Number(m.weekNumber) === Number(att.weekNumber) && (m.programType === att.programType || (!m.programType && att.programType === 'maghrib')));
     const id = existing ? existing.id : generateId();
     writeData(`data/maghribAttendances/${id}`, { ...att, id, updatedAt: Date.now() });
     syncAttendanceToEvaluations(att);
@@ -1069,40 +1426,38 @@ const App: React.FC = () => {
     writeData(`data/maghribAttendances/${id}`, null);
     if (att) {
       if (att.programType === 'asr') {
-        const ev = (data.evaluations || []).find(
+        const absentEvals = (data.evaluations || []).filter(
           e => e.studentId === att.studentId && 
                Number(e.weekNumber) === Number(att.weekNumber) && 
-               e.subject !== 'mutoon' && 
                !e.isTest && 
-               e.attendance === AttendanceStatus.ABSENT
+               (e.attendance === AttendanceStatus.ABSENT || e.attendance === AttendanceStatus.LATE)
         );
-        if (ev) {
-          if (ev.notes === 'مسجل غائب من إدارة الحضور (برنامج العصر)' || (!ev.pages || ev.pages === 0)) {
+        absentEvals.forEach(ev => {
+          if (ev.attendance === AttendanceStatus.ABSENT && !hasRealEvaluationContent(ev)) {
             writeData(`data/evaluations/${ev.id}`, null);
           } else {
             writeData(`data/evaluations/${ev.id}`, {
               ...ev,
               attendance: AttendanceStatus.PRESENT,
-              absenceReason: undefined,
+              absenceReason: null,
               updatedAt: Date.now(),
             });
           }
-        }
+        });
       } else {
         const sardEv = (data.sardEvaluations || []).find(
           se => se.studentId === att.studentId && 
                 Number(se.weekNumber) === Number(att.weekNumber) && 
-                se.attendance === AttendanceStatus.ABSENT
+                (se.attendance === AttendanceStatus.ABSENT || se.attendance === AttendanceStatus.LATE)
         );
         if (sardEv) {
-          if (sardEv.notes === 'مسجل غائب من إدارة الحضور (برنامج المغرب)' || (!sardEv.pagesCount && sardEv.grade === 'غائب')) {
+          if (sardEv.attendance === AttendanceStatus.ABSENT && (!sardEv.pagesCount || sardEv.grade === 'غائب')) {
             writeData(`data/sardEvaluations/${sardEv.id}`, null);
           } else {
             writeData(`data/sardEvaluations/${sardEv.id}`, {
               ...sardEv,
               attendance: AttendanceStatus.PRESENT,
               absenceReason: undefined,
-              grade: '',
               updatedAt: Date.now(),
             });
           }
@@ -1479,13 +1834,26 @@ const App: React.FC = () => {
       const teacherHalaqaIds = (data.halaqas || []).filter(h => h.teacherId === currentUser.id).map(h => h.id);
       const teacherStudents = (data.students || []).filter(s => teacherHalaqaIds.includes(s.halaqaId));
       
+      const asrAbsentIds = new Set(
+        (data.maghribAttendances || [])
+          .filter(m => Number(m.weekNumber) === targetWeek && m.programType === 'asr' && (m.status === MaghribAttendanceStatus.ABSENT || m.status === MaghribAttendanceStatus.EXCUSED))
+          .map(m => m.studentId)
+      );
+
       const quranEvaluatedIds = new Set(
         (data.evaluations || [])
           .filter(e => Number(e.weekNumber) === targetWeek && e.subject !== 'mutoon')
           .map(e => e.studentId)
       );
+
+      const quranAbsentIds = new Set(
+        (data.evaluations || [])
+          .filter(e => Number(e.weekNumber) === targetWeek && e.subject !== 'mutoon' && e.attendance === AttendanceStatus.ABSENT)
+          .map(e => e.studentId)
+      );
+
       const missingQuranStudents = teacherStudents
-        .filter(s => !quranEvaluatedIds.has(s.id))
+        .filter(s => !quranEvaluatedIds.has(s.id) && !asrAbsentIds.has(s.id))
         .map(s => s.name);
 
       // 2. فحص طلاب المتون إذا كانت مفعلة وللطلاب المتاح لهم المتون (طلاب الأمين)
@@ -1497,20 +1865,25 @@ const App: React.FC = () => {
       );
       const missingMutoonStudents = hasActiveMatns
         ? teacherStudents
-            .filter(s => !!s.isAlAmeen && !mutoonEvaluatedIds.has(s.id))
+            .filter(s => !!s.isAlAmeen && !mutoonEvaluatedIds.has(s.id) && !quranAbsentIds.has(s.id) && !asrAbsentIds.has(s.id))
             .map(s => s.name)
         : [];
 
       // 3. فحص طلاب السرد التابعين لحلقات السرد الخاصة بالمعلم
       const teacherSardHalaqaIds = (data.sardHalaqas || []).filter(sh => sh.teacherId === currentUser.id).map(sh => sh.id);
       const teacherSardStudents = (data.students || []).filter(s => s.sardHalaqaId && teacherSardHalaqaIds.includes(s.sardHalaqaId));
+      const maghribAbsentIds = new Set(
+        (data.maghribAttendances || [])
+          .filter(m => Number(m.weekNumber) === targetWeek && (m.programType === 'maghrib' || !m.programType) && (m.status === MaghribAttendanceStatus.ABSENT || m.status === MaghribAttendanceStatus.EXCUSED))
+          .map(m => m.studentId)
+      );
       const sardEvaluatedIds = new Set(
         (data.sardEvaluations || [])
           .filter(se => Number(se.weekNumber) === targetWeek)
           .map(se => se.studentId)
       );
       const missingSardStudents = teacherSardStudents
-        .filter(s => !sardEvaluatedIds.has(s.id))
+        .filter(s => !sardEvaluatedIds.has(s.id) && !maghribAbsentIds.has(s.id))
         .map(s => s.name);
       
       if (missingQuranStudents.length > 0 || missingMutoonStudents.length > 0 || missingSardStudents.length > 0) { 

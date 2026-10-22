@@ -459,6 +459,14 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
             )}
           </div>
 
+          {/* تنبيه إذا كان مسجلاً غائب */}
+          {evaluation.attendance === AttendanceStatus.ABSENT && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 p-2.5 rounded-xl text-[11px] font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+              <span>ℹ️</span>
+              <span>الطالب مسجل حالياً كـ <b>غائب</b>. يمكنك تغيير حالته إلى <b>حاضر</b> أو <b>متأخر</b> لتسجيل تقييم السرد مباشرة.</span>
+            </div>
+          )}
+
           {/* شريط حالة الحضور */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
@@ -467,7 +475,12 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setAttendance(AttendanceStatus.PRESENT)}
+                onClick={() => {
+                  setAttendance(AttendanceStatus.PRESENT);
+                  if (String(notes || '').includes('مسجل غائب')) {
+                    setNotes('');
+                  }
+                }}
                 className={`py-2 rounded-xl font-black border text-xs transition-all flex items-center justify-center gap-1.5 ${
                   attendance === AttendanceStatus.PRESENT
                     ? 'bg-emerald-50 border-emerald-600 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-500 shadow-xs ring-1 ring-emerald-500/30'
@@ -478,7 +491,12 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
               </button>
               <button
                 type="button"
-                onClick={() => setAttendance(AttendanceStatus.LATE)}
+                onClick={() => {
+                  setAttendance(AttendanceStatus.LATE);
+                  if (String(notes || '').includes('مسجل غائب')) {
+                    setNotes('');
+                  }
+                }}
                 className={`py-2 rounded-xl font-black border text-xs transition-all flex items-center justify-center gap-1.5 ${
                   attendance === AttendanceStatus.LATE
                     ? 'bg-blue-50 border-blue-600 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-500 shadow-xs ring-1 ring-blue-500/30'

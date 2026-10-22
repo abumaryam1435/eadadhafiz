@@ -1094,6 +1094,15 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         setUiMode('new');
         setCurrentStep('selectAttendance');
         resetFormFields();
+        const isLateInMaghrib = (context?.maghribAttendances || []).some(
+          m => m.studentId === selectedStudent &&
+               Number(m.weekNumber) === Number(selectedWeek) &&
+               (m.programType === 'maghrib' || !m.programType) &&
+               m.status === MaghribAttendanceStatus.LATE
+        );
+        if (isLateInMaghrib) {
+          setAttendance(AttendanceStatus.LATE);
+        }
       }
       return;
     }
@@ -1135,16 +1144,36 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     } else {
         setCurrentEval(null);
         setUiMode('new');
-        setCurrentStep('selectAttendance');
-        resetFormFields(); 
+        resetFormFields();
+
+        const hifzEvalForWeek = subject === 'mutoon'
+          ? evaluations.find(e => e.studentId === selectedStudent && Number(e.weekNumber) === Number(selectedWeek) && e.subject !== 'mutoon' && !e.isTest)
+          : null;
+
+        const isLateInAsr = (context?.maghribAttendances || []).some(
+          m => m.studentId === selectedStudent &&
+               Number(m.weekNumber) === Number(selectedWeek) &&
+               m.programType === 'asr' &&
+               m.status === MaghribAttendanceStatus.LATE
+        );
+
+        if (subject === 'mutoon' && hifzEvalForWeek && (hifzEvalForWeek.attendance === AttendanceStatus.PRESENT || hifzEvalForWeek.attendance === AttendanceStatus.LATE)) {
+          setAttendance(hifzEvalForWeek.attendance);
+          setCurrentStep('mutoonEvaluation');
+        } else {
+          if (isLateInAsr || (hifzEvalForWeek && hifzEvalForWeek.attendance === AttendanceStatus.LATE)) {
+            setAttendance(AttendanceStatus.LATE);
+          }
+          setCurrentStep('selectAttendance');
+        }
     }
-  }, [selectedStudent, selectedWeek, subject, evaluations, sardEvaluations, resetFormFields]);
+  }, [selectedStudent, selectedWeek, subject, evaluations, sardEvaluations, resetFormFields, context?.maghribAttendances]);
 
   // تعيين الحلقة الافتراضية
   useEffect(() => {
     if (currentStep !== 'selectHalaqa') return;
     if (context?.isLoading) return; // Prevent fallback before data loads
-    if (isFloating) { setSelectedHalaqa(0); setIsGuest(true); setCurrentStep('selectWeek'); }
+    if (isFloating) { setSelectedHalaqa(0); setIsGuest(false); setCurrentStep('selectWeek'); }
     else if (teacherHalaqas.length === 1) { setSelectedHalaqa(teacherHalaqas[0].id); setCurrentStep('selectWeek'); }
   }, [teacherHalaqas.length, isFloating, currentStep, context?.isLoading]);
 
@@ -1623,7 +1652,16 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           initialEvaluation={currentEval} 
           student={activeStudent} 
           halaqa={halaqas.find(h => h.id === currentEval.halaqaId)} 
-          onClose={() => setUiMode('summary')} 
+          onClose={() => {
+            if (currentEval.attendance === AttendanceStatus.ABSENT) {
+              setUiMode('new');
+              setSelectedStudent(null);
+              setCurrentStep('selectStudent');
+              lastCheckedRef.current = "";
+            } else {
+              setUiMode('summary');
+            }
+          }} 
           onSave={(v) => { 
             updateEvaluation(v); 
             onFormSubmit('update'); 
@@ -2299,15 +2337,22 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
                     .map(s => {
                     const evalRecord = evaluations.find(e => e.studentId === s.id && e.weekNumber === selectedWeek && (subject === 'mutoon' ? e.subject === 'mutoon' : e.subject !== 'mutoon') && !e.isTest);
+                    const hifzRecord = subject === 'mutoon'
+                      ? evaluations.find(e => e.studentId === s.id && e.weekNumber === selectedWeek && e.subject !== 'mutoon' && !e.isTest)
+                      : evalRecord;
                     const isEvaluated = !!evalRecord;
-                    const isAbsentInEvaluation = evalRecord?.attendance === AttendanceStatus.ABSENT;
-                    const isAbsentInAsrAttendance = (context?.maghribAttendances || []).some(
+                    const isAbsentInEvaluation = evalRecord?.attendance === AttendanceStatus.ABSENT || (subject === 'mutoon' && !evalRecord && hifzRecord?.attendance === AttendanceStatus.ABSENT);
+                    const asrAttRecord = (context?.maghribAttendances || []).find(
                       m => m.studentId === s.id && 
                            Number(m.weekNumber) === Number(selectedWeek) && 
-                           m.programType === 'asr' && 
-                           (m.status === MaghribAttendanceStatus.ABSENT || m.status === MaghribAttendanceStatus.EXCUSED)
+                           m.programType === 'asr'
                     );
+                    const isAbsentInAsrAttendance = !evalRecord && !hifzRecord && !!(asrAttRecord && (asrAttRecord.status === MaghribAttendanceStatus.ABSENT || asrAttRecord.status === MaghribAttendanceStatus.EXCUSED));
                     const isAbsent = isAbsentInEvaluation || isAbsentInAsrAttendance;
+                    const isLate = evalRecord?.attendance === AttendanceStatus.LATE ||
+                                   (subject === 'mutoon' && !evalRecord && hifzRecord?.attendance === AttendanceStatus.LATE) ||
+                                   (!evalRecord && !hifzRecord && asrAttRecord?.status === MaghribAttendanceStatus.LATE);
+                    const isPresentInHifzOnly = subject === 'mutoon' && !evalRecord && hifzRecord?.attendance === AttendanceStatus.PRESENT;
                     const isAmeer = isStudentHalaqaAmeer(s);
                     return (
                       <button 
@@ -2324,6 +2369,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             ? 'bg-rose-50 text-rose-950 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 hover:bg-rose-100'
                             : isEvaluated 
                             ? 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700' 
+                            : isLate
+                            ? 'bg-blue-50/80 text-blue-950 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800 hover:bg-blue-100'
                             : isAmeer 
                             ? 'bg-amber-50/70 text-amber-950 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800' 
                             : 'bg-gray-50 text-gray-800 hover:bg-green-50 border-gray-100 dark:bg-gray-700 dark:text-gray-200'
@@ -2345,7 +2392,21 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 ${
                               selectedStudent === s.id ? 'bg-white/20 text-white' : 'bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-200 border border-red-200 dark:border-red-800'
                             }`}>
-                              🚫 مسجل غائب (برنامج العصر)
+                              🚫 مسجل غائب
+                            </span>
+                          )}
+                          {!isAbsent && isLate && (
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 ${
+                              selectedStudent === s.id ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-200 border border-blue-200 dark:border-blue-800'
+                            }`}>
+                              🕒 {subject === 'mutoon' && !evalRecord ? 'متأخر في الحفظ' : 'مسجل متأخر'}
+                            </span>
+                          )}
+                          {!isAbsent && !isLate && isPresentInHifzOnly && (
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md mt-0.5 inline-flex items-center gap-1 ${
+                              selectedStudent === s.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
+                            }`}>
+                              ✅ حاضر في الحفظ
                             </span>
                           )}
                         </div>
@@ -2508,6 +2569,60 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
         {currentStep === 'mutoonEvaluation' && (
           <div className="space-y-5">
+            {/* شريط حالة الحضور المرتبط تلقائياً بالحفظ */}
+            <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-gray-700 dark:text-gray-300">حالة الحضور في المتون:</span>
+                <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black ${
+                  attendance === AttendanceStatus.LATE
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
+                }`}>
+                  {attendance === AttendanceStatus.LATE ? '🕒 متأخر' : '✅ حاضر'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAttendance(AttendanceStatus.PRESENT)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition-all cursor-pointer ${
+                    attendance === AttendanceStatus.PRESENT
+                      ? 'bg-green-600 text-white border-green-700 shadow-xs'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
+                  }`}
+                >
+                  حاضر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttendance(AttendanceStatus.LATE)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition-all cursor-pointer ${
+                    attendance === AttendanceStatus.LATE
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
+                  }`}
+                >
+                  متأخر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttendance(AttendanceStatus.ABSENT);
+                    setEvalType(undefined);
+                    setPages('');
+                    setAyahRange('');
+                    setSurahs([]);
+                    setPerf(undefined);
+                    setPReview(undefined);
+                    setCurrentStep('selectAbsenceReason');
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800 transition-all cursor-pointer"
+                >
+                  غائب
+                </button>
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
               <div>
                 <h3 className="font-black text-xl text-blue-900 dark:text-blue-200">تقييم المتون العلمية</h3>

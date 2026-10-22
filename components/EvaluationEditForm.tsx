@@ -619,6 +619,12 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     >
       {step === 'edit' ? (
       <form onSubmit={handlePreview} className="flex flex-col gap-3.5 animate-in slide-in-from-bottom-2 duration-500">
+        {initialEvaluation.attendance === AttendanceStatus.ABSENT && (
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 p-2.5 rounded-xl text-[11px] font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+            <span>ℹ️</span>
+            <span>الطالب مسجل حالياً كـ <b>غائب</b>. يمكنك تغيير حالته إلى <b>حاضر</b> أو <b>متأخر</b> لتسجيل تقييمه مباشرة.</span>
+          </div>
+        )}
         <StudentProgressInfo student={currentStudent} subject={initialEvaluation.subject} />
         {error && <div className="bg-red-50 text-red-700 p-2.5 rounded-lg border border-red-200 text-[10px] font-black animate-pulse flex items-center gap-2">
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
@@ -629,10 +635,26 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
         <div className="space-y-1.5">
           <label className="text-[10px] font-black text-gray-500 dark:text-gray-400 flex items-center gap-1.5 uppercase">الحضور</label>
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-            <button type="button" onClick={() => setAttendance(AttendanceStatus.PRESENT)} className={`py-1.5 rounded-xl font-black border transition-all flex items-center justify-center gap-1.5 ${attendance === AttendanceStatus.PRESENT ? 'bg-green-50 border-green-600 text-green-900 shadow-sm ring-1 ring-green-500/20' : 'bg-white dark:bg-gray-800 dark:text-gray-400 border-gray-200'}`}>
+            <button type="button" onClick={() => {
+              setAttendance(AttendanceStatus.PRESENT);
+              if (!evaluationType || evaluationType === EvaluationType.DID_NOT_MEMORIZE) {
+                setEvaluationType(EvaluationType.MEMORIZATION);
+              }
+              if (String(notes || '').includes('مسجل غائب')) {
+                setNotes('');
+              }
+            }} className={`py-1.5 rounded-xl font-black border transition-all flex items-center justify-center gap-1.5 ${attendance === AttendanceStatus.PRESENT ? 'bg-green-50 border-green-600 text-green-900 shadow-sm ring-1 ring-green-500/20' : 'bg-white dark:bg-gray-800 dark:text-gray-400 border-gray-200'}`}>
               <span className="text-[10px]">حاضر</span>
             </button>
-            <button type="button" onClick={() => setAttendance(AttendanceStatus.LATE)} className={`py-1.5 rounded-xl font-black border transition-all flex items-center justify-center gap-1.5 ${attendance === AttendanceStatus.LATE ? 'bg-blue-50 border-blue-600 text-blue-900 shadow-sm ring-1 ring-blue-500/20' : 'bg-white dark:bg-gray-800 dark:text-gray-400 border-gray-200'}`}>
+            <button type="button" onClick={() => {
+              setAttendance(AttendanceStatus.LATE);
+              if (!evaluationType || evaluationType === EvaluationType.DID_NOT_MEMORIZE) {
+                setEvaluationType(EvaluationType.MEMORIZATION);
+              }
+              if (String(notes || '').includes('مسجل غائب')) {
+                setNotes('');
+              }
+            }} className={`py-1.5 rounded-xl font-black border transition-all flex items-center justify-center gap-1.5 ${attendance === AttendanceStatus.LATE ? 'bg-blue-50 border-blue-600 text-blue-900 shadow-sm ring-1 ring-blue-500/20' : 'bg-white dark:bg-gray-800 dark:text-gray-400 border-gray-200'}`}>
               <span className="text-[10px]">متأخر</span>
             </button>
             <button type="button" onClick={() => {

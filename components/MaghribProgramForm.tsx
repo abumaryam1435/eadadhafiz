@@ -69,86 +69,135 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
     ) || null;
   };
 
-  // فحص هل الطالب مسجل غائب في التقييم المرتبط إذا لم يكن موجوداً بعد في maghribAttendances
-  const checkEvaluationAbsence = (studentId: number) => {
-    if (!weekNumber) return null;
+  // فحص حالة الطالب في التقييمات المرتبطة (الأولوية لاستمارة التقييم دائماً)
+  const getStudentEvaluationState = (studentId: number): { isPresentEvaluated: boolean; isLateEvaluated: boolean; isAbsentEvaluated: boolean; source?: string } => {
+    if (!weekNumber) return { isPresentEvaluated: false, isLateEvaluated: false, isAbsentEvaluated: false };
+    const wk = Number(weekNumber);
+
     if (programType === 'asr') {
-      const ev = (evaluations || []).find(
-        e => e.studentId === studentId && 
-             Number(e.weekNumber) === Number(weekNumber) && 
-             e.subject !== 'mutoon' && 
-             !e.isTest && 
-             e.attendance === AttendanceStatus.ABSENT
+      const studentEvals = (evaluations || []).filter(
+        e => e.studentId === studentId && Number(e.weekNumber) === wk && e.subject !== 'mutoon' && !e.isTest
       );
-      return ev ? 'evaluation' : null;
+      const presentEv = studentEvals.find(e => e.attendance === AttendanceStatus.PRESENT);
+      if (presentEv) {
+        return { isPresentEvaluated: true, isLateEvaluated: false, isAbsentEvaluated: false, source: 'evaluation' };
+      }
+      const lateEv = studentEvals.find(e => e.attendance === AttendanceStatus.LATE);
+      if (lateEv) {
+        return { isPresentEvaluated: false, isLateEvaluated: true, isAbsentEvaluated: false, source: 'evaluation' };
+      }
+      const absentEv = studentEvals.find(e => e.attendance === AttendanceStatus.ABSENT);
+      if (absentEv) {
+        return { isPresentEvaluated: false, isLateEvaluated: false, isAbsentEvaluated: true, source: 'evaluation' };
+      }
+      return { isPresentEvaluated: false, isLateEvaluated: false, isAbsentEvaluated: false };
     } else {
-      const sardEv = (sardEvaluations || []).find(
-        se => se.studentId === studentId && 
-              Number(se.weekNumber) === Number(weekNumber) && 
-              se.attendance === AttendanceStatus.ABSENT
+      const studentSardEvals = (sardEvaluations || []).filter(
+        se => se.studentId === studentId && Number(se.weekNumber) === wk
       );
-      if (sardEv) return 'sard';
-      const ilmiyyaAtt = (ilmiyyaAttendances || []).find(
-        ia => ia.studentId === studentId && 
-              Number(ia.weekNumber) === Number(weekNumber) && 
-              ia.status === AttendanceStatus.ABSENT
+      const presentSard = studentSardEvals.find(se => se.attendance === AttendanceStatus.PRESENT);
+      if (presentSard) {
+        return { isPresentEvaluated: true, isLateEvaluated: false, isAbsentEvaluated: false, source: 'sard' };
+      }
+      const lateSard = studentSardEvals.find(se => se.attendance === AttendanceStatus.LATE);
+      if (lateSard) {
+        return { isPresentEvaluated: false, isLateEvaluated: true, isAbsentEvaluated: false, source: 'sard' };
+      }
+      const absentSard = studentSardEvals.find(se => se.attendance === AttendanceStatus.ABSENT);
+      if (absentSard) {
+        return { isPresentEvaluated: false, isLateEvaluated: false, isAbsentEvaluated: true, source: 'sard' };
+      }
+
+      const studentIlmiyya = (ilmiyyaAttendances || []).filter(
+        ia => ia.studentId === studentId && Number(ia.weekNumber) === wk
       );
-      if (ilmiyyaAtt) return 'ilmiyya';
-      return null;
+      const presentIlmiyya = studentIlmiyya.find(ia => ia.status === AttendanceStatus.PRESENT);
+      if (presentIlmiyya) {
+        return { isPresentEvaluated: true, isLateEvaluated: false, isAbsentEvaluated: false, source: 'ilmiyya' };
+      }
+      const lateIlmiyya = studentIlmiyya.find(ia => ia.status === AttendanceStatus.LATE);
+      if (lateIlmiyya) {
+        return { isPresentEvaluated: false, isLateEvaluated: true, isAbsentEvaluated: false, source: 'ilmiyya' };
+      }
+      const absentIlmiyya = studentIlmiyya.find(ia => ia.status === AttendanceStatus.ABSENT);
+      if (absentIlmiyya) {
+        return { isPresentEvaluated: false, isLateEvaluated: false, isAbsentEvaluated: true, source: 'ilmiyya' };
+      }
+      return { isPresentEvaluated: false, isLateEvaluated: false, isAbsentEvaluated: false };
     }
   };
+
+  // الطلاب المتاحون للعرض في إدارة الحضور (يُستبعد منهم من تم تقييمه كـ "حاضر" في استمارة التقييم، بينما يبقى المتأخر والغائب وغير المقيّم)
+  const visibleIbriStudents = useMemo(() => {
+    if (!weekNumber) return ibriStudents;
+    return ibriStudents.filter(s => {
+      const evalState = getStudentEvaluationState(s.id);
+      if (evalState.isPresentEvaluated) return false;
+      return true;
+    });
+  }, [ibriStudents, weekNumber, evaluations, sardEvaluations, ilmiyyaAttendances, programType]);
 
   const studentAttendanceMap = useMemo(() => {
     const map = new Map<number, { record: MaghribAttendance | null; isAbsent: boolean; status?: MaghribAttendanceStatus; source?: string }>();
     if (!weekNumber) return map;
 
-    ibriStudents.forEach(s => {
+    visibleIbriStudents.forEach(s => {
+      const evalState = getStudentEvaluationState(s.id);
       const rec = getStudentRecord(s.id);
-      if (rec) {
+
+      // إذا كان الطالب مسجلاً كـ "متأخر" في استمارة التقييم، فالأولوية للتقييم دائماً
+      if (evalState.isLateEvaluated) {
+        map.set(s.id, {
+          record: rec,
+          isAbsent: false,
+          status: MaghribAttendanceStatus.LATE,
+          source: evalState.source || 'evaluation'
+        });
+      } else if (rec) {
         map.set(s.id, {
           record: rec,
           isAbsent: rec.status === MaghribAttendanceStatus.ABSENT || rec.status === MaghribAttendanceStatus.EXCUSED,
           status: rec.status,
           source: 'attendance'
         });
-      } else {
-        const evalSource = checkEvaluationAbsence(s.id);
-        if (evalSource) {
-          map.set(s.id, {
-            record: null,
-            isAbsent: true,
-            status: MaghribAttendanceStatus.ABSENT,
-            source: evalSource
-          });
-        }
+      } else if (evalState.isAbsentEvaluated) {
+        map.set(s.id, {
+          record: null,
+          isAbsent: true,
+          status: MaghribAttendanceStatus.ABSENT,
+          source: evalState.source
+        });
       }
     });
     return map;
-  }, [ibriStudents, weekNumber, maghribAttendances, evaluations, sardEvaluations, ilmiyyaAttendances, programType]);
+  }, [visibleIbriStudents, weekNumber, maghribAttendances, evaluations, sardEvaluations, ilmiyyaAttendances, programType]);
 
   const filteredStudents = useMemo(() => {
-    return ibriStudents
+    return visibleIbriStudents
       .filter(s => {
         if (searchTerm.trim() && !isSmartMatch(s.name, searchTerm)) return false;
         const info = studentAttendanceMap.get(s.id);
-        if (filterView === 'absent' && (!info || !info.isAbsent)) return false;
-        if (filterView === 'notAbsent' && (info && info.isAbsent)) return false;
+        const isRecorded = !!(info && (info.isAbsent || info.status === MaghribAttendanceStatus.LATE));
+        if (filterView === 'absent' && !isRecorded) return false;
+        if (filterView === 'notAbsent' && isRecorded) return false;
         return true;
       })
       .sort((a, b) => {
         const aInfo = studentAttendanceMap.get(a.id);
         const bInfo = studentAttendanceMap.get(b.id);
-        if (aInfo?.isAbsent && !bInfo?.isAbsent) return -1;
-        if (!aInfo?.isAbsent && bInfo?.isAbsent) return 1;
+        const aRecorded = !!(aInfo?.isAbsent || aInfo?.status === MaghribAttendanceStatus.LATE);
+        const bRecorded = !!(bInfo?.isAbsent || bInfo?.status === MaghribAttendanceStatus.LATE);
+        if (aRecorded && !bRecorded) return -1;
+        if (!aRecorded && bRecorded) return 1;
         return a.name.localeCompare(b.name, 'ar', { numeric: true });
       });
-  }, [ibriStudents, searchTerm, filterView, studentAttendanceMap]);
+  }, [visibleIbriStudents, searchTerm, filterView, studentAttendanceMap]);
 
   const stats = useMemo(() => {
     let absentCount = 0;
     let excusedCount = 0;
     let lateCount = 0;
-    ibriStudents.forEach(s => {
+    visibleIbriStudents.forEach(s => {
       const info = studentAttendanceMap.get(s.id);
       if (info) {
         if (info.status === MaghribAttendanceStatus.ABSENT) absentCount++;
@@ -157,13 +206,13 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
       }
     });
     return {
-      totalStudents: ibriStudents.length,
+      totalStudents: visibleIbriStudents.length,
       absentCount,
       excusedCount,
       lateCount,
       totalRecorded: absentCount + excusedCount + lateCount
     };
-  }, [ibriStudents, studentAttendanceMap]);
+  }, [visibleIbriStudents, studentAttendanceMap]);
 
   const existingRecord = useMemo(() => {
     if (!selectedStudent || !weekNumber) return null;
@@ -172,7 +221,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
 
   const handleStudentClick = (student: Student) => {
     const info = studentAttendanceMap.get(student.id);
-    if (info && (info.record || info.isAbsent)) {
+    if (info && (info.record || info.isAbsent || info.status === MaghribAttendanceStatus.LATE)) {
       setModalStudent(student);
       setModalRecord(info.record);
       setModalStatus(info.status || MaghribAttendanceStatus.ABSENT);
@@ -462,7 +511,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <h2 className="font-black text-sm sm:text-base text-gray-900 dark:text-white truncate">
-                      طلاب جامع عبري ({toArabicDigits(ibriStudents.length)})
+                      طلاب جامع عبري ({toArabicDigits(stats.totalStudents)})
                     </h2>
                     <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/60 text-green-900 dark:text-green-200 rounded-md text-[11px] font-black">
                       أسبوع {toArabicDigits(weekNumber)}
@@ -486,7 +535,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                 <div className="flex items-center gap-1.5 text-xs text-rose-950 dark:text-rose-200">
                   <span className="text-base shrink-0">💡</span>
                   <p className="text-[11px] sm:text-xs font-bold leading-snug">
-                    الطلاب المسجلون كغائبين مميزون باللون الوردي. اضغط على أي طالب لتعديل حالته أو حذف الغياب.
+                    الطلاب الذين تم تقييمهم كحاضرين يختفون تلقائياً من القائمة، بينما يظهر الغائبون والمتأخرون وغير المقيّمين بعد.
                   </p>
                 </div>
 
@@ -500,7 +549,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                     <span>📝 مستأذن:</span>
                     <span>{toArabicDigits(stats.excusedCount)}</span>
                   </div>
-                  {programType === 'asr' ? (
+                  {(programType === 'asr' || stats.lateCount > 0) ? (
                     <div className="px-2 py-1 bg-orange-500 text-white rounded-lg text-center font-black text-[11px] shadow-2xs flex items-center justify-center gap-1 col-span-2 sm:col-span-1">
                       <span>⏰ متأخر:</span>
                       <span>{toArabicDigits(stats.lateCount)}</span>
@@ -568,7 +617,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
                     }`}
                   >
-                    الكل ({toArabicDigits(ibriStudents.length)})
+                    الكل ({toArabicDigits(stats.totalStudents)})
                   </button>
 
                   <button
@@ -580,7 +629,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                         : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                     }`}
                   >
-                    🚫 الغائبون ({toArabicDigits(stats.totalRecorded)})
+                    🚫 المسجلون ({toArabicDigits(stats.totalRecorded)})
                   </button>
 
                   <button
@@ -592,7 +641,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                         : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                     }`}
                   >
-                    غير المسجلين ({toArabicDigits(ibriStudents.length - stats.totalRecorded)})
+                    غير المسجلين ({toArabicDigits(stats.totalStudents - stats.totalRecorded)})
                   </button>
                 </div>
               </div>
