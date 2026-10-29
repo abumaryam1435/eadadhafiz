@@ -3,7 +3,7 @@ import { AppContext } from '../App';
 import { Student } from '../types';
 import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, normalizeStudentLevel } from '../utils/pageUtils';
 import { formatAndCountJuzs, toEnglishDigits, formatRtlRange, toArabicDigits } from '../utils/juzUtils';
-import { surahNames, surahPagesMap, getJuzPages, countQuranPages } from '../utils/quranData';
+import { surahNames, surahPagesMap, pageSurahsMap, getJuzPages, countQuranPages } from '../utils/quranData';
 import Modal from './Modal';
 
 interface StudentProgressInfoProps {
@@ -35,6 +35,8 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
   const [isEditingRanges, setIsEditingRanges] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<EditorTab>('ranges');
   const [surahSearch, setSurahSearch] = useState<string>('');
+  const [rangeStartSurah, setRangeStartSurah] = useState<number>(56);
+  const [rangeEndSurah, setRangeEndSurah] = useState<number>(114);
 
   // Core synchronized state: a Set of active page numbers (1 to 604)
   const [activePagesSet, setActivePagesSet] = useState<Set<number>>(new Set());
@@ -206,13 +208,35 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
     const isAllSelected = sPages.every(p => newSet.has(p));
 
     if (isAllSelected) {
-      // Deselect all pages in this Surah
-      sPages.forEach(p => newSet.delete(p));
+      // Deselect pages in this Surah unless a shared boundary page belongs to another selected Surah
+      sPages.forEach(p => {
+        const otherSurahsOnPage = (pageSurahsMap[p] || []).filter(id => id !== surahId);
+        const isNeededByOtherSelectedSurah = otherSurahsOnPage.some(otherId => {
+          const otherPages = surahPagesMap[otherId] || [];
+          return otherPages.length > 0 && otherPages.every(op => op === p || newSet.has(op));
+        });
+        if (!isNeededByOtherSelectedSurah) {
+          newSet.delete(p);
+        }
+      });
     } else {
       // Select all pages in this Surah
       sPages.forEach(p => newSet.add(p));
     }
 
+    setActivePagesSet(newSet);
+    setRanges(pagesSetToRangeInputs(newSet));
+  };
+
+  // Select a range of Surahs (e.g., from Al-Waqi'ah 56 to An-Nas 114)
+  const handleSelectSurahRange = () => {
+    const startId = Math.min(rangeStartSurah, rangeEndSurah);
+    const endId = Math.max(rangeStartSurah, rangeEndSurah);
+    const newSet = new Set(activePagesSet);
+    for (let id = startId; id <= endId; id++) {
+      const sPages = surahPagesMap[id] || [];
+      sPages.forEach(p => newSet.add(p));
+    }
     setActivePagesSet(newSet);
     setRanges(pagesSetToRangeInputs(newSet));
   };
@@ -655,9 +679,55 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
             {/* 3. تبويب التحديد بالسور (1 - 114) */}
             {activeTab === 'surahs' && (
               <div className="space-y-2.5">
+                {/* تحديد نطاق سور سريع (من سورة ... إلى سورة ...) */}
+                <div className="flex flex-wrap items-center gap-1.5 bg-emerald-100/70 dark:bg-emerald-950/40 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800/60">
+                  <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200 shrink-0">
+                    تحديد نطاق سور:
+                  </span>
+                  <div className="flex items-center gap-1 flex-1 min-w-[200px]">
+                    <span className="text-[11px] text-gray-600 dark:text-gray-300">من</span>
+                    <select
+                      value={rangeStartSurah}
+                      onChange={(e) => setRangeStartSurah(Number(e.target.value))}
+                      className="flex-1 px-2 py-1 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 outline-none"
+                    >
+                      {surahNames.slice(1).map((name, idx) => {
+                        const id = idx + 1;
+                        return (
+                          <option key={id} value={id}>
+                            {id}. {name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <span className="text-[11px] text-gray-600 dark:text-gray-300">إلى</span>
+                    <select
+                      value={rangeEndSurah}
+                      onChange={(e) => setRangeEndSurah(Number(e.target.value))}
+                      className="flex-1 px-2 py-1 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 outline-none"
+                    >
+                      {surahNames.slice(1).map((name, idx) => {
+                        const id = idx + 1;
+                        return (
+                          <option key={id} value={id}>
+                            {id}. {name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSelectSurahRange}
+                    className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition cursor-pointer shrink-0"
+                  >
+                    + إضافة النطاق
+                  </button>
+                </div>
+
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5">
                   <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
-                    اختر السور لتحديد صفحاتها تلقائياً:
+                    أو اختر السور فردياً لتحديد صفحاتها تلقائياً:
                   </span>
                   <div className="relative flex items-center w-full sm:w-56">
                     <input
@@ -684,7 +754,18 @@ export const StudentProgressInfo: React.FC<StudentProgressInfoProps> = ({ studen
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-64 overflow-y-auto p-1 bg-white/70 dark:bg-slate-900/50 rounded-xl border border-emerald-200 dark:border-emerald-800/60 touch-manipulation">
                   {filteredSurahsList.map(surah => {
                     const sPages = surah.pages;
-                    const selectedCount = sPages.filter(p => activePagesSet.has(p)).length;
+                    const effectiveSelectedPages = sPages.filter(p => {
+                      if (!activePagesSet.has(p)) return false;
+                      if (sPages.length <= 1) return true;
+                      const surahsOnPage = pageSurahsMap[p] || [];
+                      if (surahsOnPage.length <= 1) return true;
+                      const firstP = sPages[0];
+                      const lastP = sPages[sPages.length - 1];
+                      if (p === firstP) return activePagesSet.has(p + 1);
+                      if (p === lastP) return activePagesSet.has(p - 1);
+                      return true;
+                    });
+                    const selectedCount = effectiveSelectedPages.length;
                     const isFull = sPages.length > 0 && selectedCount === sPages.length;
                     const isPartial = selectedCount > 0 && selectedCount < sPages.length;
 

@@ -12,6 +12,7 @@ import Modal from './Modal';
 import { SardEvaluationEditModal } from './SardEvaluationEditModal';
 import { surahNames } from '../utils/quranData';
 import { compareReportRows } from '../utils/reportSortUtils';
+import { getSardActivityName, SARD_ACTIVITY_PRESETS } from '../utils/sardUtils';
 
 const NOT_RECORDED = 'not_recorded';
 const LOCAL_STORAGE_SARD_REPORT_COLUMNS_KEY = 'sardReportSelectedColumns';
@@ -253,8 +254,11 @@ export const SardReportsTable: React.FC = () => {
       const studentSardHalaqa = sardHalaqas.find(h => Number(h.id) === Number(e.sardHalaqaId || student?.sardHalaqaId));
       const evaluator = users.find(u => Number(u.id) === Number(e.teacherId || studentSardHalaqa?.teacherId));
 
+      const activityName = getSardActivityName(e);
       let sardContent = '—';
-      if (e.juzList && e.juzList.length > 0) {
+      if (activityName) {
+        sardContent = activityName;
+      } else if (e.juzList && e.juzList.length > 0) {
         sardContent = `الأجزاء (${e.juzList.slice().sort((a: number, b: number) => Number(a) - Number(b)).map(toArabicDigits).join('، ')})`;
       } else if (e.surahs && e.surahs.length > 0) {
         sardContent = e.surahs.join('، ');
@@ -283,7 +287,7 @@ export const SardReportsTable: React.FC = () => {
         hesitationErrors: e.hesitationErrors || 0,
         tajweedErrors: e.tajweedErrors || 0,
         totalErrors: e.totalErrors || 0,
-        grade: e.grade || '—',
+        grade: activityName || e.grade || '—',
         evaluationDate: e.date || '—',
         notes: e.notes || '—',
         student,
@@ -310,15 +314,24 @@ export const SardReportsTable: React.FC = () => {
     { id: NOT_RECORDED, name: translationMap[NOT_RECORDED] }
   ];
 
-  const gradeOptions = [
-    { id: 'ممتاز مع الشرف', name: 'ممتاز مع الشرف' },
-    { id: 'ممتاز', name: 'ممتاز' },
-    { id: 'جيد جداً', name: 'جيد جداً' },
-    { id: 'جيد', name: 'جيد' },
-    { id: 'مقبول', name: 'مقبول' },
-    { id: 'ضعيف', name: 'ضعيف' },
-    { id: 'غائب', name: 'غائب' },
-  ];
+  const gradeOptions = useMemo(() => {
+    const baseGrades = [
+      'ممتاز مع الشرف',
+      'ممتاز',
+      'جيد جداً',
+      'جيد',
+      'مقبول',
+      'ضعيف',
+      'غائب',
+      ...SARD_ACTIVITY_PRESETS,
+    ];
+    const customSet = new Set<string>(baseGrades);
+    sardEvaluations.forEach(e => {
+      const act = getSardActivityName(e);
+      if (act) customSet.add(act);
+    });
+    return Array.from(customSet).map(g => ({ id: g, name: g }));
+  }, [sardEvaluations]);
 
   const alAmeenOptions = [
     { id: 'نعم', name: 'نعم' },

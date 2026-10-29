@@ -1,6 +1,6 @@
 
 import React, { useState, createContext, useEffect, useCallback, useRef, useMemo } from 'react';
-import { User, Evaluation, UserRole, Student, Halaqa, FullBackupData, DeletedItem, MaghribAttendance, Suggestion, StudentBehavior, Matn, SardHalaqa, SardEvaluation, IlmiyyaHalaqa, IlmiyyaAttendance, NewStudentTest, ReviewFeatureConfig, AttendanceStatus, AbsenceReason, MaghribAttendanceStatus, EvaluationType } from './types';
+import { User, Evaluation, UserRole, Student, Halaqa, FullBackupData, DeletedItem, MaghribAttendance, Suggestion, StudentBehavior, Matn, SardHalaqa, SardEvaluation, IlmiyyaHalaqa, IlmiyyaAttendance, NewStudentTest, ReviewFeatureConfig, AttendanceStatus, AbsenceReason, MaghribAttendanceStatus, EvaluationType, PerformanceLevel } from './types';
 import { INITIAL_USERS, DEFAULT_APP_NAME, DEFAULT_MAGHRIB_PASSWORD } from './constants';
 import LoginScreen from './components/LoginScreen';
 import SupervisorDashboard from './components/SupervisorDashboard';

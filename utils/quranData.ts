@@ -4920,14 +4920,28 @@ export function analyzeStudentQuranHistory(
 
   oldPages.forEach(p => {
     allCountedPages.add(p);
-    fullPages.add(p);
-    priorFullPages.add(p);
   });
 
   const coveredSurahsByPage = new Map<number, Set<number>>();
   oldPages.forEach(p => {
     const surahsOnPage = pageSurahsMap[p] || [];
-    coveredSurahsByPage.set(p, new Set(surahsOnPage));
+    if (surahsOnPage.length <= 1) {
+      coveredSurahsByPage.set(p, new Set(surahsOnPage));
+    } else {
+      const coveredOnOldPage = surahsOnPage.filter(sId => {
+        const sPages = surahPagesMap[sId] || [];
+        if (sPages.length <= 1) return true;
+        const firstP = sPages[0];
+        const lastP = sPages[sPages.length - 1];
+        if (p === firstP) return oldPages.has(p + 1);
+        if (p === lastP) return oldPages.has(p - 1);
+        return oldPages.has(p - 1) || oldPages.has(p + 1);
+      });
+      coveredSurahsByPage.set(
+        p,
+        new Set(coveredOnOldPage.length > 0 ? coveredOnOldPage : surahsOnPage)
+      );
+    }
   });
 
   // 2. Filter past evaluations
@@ -5036,11 +5050,11 @@ export function analyzeStudentQuranHistory(
     const surahsOnPage = pageSurahsMap[p] || [];
     const isAllSurahsCovered = surahsOnPage.every(sId => pageCoveredSet.has(sId));
     const touchWeek = pageLastTouchWeek.get(p) || 0;
-    const isFromLastEval = touchWeek === lastEvalWeekNumber && lastEvalWeekNumber > 0 && !oldPages.has(p);
+    const isFromLastEval = touchWeek === lastEvalWeekNumber && lastEvalWeekNumber > 0;
 
-    if (isAllSurahsCovered || oldPages.has(p)) {
+    if (isAllSurahsCovered) {
       fullPages.add(p);
-      if (oldPages.has(p)) {
+      if (oldPages.has(p) && touchWeek === 0) {
         oldFullPages.add(p);
       } else {
         newEvalsFullPages.add(p);
@@ -5093,7 +5107,7 @@ export function analyzeStudentQuranHistory(
 
   // 5. Classify Unmemorized Pages (Full vs Partial)
   unmemPages.forEach(p => {
-    if (fullPages.has(p) || oldPages.has(p)) return;
+    if (fullPages.has(p)) return;
     unmemorizedPages.add(p);
     const pSet = unmemCoveredSurahsByPage.get(p);
     const surahsOnPage = pageSurahsMap[p] || [];

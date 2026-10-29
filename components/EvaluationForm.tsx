@@ -13,7 +13,7 @@ import MushafReaderModal from './MushafReaderModal';
 import { MatnVersesModal } from './MatnVersesModal';
 import { generateReviewPassagesForJuzs, replaceReviewPassage, SuggestedTestPassage, formatPassageDescription } from '../utils/testPassageGenerator';
 import { SardEvaluationEditModal } from './SardEvaluationEditModal';
-import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
+import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass, SARD_ACTIVITY_PRESETS } from '../utils/sardUtils';
 import { isSmartMatch } from '../utils/searchUtils';
 import { registerBackHandler } from '../utils/navigationHistory';
 import { isTeacherFromOutside, isStudentFromOutside, isSardHalaqaFromOutside } from '../utils/categoryUtils';
@@ -256,7 +256,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [isCrossHalaqaModalOpen, setIsCrossHalaqaModalOpen] = useState(false);
   
   // حالة السرد المخصصة
-  const [sardSelectionMode, setSardSelectionMode] = useState<'juz' | 'surahs' | 'pages'>('juz');
+  const [sardSelectionMode, setSardSelectionMode] = useState<'juz' | 'surahs' | 'pages' | 'activity'>('juz');
+  const [sardActivityName, setSardActivityName] = useState<string>('إيمانيات');
   const [showAllQuranJuzs, setShowAllQuranJuzs] = useState<boolean>(false);
   const [selectedSardJuzList, setSelectedSardJuzList] = useState<number[]>([]);
   const [selectedSardSurahIds, setSelectedSardSurahIds] = useState<number[]>([]);
@@ -1072,6 +1073,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     setSardSurahSearch('');
     setSardPageRanges([{ fromPage: '', toPage: '' }]);
     setSardSelectionMode('juz');
+    setSardActivityName('إيمانيات');
     setSardFathErrors(0);
     setSardTashkeelErrors(0);
     setSardTajweedErrors(0);
@@ -1150,7 +1152,6 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
         if (found.attendance === AttendanceStatus.ABSENT) {
             setUiMode('edit');
-            setCurrentStep('selectAttendance');
         } else {
             setUiMode('summary');
         }
@@ -1339,7 +1340,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     const today = new Date().toLocaleDateString('ar-EG');
 
     if (subject === 'sard') {
-      const selectedSurahNames = sardSelectionMode === 'surahs' 
+      const isActivityMode = sardSelectionMode === 'activity';
+      const activityLabel = (sardActivityName || 'إيمانيات').trim() || 'إيمانيات';
+      const selectedSurahNames = isActivityMode
+        ? [activityLabel]
+        : sardSelectionMode === 'surahs' 
         ? selectedSardSurahIds.map(id => surahNames[id]) 
         : undefined;
       const pageRanges: SardPageRange[] = sardSelectionMode === 'pages'
@@ -1353,7 +1358,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           const activeStud = students.find(s => s.id === studentId);
           const errs = sardGroupErrors[studentId] || { fath: 0, tashkeel: 0, tajweed: 0 };
           const tot = calculateSardTotalErrors(errs.fath, errs.tashkeel, errs.tajweed);
-          const grade = calculateSardGrade(tot);
+          const grade = isActivityMode ? activityLabel : calculateSardGrade(tot);
+          const studentNote = sardGroupNotes[studentId]?.trim() || notes.trim() || undefined;
           const sardData: Omit<SardEvaluation, 'id' | 'updatedAt'> = {
             studentId: studentId,
             sardHalaqaId: activeStud?.sardHalaqaId || activeSardHalaqaId || undefined,
@@ -1362,16 +1368,17 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             date: new Date().toISOString().split('T')[0],
             attendance: attendance!,
             absenceReason: absenceReason || undefined,
-            juzList: attendance === AttendanceStatus.ABSENT ? [] : (sardSelectionMode === 'juz' ? selectedSardJuzList : []),
+            activityName: attendance === AttendanceStatus.ABSENT ? undefined : (isActivityMode ? activityLabel : undefined),
+            juzList: attendance === AttendanceStatus.ABSENT || isActivityMode ? [] : (sardSelectionMode === 'juz' ? selectedSardJuzList : []),
             surahs: attendance === AttendanceStatus.ABSENT ? [] : selectedSurahNames,
-            pageRanges: attendance === AttendanceStatus.ABSENT ? [] : pageRanges,
-            pagesCount: attendance === AttendanceStatus.ABSENT ? 0 : calculatedSardPages,
-            hesitationErrors: attendance === AttendanceStatus.ABSENT ? 0 : errs.tashkeel,
-            fathErrors: attendance === AttendanceStatus.ABSENT ? 0 : errs.fath,
-            tajweedErrors: attendance === AttendanceStatus.ABSENT ? 0 : errs.tajweed,
-            totalErrors: attendance === AttendanceStatus.ABSENT ? 0 : tot,
+            pageRanges: attendance === AttendanceStatus.ABSENT || isActivityMode ? [] : pageRanges,
+            pagesCount: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : calculatedSardPages,
+            hesitationErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : errs.tashkeel,
+            fathErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : errs.fath,
+            tajweedErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : errs.tajweed,
+            totalErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : tot,
             grade: attendance === AttendanceStatus.ABSENT ? 'غائب' : grade,
-            notes: sardGroupNotes[studentId]?.trim() || undefined,
+            notes: studentNote,
           };
           if (addSardEvaluation) addSardEvaluation(sardData);
         }
@@ -1445,15 +1452,16 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           date: new Date().toISOString().split('T')[0],
           attendance: attendance!,
           absenceReason: absenceReason || undefined,
-          juzList: attendance === AttendanceStatus.ABSENT ? [] : (sardSelectionMode === 'juz' ? selectedSardJuzList : []),
+          activityName: attendance === AttendanceStatus.ABSENT ? undefined : (isActivityMode ? activityLabel : undefined),
+          juzList: attendance === AttendanceStatus.ABSENT || isActivityMode ? [] : (sardSelectionMode === 'juz' ? selectedSardJuzList : []),
           surahs: attendance === AttendanceStatus.ABSENT ? [] : selectedSurahNames,
-          pageRanges: attendance === AttendanceStatus.ABSENT ? [] : pageRanges,
-          pagesCount: attendance === AttendanceStatus.ABSENT ? 0 : calculatedSardPages,
-          hesitationErrors: attendance === AttendanceStatus.ABSENT ? 0 : sardTashkeelErrors,
-          fathErrors: attendance === AttendanceStatus.ABSENT ? 0 : sardFathErrors,
-          tajweedErrors: attendance === AttendanceStatus.ABSENT ? 0 : sardTajweedErrors,
-          totalErrors: attendance === AttendanceStatus.ABSENT ? 0 : totalSardErrors,
-          grade: attendance === AttendanceStatus.ABSENT ? 'غائب' : deducedSardGrade,
+          pageRanges: attendance === AttendanceStatus.ABSENT || isActivityMode ? [] : pageRanges,
+          pagesCount: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : calculatedSardPages,
+          hesitationErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : sardTashkeelErrors,
+          fathErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : sardFathErrors,
+          tajweedErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : sardTajweedErrors,
+          totalErrors: attendance === AttendanceStatus.ABSENT || isActivityMode ? 0 : totalSardErrors,
+          grade: attendance === AttendanceStatus.ABSENT ? 'غائب' : (isActivityMode ? activityLabel : deducedSardGrade),
           notes: notes.trim() || undefined,
         };
         addSardEvaluation(sardData);
@@ -1640,6 +1648,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             setGuestSearch('');
             setSurahSearch('');
             lastCheckedRef.current = "";
+            resetFormFields();
           }} 
           onEdit={() => setUiMode('edit')} 
           onDelete={() => { 
@@ -1652,10 +1661,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             onFormSubmit('delete'); 
             setUiMode('new'); 
             setSelectedStudent(null); 
+            setCurrentStep('selectStudent');
             lastCheckedRef.current = "";
             setSurahSearch('');
             setPrimarySearch('');
             setGuestSearch('');
+            resetFormFields();
           }} 
         />
       )}
@@ -1671,6 +1682,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               setSelectedStudent(null);
               setCurrentStep('selectStudent');
               lastCheckedRef.current = "";
+              resetFormFields();
             } else {
               setUiMode('summary');
             }
@@ -1680,10 +1692,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             onFormSubmit('update'); 
             setUiMode('new'); 
             setSelectedStudent(null);
+            setCurrentStep('selectStudent');
             lastCheckedRef.current = "";
             setSurahSearch('');
             setPrimarySearch('');
             setGuestSearch('');
+            resetFormFields();
           }} 
           onDelete={() => { 
             if (subject === 'mutoon') {
@@ -1695,10 +1709,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             onFormSubmit('delete'); 
             setUiMode('new');
             setSelectedStudent(null); 
+            setCurrentStep('selectStudent');
             lastCheckedRef.current = "";
             setSurahSearch('');
             setPrimarySearch('');
             setGuestSearch('');
+            resetFormFields();
           }} 
         />
       )}
@@ -1712,7 +1728,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             setIsSardEditModalOpen(false);
             setCurrentSardEval(null);
             setSelectedStudent(null);
+            setCurrentStep('selectStudent');
             lastCheckedRef.current = "";
+            resetFormFields();
           }}
           onSave={(updated) => {
             updateSardEvaluation(updated);
@@ -1720,8 +1738,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             setIsSardEditModalOpen(false);
             setCurrentSardEval(null);
             setSelectedStudent(null);
+            setCurrentStep('selectStudent');
             lastCheckedRef.current = "";
             setSardSearch('');
+            resetFormFields();
           }}
           onDelete={(id) => {
             deleteSardEvaluation(id);
@@ -1729,8 +1749,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             setIsSardEditModalOpen(false);
             setCurrentSardEval(null);
             setSelectedStudent(null);
+            setCurrentStep('selectStudent');
             lastCheckedRef.current = "";
             setSardSearch('');
+            resetFormFields();
           }}
         />
       )}
@@ -3531,40 +3553,42 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               )}
             </p>
               {/* شريط مصحف السرد وزر تصفح صفحات التقييم المحددة */}
-              <div className="flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-emerald-700/60">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">📖</span>
-                  <div>
-                    <span className="text-xs sm:text-sm font-black block">مصحف السرد</span>
-                    <span className="text-[10px] sm:text-[11px] text-emerald-100/90 font-bold block">
-                      عرض صفحات المصحف المحددة أثناء تقييم السرد
-                    </span>
+              {sardSelectionMode !== 'activity' && (
+                <div className="flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-emerald-700/60">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">📖</span>
+                    <div>
+                      <span className="text-xs sm:text-sm font-black block">مصحف السرد</span>
+                      <span className="text-[10px] sm:text-[11px] text-emerald-100/90 font-bold block">
+                        عرض صفحات المصحف المحددة أثناء تقييم السرد
+                      </span>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMushafModalOpen(true)}
+                    disabled={sardActivePages.length === 0}
+                    className="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-emerald-50 text-emerald-900 text-xs sm:text-sm font-black rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    title="فتح صفحات المصحف للسرد"
+                  >
+                    <span>فتح المصحف</span>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                      {toArabicDigits(sardActivePages.length)} ص
+                    </span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsMushafModalOpen(true)}
-                  disabled={sardActivePages.length === 0}
-                  className="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-emerald-50 text-emerald-900 text-xs sm:text-sm font-black rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                  title="فتح صفحات المصحف للسرد"
-                >
-                  <span>فتح المصحف</span>
-                  <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                    {toArabicDigits(sardActivePages.length)} ص
-                  </span>
-                </button>
-              </div>
+              )}
 
               {/* عرض بيانات محفوظ الطالب (القديم والجديد) */}
-              {activeStudent && <StudentProgressInfo student={activeStudent} subject={subject} />}
+              {activeStudent && sardSelectionMode !== 'activity' && <StudentProgressInfo student={activeStudent} subject={subject} />}
 
-              {/* اختيار المحتوى المسرد بالأجزاء أو السور أو الصفحات */}
+              {/* اختيار المحتوى المسرد بالأجزاء أو السور أو الصفحات أو إيمانيات/حلقة متنوعة */}
               <div className="space-y-3.5 bg-emerald-50/70 dark:bg-emerald-950/40 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800/80 shadow-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-black text-sm text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
                     <span>📖</span> تحديد المحتوى المسرد:
                   </span>
-                  <div className="flex gap-1 bg-white/90 dark:bg-gray-800 p-1 rounded-xl border border-emerald-200 dark:border-emerald-900 text-xs">
+                  <div className="flex flex-wrap gap-1 bg-white/90 dark:bg-gray-800 p-1 rounded-xl border border-emerald-200 dark:border-emerald-900 text-xs">
                     <button
                       type="button"
                       onClick={() => setSardSelectionMode('juz')}
@@ -3597,6 +3621,18 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       }`}
                     >
                       بالصفحات
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSardSelectionMode('activity')}
+                      className={`px-2.5 sm:px-3 py-1 rounded-lg font-black transition-all flex items-center gap-1 ${
+                        sardSelectionMode === 'activity'
+                          ? 'bg-purple-700 text-white shadow-xs'
+                          : 'text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                      }`}
+                    >
+                      <span>✨</span>
+                      <span>إيمانيات / متنوعة</span>
                     </button>
                   </div>
                 </div>
@@ -3938,6 +3974,54 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     </div>
                   </div>
                 )}
+
+                {/* 4. إيمانيات / حلقة متنوعة (بدون سرد قرآني) */}
+                {sardSelectionMode === 'activity' && (
+                  <div className="space-y-3.5 bg-purple-50/70 dark:bg-purple-950/30 p-3.5 rounded-2xl border border-purple-200 dark:border-purple-800/70">
+                    <div className="p-2.5 bg-purple-100/80 dark:bg-purple-900/40 rounded-xl border border-purple-300/70 dark:border-purple-700 text-purple-950 dark:text-purple-100 text-xs font-bold leading-relaxed">
+                      ✨ في هذا الخيار يتم تسجيل حضور الطلاب المحددين في حلقة السرد بدون تقييم سرد قرآني، وتُحفظ الحلقة بهذا المسمى ليظهر في تقرير السرد.
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-black text-purple-950 dark:text-purple-200">
+                        اختر مسمى الحلقة أو اكتب اسماً مخصصاً:
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {SARD_ACTIVITY_PRESETS.map(preset => {
+                          const isSelected = sardActivityName.trim() === preset;
+                          return (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setSardActivityName(preset)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border ${
+                                isSelected
+                                  ? 'bg-purple-700 text-white border-purple-700 shadow-sm scale-[1.02]'
+                                  : 'bg-white dark:bg-gray-800 text-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-700 hover:border-purple-400'
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300">
+                        مسمى الحلقة في التقرير:
+                      </label>
+                      <input
+                        type="text"
+                        value={sardActivityName}
+                        onChange={e => setSardActivityName(e.target.value)}
+                        placeholder="مثلاً: إيمانيات، حلقة متنوعة..."
+                        className="input-style font-black text-sm py-2"
+                        onFocus={handleInputFocus}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {highlightSardSelectionError && (
@@ -3955,6 +4039,13 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   }
                 }} 
                 next={() => {
+                  if (sardSelectionMode === 'activity') {
+                    if (!sardActivityName || !sardActivityName.trim()) {
+                      setSardActivityName('إيمانيات');
+                    }
+                    setCurrentStep('notesStep');
+                    return;
+                  }
                   if (sardSelectionMode === 'pages') {
                     if (sardPageRanges.every(r => r.fromPage === '' && r.toPage === '')) {
                       setHighlightSardSelectionError(true);
@@ -4613,7 +4704,19 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           <div className="space-y-4">
             {subject === 'sard' && sardEvalMode === 'group' ? (
               <>
-                <p className="font-bold text-lg">ملاحظات إضافية للطلاب (اختياري):</p>
+                <div className="space-y-1.5 bg-emerald-50/60 dark:bg-emerald-950/30 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-800/70">
+                  <label className="text-sm font-black text-emerald-900 dark:text-emerald-200 block">
+                    ملاحظة عامة لجميع الطلاب الحاضرين (اختياري):
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    className="input-style h-20"
+                    placeholder="اكتب ملاحظة موحدة تُحفظ لجميع الطلاب الذين ليس لهم ملاحظة خاصة..."
+                    onFocus={handleInputFocus}
+                  />
+                </div>
+                <p className="font-bold text-lg">ملاحظات خاصة لكل طالب (اختياري):</p>
                 <div className="space-y-4">
                   {selectedSardGroupIds
                     .map(id => students.find(x => x.id === id))
@@ -4646,7 +4749,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               if (attendance === AttendanceStatus.ABSENT) return setCurrentStep('selectAbsenceReason');
               if (attendance === AttendanceStatus.UNPREPARED) return setCurrentStep('selectAttendance');
               if (subject === 'mutoon') return setCurrentStep('mutoonEvaluation');
-              if (subject === 'sard') return setCurrentStep('sardErrorsStep');
+              if (subject === 'sard') return setCurrentStep(sardSelectionMode === 'activity' ? 'sardContentSelection' : 'sardErrorsStep');
               if (evalType === EvaluationType.REVIEW) return setCurrentStep('selectPerformanceLevel');
               if (evalType === EvaluationType.DID_NOT_MEMORIZE) return setCurrentStep('selectEvaluationType');
               return setCurrentStep('periodicReviewStatus');
@@ -4667,9 +4770,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                   <p className="flex justify-between"><strong>عدد الطلاب:</strong> <span className="font-bold">{selectedSardGroupIds.length}</span></p>
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2.5 text-sm">
                     <p className="flex justify-between items-center">
-                      <strong>المحتوى المسرد للجميع:</strong>
-                      <span className="font-bold text-emerald-800 dark:text-emerald-300 text-left max-w-[65%] break-words">
-                        {sardSelectionMode === 'juz'
+                      <strong>{sardSelectionMode === 'activity' ? 'نوع الحلقة / النشاط:' : 'المحتوى المسرد للجميع:'}</strong>
+                      <span className={`font-bold text-left max-w-[65%] break-words ${sardSelectionMode === 'activity' ? 'text-purple-800 dark:text-purple-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+                        {sardSelectionMode === 'activity'
+                          ? `✨ ${(sardActivityName || 'إيمانيات').trim() || 'إيمانيات'} (بدون سرد قرآني)`
+                          : sardSelectionMode === 'juz'
                           ? `الأجزاء (${selectedSardJuzList.map(toArabicDigits).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`
                           : sardSelectionMode === 'surahs'
                           ? `السور (${selectedSardSurahIds.map(id => surahNames[id]).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`
@@ -4678,16 +4783,17 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     </p>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2">
-                    <p><strong>الطلاب والتقديرات:</strong></p>
+                    <p><strong>{sardSelectionMode === 'activity' ? 'الطلاب الحاضرون:' : 'الطلاب والتقديرات:'}</strong></p>
                     {selectedSardGroupIds
                       .map(id => students.find(x => x.id === id))
                       .filter((s): s is Student => Boolean(s))
                       .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
                       .map(s => {
                         const id = s.id;
+                        const activityLabel = (sardActivityName || 'إيمانيات').trim() || 'إيمانيات';
                         const errs = sardGroupErrors[id] || { fath: 0, tashkeel: 0, tajweed: 0 };
                         const tot = calculateSardTotalErrors(errs.fath, errs.tashkeel, errs.tajweed);
-                        const grade = calculateSardGrade(tot);
+                        const grade = sardSelectionMode === 'activity' ? activityLabel : calculateSardGrade(tot);
                         return (
                           <div key={id} className="flex justify-between items-center bg-white dark:bg-gray-800 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                             <div className="flex flex-col min-w-0 max-w-[60%]">
@@ -4699,9 +4805,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500">أخطاء: {tot}</span>
+                              {sardSelectionMode !== 'activity' && (
+                                <span className="text-xs text-gray-500">أخطاء: {tot}</span>
+                              )}
                               <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${getSardGradeBadgeClass(grade)}`}>
-                                {grade}
+                                {sardSelectionMode === 'activity' ? `✅ حاضر (${grade})` : grade}
                               </span>
                             </div>
                           </div>
@@ -4754,27 +4862,40 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     ) : subject === 'sard' ? (
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2.5 text-sm">
                         <p className="flex justify-between items-center">
-                          <strong>المحتوى المسرد:</strong>
-                          <span className="font-bold text-emerald-800 dark:text-emerald-300 text-left max-w-[65%] break-words">
-                            {sardSelectionMode === 'juz'
+                          <strong>{sardSelectionMode === 'activity' ? 'نوع الحلقة / النشاط:' : 'المحتوى المسرد:'}</strong>
+                          <span className={`font-bold text-left max-w-[65%] break-words ${sardSelectionMode === 'activity' ? 'text-purple-800 dark:text-purple-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+                            {sardSelectionMode === 'activity'
+                              ? `✨ ${(sardActivityName || 'إيمانيات').trim() || 'إيمانيات'} (بدون سرد قرآني)`
+                              : sardSelectionMode === 'juz'
                               ? `الأجزاء (${selectedSardJuzList.map(toArabicDigits).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`
                               : sardSelectionMode === 'surahs'
                               ? `السور (${selectedSardSurahIds.map(id => surahNames[id]).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`
                               : `النطاقات (${sardPageRanges.filter(r => r.fromPage !== '' && r.toPage !== '').map(r => `ص ${toArabicDigits(r.fromPage)} إلى ص ${toArabicDigits(r.toPage)}`).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`}
                           </span>
                         </p>
-                        <p className="flex justify-between">
-                          <strong>تفصيل الأخطاء:</strong>
-                          <span className="text-gray-700 dark:text-gray-300">
-                            الفتح: {toArabicDigits(sardFathErrors)} | التشكيل: {toArabicDigits(sardTashkeelErrors)} | التجويد: {toArabicDigits(sardTajweedErrors)} (الإجمالي: {toArabicDigits(totalSardErrors)})
-                          </span>
-                        </p>
-                        <p className="flex justify-between items-center">
-                          <strong>التقدير المستحق:</strong>
-                          <span className={`px-3 py-1 rounded-xl text-xs font-black ${getSardGradeBadgeClass(deducedSardGrade)}`}>
-                            {deducedSardGrade}
-                          </span>
-                        </p>
+                        {sardSelectionMode !== 'activity' ? (
+                          <>
+                            <p className="flex justify-between">
+                              <strong>تفصيل الأخطاء:</strong>
+                              <span className="text-gray-700 dark:text-gray-300">
+                                الفتح: {toArabicDigits(sardFathErrors)} | التشكيل: {toArabicDigits(sardTashkeelErrors)} | التجويد: {toArabicDigits(sardTajweedErrors)} (الإجمالي: {toArabicDigits(totalSardErrors)})
+                              </span>
+                            </p>
+                            <p className="flex justify-between items-center">
+                              <strong>التقدير المستحق:</strong>
+                              <span className={`px-3 py-1 rounded-xl text-xs font-black ${getSardGradeBadgeClass(deducedSardGrade)}`}>
+                                {deducedSardGrade}
+                              </span>
+                            </p>
+                          </>
+                        ) : (
+                          <p className="flex justify-between items-center">
+                            <strong>التسجيل في التقرير:</strong>
+                            <span className={`px-3 py-1 rounded-xl text-xs font-black ${getSardGradeBadgeClass((sardActivityName || 'إيمانيات').trim() || 'إيمانيات')}`}>
+                              {(sardActivityName || 'إيمانيات').trim() || 'إيمانيات'}
+                            </span>
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <>

@@ -181,7 +181,7 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
     { key: 'attendance', label: 'الحضور', type: 'translation' },
     { key: 'absenceReason', label: 'سبب الغياب', type: 'translation' },
     { key: 'evaluationType', label: 'النوع', type: 'translation' },
-    { key: 'pages', label: subjectFilter === 'mutoon' ? 'عدد الأبيات' : 'الصفحات' },
+    { key: 'pages', label: subjectFilter === 'mutoon' ? 'عدد الأبيات' : 'عدد الصفحات' },
     { key: 'ayahRangeDisplay', label: subjectFilter === 'mutoon' ? 'نطاق الأبيات' : 'الآيات', type: 'text' },
     { key: 'surahs', label: subjectFilter === 'mutoon' ? 'المتن' : 'السور', type: 'array' },
     { key: 'performance', label: 'الأداء', type: 'translation' },

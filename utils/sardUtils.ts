@@ -39,6 +39,57 @@ export const calculateSardGrade = (totalErrors: number): string => {
   return 'ضعيف';
 };
 
+export const SARD_ACTIVITY_PRESETS = [
+  'إيمانيات',
+  'حلقة متنوعة',
+  'درس تربوي',
+  'مسابقة ثقافية',
+  'نشاط إيماني',
+];
+
+const STANDARD_SARD_GRADES = new Set([
+  'ممتاز مع الشرف',
+  'ممتاز',
+  'جيد جداً',
+  'جيد جدا',
+  'جيد',
+  'مقبول',
+  'ضعيف',
+  'غائب',
+  '—',
+  '-',
+  '',
+]);
+
+export const getSardActivityName = (evaluation?: {
+  activityName?: string;
+  grade?: string;
+  pagesCount?: number;
+  juzList?: number[];
+  pageRanges?: unknown[];
+  surahs?: string[];
+  attendance?: string;
+} | null): string | undefined => {
+  if (!evaluation) return undefined;
+  if (evaluation.activityName && evaluation.activityName.trim()) {
+    return evaluation.activityName.trim();
+  }
+  const hasJuz = Array.isArray(evaluation.juzList) && evaluation.juzList.length > 0;
+  const hasRanges = Array.isArray(evaluation.pageRanges) && evaluation.pageRanges.length > 0;
+  const pages = Number(evaluation.pagesCount) || 0;
+  if (
+    pages === 0 &&
+    !hasJuz &&
+    !hasRanges &&
+    evaluation.attendance !== 'absent' &&
+    evaluation.grade &&
+    !STANDARD_SARD_GRADES.has(evaluation.grade.trim())
+  ) {
+    return evaluation.grade.trim();
+  }
+  return undefined;
+};
+
 export const getSardGradeBadgeClass = (grade: string): string => {
   switch (grade) {
     case 'ممتاز مع الشرف':
@@ -47,11 +98,15 @@ export const getSardGradeBadgeClass = (grade: string): string => {
       return 'bg-emerald-100 text-emerald-950 dark:bg-emerald-900/60 dark:text-emerald-200 ring-1 ring-emerald-400 font-black';
     case 'جيد جداً':
     case 'جيد جدا':
-      return 'bg-blue-100 text-blue-950 dark:bg-blue-900/60 dark:text-blue-200 ring-1 ring-blue-400 font-black';
+      return 'bg-blue-100 text-blue-950 dark:bg-blue-900/60 dark:text-blue-300 ring-1 ring-blue-400 font-black';
     case 'جيد':
+    case 'مقبول':
       return 'bg-yellow-100 text-yellow-950 dark:bg-yellow-900/60 dark:text-yellow-200 font-bold';
     case 'ضعيف':
-    default:
+    case 'غائب':
       return 'bg-red-100 text-red-950 dark:bg-red-900/60 dark:text-red-200 ring-1 ring-red-400 font-black';
+    default:
+      return 'bg-purple-100 text-purple-950 dark:bg-purple-900/60 dark:text-purple-200 ring-1 ring-purple-400 font-black';
   }
 };
+

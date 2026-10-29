@@ -132,6 +132,7 @@ export interface SardEvaluation {
   date: string; // YYYY-MM-DD
   attendance?: AttendanceStatus;
   absenceReason?: AbsenceReason;
+  activityName?: string; // اسم النشاط عند عدم وجود سرد قرآني (مثل: إيمانيات، حلقة متنوعة)
   juzList: number[]; // الأجزاء المختارة مثل [1, 2]
   pageRanges: SardPageRange[]; // نطاقات الصفحات
   surahs?: string[]; // السور المسردة (إن وجدت)
