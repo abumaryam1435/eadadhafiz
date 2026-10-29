@@ -1047,15 +1047,15 @@ export const SardManagement: React.FC = () => {
                     {currentUser?.role === UserRole.SUPERVISOR && (
                         <div className="mb-4 p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-2xl border border-amber-200/80 dark:border-amber-800/50 flex flex-wrap items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-black text-amber-950 dark:text-amber-200">إظهار لقب (أمير الحلقة) للمعلمين</p>
-                                <p className="text-[11px] text-amber-800/80 dark:text-amber-300">يظهر لقب أمير الحلقة ولون اسمه فقط داخل استمارات التقييم عند تفعيله.</p>
+                                <p className="text-xs font-black text-amber-950 dark:text-amber-200">إظهار لقب (أمير الحلقة ونائب الأمير) للمعلمين</p>
+                                <p className="text-[11px] text-amber-800/80 dark:text-amber-300">يظهر لقب أمير الحلقة ونائب الأمير ولون اسميهما داخل استمارات التقييم عند تفعيله.</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => {
                                     const nextVal = !showAmeerToTeachers;
                                     setShowAmeerToTeachers(nextVal);
-                                    showToast(nextVal ? '✅ تم إظهار لقب "أمير الحلقة" للمعلمين في استمارات التقييم' : '🔒 تم إخفاء لقب "أمير الحلقة" عن المعلمين في استمارات التقييم');
+                                    showToast(nextVal ? '✅ تم إظهار لقب "أمير الحلقة ونائب الأمير" للمعلمين في استمارات التقييم' : '🔒 تم إخفاء لقب "أمير الحلقة ونائب الأمير" عن المعلمين في استمارات التقييم');
                                 }}
                                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer shadow-xs active:scale-95 ${
                                     showAmeerToTeachers
@@ -1102,13 +1102,35 @@ export const SardManagement: React.FC = () => {
                                                 <div className="flex items-center gap-1.5 bg-amber-50/90 dark:bg-amber-950/40 px-2.5 py-1.5 rounded-xl border border-amber-300/80 dark:border-amber-700 shadow-2xs" title="تعيين أمير حلقة السرد">
                                                     <span className="text-xs font-bold text-amber-950 dark:text-amber-200 whitespace-nowrap">أمير الحلقة:</span>
                                                     <select 
-                                                        className="text-xs font-bold text-amber-950 dark:text-amber-200 bg-transparent focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[160px] truncate"
+                                                        className="text-xs font-bold text-amber-950 dark:text-amber-200 bg-transparent focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[150px] truncate"
                                                         value={halaqa.ameerStudentId || 0}
                                                         onChange={(e) => {
                                                             const sid = Number(e.target.value) || undefined;
-                                                            updateSardHalaqa({ ...halaqa, ameerStudentId: sid });
+                                                            const nextDeputy = (sid && halaqa.deputyAmeerStudentId === sid) ? undefined : halaqa.deputyAmeerStudentId;
+                                                            updateSardHalaqa({ ...halaqa, ameerStudentId: sid, deputyAmeerStudentId: nextDeputy });
                                                             const ameerStudent = halaqaStudents.find(s => s.id === sid);
                                                             showToast(sid ? `✅ تم تعيين "${ameerStudent?.name}" أميراً لـ "${halaqa.name}"` : `تم إلغاء تعيين أمير حلقة "${halaqa.name}"`);
+                                                        }}
+                                                    >
+                                                        <option value="0">-- غير محدد --</option>
+                                                        {halaqaStudents.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                {/* تعيين نائب أمير حلقة السرد */}
+                                                <div className="flex items-center gap-1.5 bg-amber-50/60 dark:bg-amber-950/30 px-2.5 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800/80 shadow-2xs" title="تعيين نائب أمير حلقة السرد">
+                                                    <span className="text-xs font-bold text-amber-900 dark:text-amber-300 whitespace-nowrap">نائب الأمير:</span>
+                                                    <select 
+                                                        className="text-xs font-bold text-amber-900 dark:text-amber-300 bg-transparent focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[150px] truncate"
+                                                        value={halaqa.deputyAmeerStudentId || 0}
+                                                        onChange={(e) => {
+                                                            const sid = Number(e.target.value) || undefined;
+                                                            const nextAmeer = (sid && halaqa.ameerStudentId === sid) ? undefined : halaqa.ameerStudentId;
+                                                            updateSardHalaqa({ ...halaqa, deputyAmeerStudentId: sid, ameerStudentId: nextAmeer });
+                                                            const deputyStudent = halaqaStudents.find(s => s.id === sid);
+                                                            showToast(sid ? `✅ تم تعيين "${deputyStudent?.name}" نائباً للأمير في "${halaqa.name}"` : `تم إلغاء تعيين نائب أمير حلقة "${halaqa.name}"`);
                                                         }}
                                                     >
                                                         <option value="0">-- غير محدد --</option>
@@ -1229,10 +1251,15 @@ export const SardManagement: React.FC = () => {
                                                                 <div key={student.id} className="p-3 bg-gray-50 dark:bg-slate-700/60 rounded-xl border border-gray-200 dark:border-slate-600 flex justify-between items-center group">
                                                                     <div>
                                                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                                                            <p className={`font-bold text-sm ${student.id === halaqa.ameerStudentId ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-800 dark:text-gray-100'}`}>{student.name}</p>
+                                                                            <p className={`font-bold text-sm ${(student.id === halaqa.ameerStudentId || student.id === halaqa.deputyAmeerStudentId) ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-800 dark:text-gray-100'}`}>{student.name}</p>
                                                                             {student.id === halaqa.ameerStudentId && (
                                                                                 <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700 inline-flex items-center">
                                                                                     أمير الحلقة
+                                                                                </span>
+                                                                            )}
+                                                                            {student.id === halaqa.deputyAmeerStudentId && (
+                                                                                <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 inline-flex items-center">
+                                                                                    نائب الأمير
                                                                                 </span>
                                                                             )}
                                                                         </div>
@@ -1252,7 +1279,7 @@ export const SardManagement: React.FC = () => {
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex items-center gap-1">
+                                                                    <div className="flex items-center gap-1 flex-wrap justify-end">
                                                                         {/* زر تعيين / إلغاء أمير حلقة السرد */}
                                                                         <div className="flex items-center gap-1 bg-amber-50/80 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-lg border border-amber-200/80 dark:border-amber-800/60 shadow-2xs">
                                                                             <span className="text-[10px] font-bold text-amber-900/90 dark:text-amber-200/90 whitespace-nowrap">أمير الحلقة:</span>
@@ -1261,7 +1288,8 @@ export const SardManagement: React.FC = () => {
                                                                                 onClick={() => {
                                                                                     const isCurrentAmeer = halaqa.ameerStudentId === student.id;
                                                                                     const newAmeerId = isCurrentAmeer ? undefined : student.id;
-                                                                                    updateSardHalaqa({ ...halaqa, ameerStudentId: newAmeerId });
+                                                                                    const nextDeputy = (newAmeerId && halaqa.deputyAmeerStudentId === newAmeerId) ? undefined : halaqa.deputyAmeerStudentId;
+                                                                                    updateSardHalaqa({ ...halaqa, ameerStudentId: newAmeerId, deputyAmeerStudentId: nextDeputy });
                                                                                     showToast(isCurrentAmeer ? `تم إلغاء تعيين أمير حلقة "${halaqa.name}"` : `✅ تم تعيين "${student.name}" أميراً لـ "${halaqa.name}"`);
                                                                                 }}
                                                                                 className={`p-1 rounded-md transition-all cursor-pointer ${
@@ -1272,6 +1300,29 @@ export const SardManagement: React.FC = () => {
                                                                                 title={student.id === halaqa.ameerStudentId ? 'إلغاء تعيينه كأمير للحلقة' : 'تعيينه أميراً للحلقة'}
                                                                             >
                                                                                 <span className="text-[10px] font-black">{student.id === halaqa.ameerStudentId ? 'إلغاء الأمير' : 'تعيين كأمير'}</span>
+                                                                            </button>
+                                                                        </div>
+
+                                                                        {/* زر تعيين / إلغاء نائب أمير حلقة السرد */}
+                                                                        <div className="flex items-center gap-1 bg-amber-50/50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-lg border border-amber-200/60 dark:border-amber-800/40 shadow-2xs">
+                                                                            <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 whitespace-nowrap">نائب الأمير:</span>
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const isCurrentDeputy = halaqa.deputyAmeerStudentId === student.id;
+                                                                                    const newDeputyId = isCurrentDeputy ? undefined : student.id;
+                                                                                    const nextAmeer = (newDeputyId && halaqa.ameerStudentId === newDeputyId) ? undefined : halaqa.ameerStudentId;
+                                                                                    updateSardHalaqa({ ...halaqa, deputyAmeerStudentId: newDeputyId, ameerStudentId: nextAmeer });
+                                                                                    showToast(isCurrentDeputy ? `تم إلغاء تعيين نائب أمير حلقة "${halaqa.name}"` : `✅ تم تعيين "${student.name}" نائباً للأمير في "${halaqa.name}"`);
+                                                                                }}
+                                                                                className={`p-1 rounded-md transition-all cursor-pointer ${
+                                                                                    student.id === halaqa.deputyAmeerStudentId 
+                                                                                        ? 'text-amber-700 bg-amber-100 dark:bg-amber-900/60 dark:text-amber-200 ring-2 ring-amber-400 shadow-xs' 
+                                                                                        : 'text-gray-500 hover:text-amber-700 hover:bg-amber-100'
+                                                                                }`}
+                                                                                title={student.id === halaqa.deputyAmeerStudentId ? 'إلغاء تعيينه كنائب للأمير' : 'تعيينه نائباً للأمير'}
+                                                                            >
+                                                                                <span className="text-[10px] font-black">{student.id === halaqa.deputyAmeerStudentId ? 'إلغاء النائب' : 'تعيين كنائب'}</span>
                                                                             </button>
                                                                         </div>
 

@@ -96,6 +96,9 @@ const getDarkToneFromBaseColor = (color: string): string => {
     return `#${toHex(dr)}${toHex(dg)}${toHex(db)}`;
 };
 
+const AMEER_STAGE_KEY = 'الأمير ونائب الأمير';
+const DEFAULT_AMEER_CARD_COLOR = '#881337'; // لون عنابي ملكي مميز وموحد لبطاقات الأمير ونائب الأمير لجميع الحلقات
+
 export interface UnifiedHalaqaCardItem {
     id: string;
     originalId: number | string;
@@ -105,7 +108,7 @@ export interface UnifiedHalaqaCardItem {
     numberStr: string;
     teacherName?: string;
     color: string;
-    students?: { id: number; name: string; isAmeer?: boolean; isAlAmeen?: boolean }[];
+    students?: { id: number; name: string; isAmeer?: boolean; isDeputyAmeer?: boolean; isAlAmeen?: boolean }[];
 }
 
 export interface CardTargetItem {
@@ -503,6 +506,7 @@ export const CardsManager: React.FC = () => {
     };
 
     const [activeTab, setActiveTab] = useState<'students' | 'teachers' | 'excel'>('students');
+    const [studentRoleFilter, setStudentRoleFilter] = useState<'all' | 'ameer_only' | 'regular_only'>('all');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [selectedStage, setSelectedStage] = useState<string[]>([]);
     const [targetSearch, setTargetSearch] = useState('');
@@ -514,6 +518,8 @@ export const CardsManager: React.FC = () => {
     
     const [stageColors, setStageColors] = useState<Record<string, string>>({});
     const [hasSavedColors, setHasSavedColors] = useState(false);
+    const [showAmeerColorPicker, setShowAmeerColorPicker] = useState(false);
+    const [copiedAmeerColorSuccess, setCopiedAmeerColorSuccess] = useState(false);
     const [appLogo, setAppLogo] = useState<HTMLImageElement | null>(null);
     const [awqafLogo, setAwqafLogo] = useState<HTMLImageElement | null>(null);
     const [dynamicPreviewUrl, setDynamicPreviewUrl] = useState<string>('');
@@ -543,6 +549,7 @@ export const CardsManager: React.FC = () => {
                     id: s.id,
                     name: s.name,
                     isAmeer: h.ameerStudentId === s.id,
+                    isDeputyAmeer: h.deputyAmeerStudentId === s.id,
                     isAlAmeen: !!s.isAlAmeen
                 }));
             items.push({
@@ -567,6 +574,7 @@ export const CardsManager: React.FC = () => {
                     id: s.id,
                     name: s.name,
                     isAmeer: sh.ameerStudentId === s.id,
+                    isDeputyAmeer: sh.deputyAmeerStudentId === s.id,
                     isAlAmeen: !!s.isAlAmeen
                 }));
             items.push({
@@ -1402,7 +1410,7 @@ export const CardsManager: React.FC = () => {
 
                 studentsList.forEach((st, idx) => {
                     const itemY = startY + idx * (rowH + rowGap);
-                    const shouldHighlightAmeer = isAmeerHighlighted && !!st.isAmeer;
+                    const shouldHighlightAmeer = isAmeerHighlighted && (!!st.isAmeer || !!st.isDeputyAmeer);
                     
                     // Item container (full width, single student per row)
                     drawRoundRect(colX, itemY, colW, rowH, 10);
@@ -1465,7 +1473,7 @@ export const CardsManager: React.FC = () => {
                         ctx.fillStyle = '#92400E';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText('أمير الحلقة', badgeX + badgeW / 2, badgeY + badgeH / 2);
+                        ctx.fillText(st.isAmeer ? 'أمير الحلقة' : 'نائب الأمير', badgeX + badgeW / 2, badgeY + badgeH / 2);
                     } else if (st.isAlAmeen) {
                         const badgeW = 82;
                         const badgeH = Math.min(28, Math.max(20, rowH - 12));
@@ -1975,7 +1983,33 @@ export const CardsManager: React.FC = () => {
         });
     };
 
+    const ameerStudentIdsSet = useMemo(() => {
+        const set = new Set<number>();
+        halaqas.forEach(h => { if (h.ameerStudentId) set.add(Number(h.ameerStudentId)); });
+        sardHalaqas.forEach(sh => { if (sh.ameerStudentId) set.add(Number(sh.ameerStudentId)); });
+        return set;
+    }, [halaqas, sardHalaqas]);
+
+    const deputyAmeerStudentIdsSet = useMemo(() => {
+        const set = new Set<number>();
+        halaqas.forEach(h => { if (h.deputyAmeerStudentId) set.add(Number(h.deputyAmeerStudentId)); });
+        sardHalaqas.forEach(sh => { if (sh.deputyAmeerStudentId) set.add(Number(sh.deputyAmeerStudentId)); });
+        return set;
+    }, [halaqas, sardHalaqas]);
+
+    const isStudentAmeerOrDeputy = (studentId: number | string) => {
+        const idNum = Number(studentId);
+        return ameerStudentIdsSet.has(idNum) || deputyAmeerStudentIdsSet.has(idNum);
+    };
+
+    const ameerAndDeputyStudentsCount = useMemo(() => {
+        return students.filter(s => isStudentAmeerOrDeputy(s.id)).length;
+    }, [students, ameerStudentIdsSet, deputyAmeerStudentIdsSet]);
+
     const getStudentDisplayStage = (st: any): string => {
+        if (st && st.id !== undefined && isStudentAmeerOrDeputy(st.id)) {
+            return AMEER_STAGE_KEY;
+        }
         if (st.isAlAmeen) return 'طلاب الأمين';
         return st.schoolStage ? st.schoolStage.trim() : '';
     };
@@ -1987,6 +2021,8 @@ export const CardsManager: React.FC = () => {
             if (stage) s.add(stage);
         });
         return Array.from(s).filter(Boolean).sort((a, b) => {
+            if (a === AMEER_STAGE_KEY) return -1;
+            if (b === AMEER_STAGE_KEY) return 1;
             if (a === 'طلاب الأمين') return -1;
             if (b === 'طلاب الأمين') return 1;
             const weightA = getStageWeight(a);
@@ -1994,7 +2030,7 @@ export const CardsManager: React.FC = () => {
             if (weightA !== weightB) return weightA - weightB;
             return a.localeCompare(b, 'ar', { numeric: true });
         });
-    }, [students]);
+    }, [students, ameerStudentIdsSet, deputyAmeerStudentIdsSet]);
 
     // 1. حساب عدد الطلاب في كل مرحلة دراسية
     const stageStudentCounts = useMemo(() => {
@@ -2006,11 +2042,13 @@ export const CardsManager: React.FC = () => {
             }
         });
         return counts;
-    }, [students]);
+    }, [students, ameerStudentIdsSet, deputyAmeerStudentIdsSet]);
 
     // 2. ترتيب المراحل تنازلياً حسب عدد الطلاب (المرحلة الأكثر طلاباً أولاً)
     const stagesRankedByCount = useMemo(() => {
         return [...stages].sort((a, b) => {
+            if (a === AMEER_STAGE_KEY) return -1;
+            if (b === AMEER_STAGE_KEY) return 1;
             if (a === 'طلاب الأمين') return -1;
             if (b === 'طلاب الأمين') return 1;
             const countA = stageStudentCounts[a] || 0;
@@ -2027,17 +2065,27 @@ export const CardsManager: React.FC = () => {
     }, [stages, stageStudentCounts]);
 
     // 3. خريطة الألوان الافتراضية للمراحل حسب الترتيب المطلوب:
-    // الأخضر (الأكبر عدداً) -> الأزرق -> البرتقالي -> البني -> البنفسجي -> ... -> الأحمر (الأخير)
+    // الأمير ونائب الأمير لهما لون موحد خاص ومميز عن بقية المراحل
     const defaultStageColorMap = useMemo(() => {
-        const map: Record<string, string> = {};
-        stagesRankedByCount.forEach((st, rank) => {
-            map[st] = DEFAULT_STAGE_COLORS[rank % DEFAULT_STAGE_COLORS.length];
+        const map: Record<string, string> = {
+            [AMEER_STAGE_KEY]: DEFAULT_AMEER_CARD_COLOR
+        };
+        let regularRank = 0;
+        stagesRankedByCount.forEach((st) => {
+            if (st === AMEER_STAGE_KEY) {
+                map[st] = DEFAULT_AMEER_CARD_COLOR;
+            } else {
+                map[st] = DEFAULT_STAGE_COLORS[regularRank % DEFAULT_STAGE_COLORS.length];
+                regularRank++;
+            }
         });
         return map;
     }, [stagesRankedByCount]);
 
     const effectiveStageColors = useMemo(() => {
-        const map: Record<string, string> = {};
+        const map: Record<string, string> = {
+            [AMEER_STAGE_KEY]: stageColors[AMEER_STAGE_KEY] || DEFAULT_AMEER_CARD_COLOR
+        };
         stages.forEach((st, idx) => {
             if (stageColors[st]) {
                 map[st] = stageColors[st];
@@ -2135,87 +2183,99 @@ export const CardsManager: React.FC = () => {
         return (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true });
     };
 
+    const mapStudentsToCardTargets = (studentList: typeof students): CardTargetItem[] => {
+        const result = [...studentList];
+        // ترتيب الطلاب أولاً حسب اللون (المراحل المشتركة بنفس اللون معاً)، ثم حسب المرحلة الدراسية، ثم حسب الاسم الهجائي
+        result.sort((a, b) => {
+            const stageA = getStudentDisplayStage(a);
+            const stageB = getStudentDisplayStage(b);
+
+            const colorA = ((stageA && effectiveStageColors[stageA]) || '#059669').toUpperCase();
+            const colorB = ((stageB && effectiveStageColors[stageB]) || '#059669').toUpperCase();
+
+            if (colorA !== colorB) {
+                return colorA.localeCompare(colorB);
+            }
+
+            if (stageA && stageB) {
+                const weightA = getStageWeight(stageA);
+                const weightB = getStageWeight(stageB);
+                if (weightA !== weightB) return weightA - weightB;
+                const stageCmp = stageA.localeCompare(stageB, 'ar', { numeric: true });
+                if (stageCmp !== 0) return stageCmp;
+            } else if (stageA && !stageB) {
+                return -1;
+            } else if (!stageA && stageB) {
+                return 1;
+            }
+
+            return (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true });
+        });
+
+        let currentColor = '';
+        let currentColorIndex = 1;
+        
+        const mappedStudents = result.map(s => {
+            const stage = getStudentDisplayStage(s);
+            const color = ((stage && effectiveStageColors[stage]) || '#059669').toUpperCase();
+            
+            let targetStageIndex: number | string = 1;
+
+            if (studentNumberingMode === 'halaqa_number') {
+                // الخيار 1: رقم الحلقة ، حسب الترتيب باسم الحلقة (الافتراضي)
+                if (s.halaqaId && halaqaNumberMap.has(s.halaqaId)) {
+                    targetStageIndex = halaqaNumberMap.get(s.halaqaId)!;
+                } else if (s.sardHalaqaId && sardHalaqaNumberMap.has(s.sardHalaqaId)) {
+                    targetStageIndex = sardHalaqaNumberMap.get(s.sardHalaqaId)!;
+                } else {
+                    targetStageIndex = '-';
+                }
+            } else if (studentNumberingMode === 'halaqa_sequence') {
+                // الخيار 2: التسلسل لكل حلقة
+                targetStageIndex = halaqaStudentSeqMap.get(s.id) || 1;
+            } else {
+                // الخيار 3: التسلسلي الرقمي لكل مرحلة دراسية
+                if (color !== currentColor) {
+                    currentColor = color;
+                    currentColorIndex = 1;
+                }
+                targetStageIndex = currentColorIndex;
+                currentColorIndex++;
+            }
+
+            return {
+                id: s.id,
+                name: s.name,
+                stage,
+                stageIndex: targetStageIndex
+            };
+        });
+
+        // ترتيب البطاقات حسب الرقم المكتوب، ثم الترتيب الهجائي
+        mappedStudents.sort(compareCardItems);
+
+        return mappedStudents;
+    };
+
     const options = useMemo<CardTargetItem[]>(() => {
         if (activeTab === 'students') {
             let result = [...students];
-            const isAllStages = !selectedStage || selectedStage.length === 0 || selectedStage.includes('all') || selectedStage.includes('ALL') || (stages.length > 0 && selectedStage.length === stages.length);
-            if (!isAllStages) {
-                result = result.filter(s => {
-                    const stage = getStudentDisplayStage(s);
-                    return stage && selectedStage.includes(stage);
-                });
+            if (studentRoleFilter === 'ameer_only') {
+                result = result.filter(s => isStudentAmeerOrDeputy(s.id));
+            } else {
+                if (studentRoleFilter === 'regular_only') {
+                    result = result.filter(s => !isStudentAmeerOrDeputy(s.id));
+                }
+                const isAllStages = !selectedStage || selectedStage.length === 0 || selectedStage.includes('all') || selectedStage.includes('ALL') || (stages.length > 0 && selectedStage.length === stages.length);
+                if (!isAllStages) {
+                    result = result.filter(s => {
+                        const stage = getStudentDisplayStage(s);
+                        return stage && selectedStage.includes(stage);
+                    });
+                }
             }
 
-            // ترتيب الطلاب أولاً حسب اللون (المراحل المشتركة بنفس اللون معاً)، ثم حسب المرحلة الدراسية، ثم حسب الاسم الهجائي
-            result.sort((a, b) => {
-                const stageA = getStudentDisplayStage(a);
-                const stageB = getStudentDisplayStage(b);
-
-                const colorA = ((stageA && effectiveStageColors[stageA]) || '#059669').toUpperCase();
-                const colorB = ((stageB && effectiveStageColors[stageB]) || '#059669').toUpperCase();
-
-                if (colorA !== colorB) {
-                    return colorA.localeCompare(colorB);
-                }
-
-                if (stageA && stageB) {
-                    const weightA = getStageWeight(stageA);
-                    const weightB = getStageWeight(stageB);
-                    if (weightA !== weightB) return weightA - weightB;
-                    const stageCmp = stageA.localeCompare(stageB, 'ar', { numeric: true });
-                    if (stageCmp !== 0) return stageCmp;
-                } else if (stageA && !stageB) {
-                    return -1;
-                } else if (!stageA && stageB) {
-                    return 1;
-                }
-
-                return (a.name || '').trim().localeCompare((b.name || '').trim(), 'ar', { numeric: true });
-            });
-
-            let currentColor = '';
-            let currentColorIndex = 1;
-            
-            const mappedStudents = result.map(s => {
-                const stage = getStudentDisplayStage(s);
-                const color = ((stage && effectiveStageColors[stage]) || '#059669').toUpperCase();
-                
-                let targetStageIndex: number | string = 1;
-
-                if (studentNumberingMode === 'halaqa_number') {
-                    // الخيار 1: رقم الحلقة ، حسب الترتيب باسم الحلقة (الافتراضي)
-                    if (s.halaqaId && halaqaNumberMap.has(s.halaqaId)) {
-                        targetStageIndex = halaqaNumberMap.get(s.halaqaId)!;
-                    } else if (s.sardHalaqaId && sardHalaqaNumberMap.has(s.sardHalaqaId)) {
-                        targetStageIndex = sardHalaqaNumberMap.get(s.sardHalaqaId)!;
-                    } else {
-                        targetStageIndex = '-';
-                    }
-                } else if (studentNumberingMode === 'halaqa_sequence') {
-                    // الخيار 2: التسلسل لكل حلقة
-                    targetStageIndex = halaqaStudentSeqMap.get(s.id) || 1;
-                } else {
-                    // الخيار 3: التسلسلي الرقمي لكل مرحلة دراسية
-                    if (color !== currentColor) {
-                        currentColor = color;
-                        currentColorIndex = 1;
-                    }
-                    targetStageIndex = currentColorIndex;
-                    currentColorIndex++;
-                }
-
-                return {
-                    id: s.id,
-                    name: s.name,
-                    stage,
-                    stageIndex: targetStageIndex
-                };
-            });
-
-            // ترتيب البطاقات حسب الرقم المكتوب، ثم الترتيب الهجائي
-            mappedStudents.sort(compareCardItems);
-
-            return mappedStudents;
+            return mapStudentsToCardTargets(result);
         } else if (activeTab === 'teachers') {
             const mappedTeachers = users
                 .filter(u => u.role === UserRole.TEACHER)
@@ -2228,7 +2288,7 @@ export const CardsManager: React.FC = () => {
             mappedExcel.sort(compareCardItems);
             return mappedExcel;
         }
-    }, [activeTab, students, users, excelData, selectedStage, stages.length, effectiveStageColors, studentNumberingMode, halaqaNumberMap, sardHalaqaNumberMap, halaqaStudentSeqMap]);
+    }, [activeTab, students, users, excelData, selectedStage, stages.length, effectiveStageColors, studentNumberingMode, halaqaNumberMap, sardHalaqaNumberMap, halaqaStudentSeqMap, studentRoleFilter, ameerStudentIdsSet, deputyAmeerStudentIdsSet]);
 
     const activeTargets = useMemo<CardTargetItem[]>(() => {
         const hasSpecificSelection = selectedIds && selectedIds.length > 0 && !selectedIds.includes('ALL') && !selectedIds.includes('all');
@@ -2586,8 +2646,8 @@ export const CardsManager: React.FC = () => {
         }));
     };
 
-    const generatePDF = async () => {
-        const targets = activeTargets;
+    const generatePDF = async (customTargetsOverride?: CardTargetItem[] | React.MouseEvent) => {
+        const targets = Array.isArray(customTargetsOverride) ? customTargetsOverride : activeTargets;
 
         if (targets.length === 0) {
             showToast('⚠️ لا يوجد أشخاص محددين لإصدار البطاقات لهم');
@@ -3286,6 +3346,124 @@ export const CardsManager: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                     <div>
+                        {activeTab === 'students' && (
+                            <div className="mb-4 p-3.5 bg-gradient-to-br from-rose-50/90 via-amber-50/60 to-white dark:from-rose-950/30 dark:via-amber-950/20 dark:to-gray-800 border-2 border-amber-300/90 dark:border-amber-700/80 rounded-xl space-y-3 shadow-xs">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-base">👑</span>
+                                        <div>
+                                            <h5 className="text-xs font-black text-amber-950 dark:text-amber-200">
+                                                بطاقات الأمير ونائب الأمير (لجميع الحلقات)
+                                            </h5>
+                                            <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80 font-bold">
+                                                لون مميز وموحد لجميع الحلقات مع إمكانية الفرز والطباعة المباشرة
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-700 shadow-2xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAmeerColorPicker(true)}
+                                            className="flex items-center gap-1.5 cursor-pointer group"
+                                            title="تغيير اللون الموحد لبطاقات الأمير ونائب الأمير"
+                                        >
+                                            <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">اللون الموحد:</span>
+                                            <span
+                                                className="w-5 h-5 rounded-full border border-gray-200 dark:border-gray-600 shadow-xs transition-transform group-hover:scale-110 active:scale-95 inline-block shrink-0"
+                                                style={{ backgroundColor: effectiveStageColors[AMEER_STAGE_KEY] || DEFAULT_AMEER_CARD_COLOR }}
+                                            />
+                                        </button>
+                                        {stageColors[AMEER_STAGE_KEY] && stageColors[AMEER_STAGE_KEY].toLowerCase() !== DEFAULT_AMEER_CARD_COLOR.toLowerCase() && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleStageColorChange(AMEER_STAGE_KEY, null)}
+                                                className="text-[9px] text-gray-400 hover:text-red-500 px-0.5 cursor-pointer"
+                                                title="استعادة اللون الافتراضي"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* أزرار الفرز والعرض */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setStudentRoleFilter('all');
+                                            setSelectedIds([]);
+                                            setPreviewIndex(0);
+                                        }}
+                                        className={`px-2.5 py-2 rounded-lg text-[11px] font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                                            studentRoleFilter === 'all'
+                                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <span>جميع الطلاب ({students.length})</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setStudentRoleFilter('ameer_only');
+                                            setSelectedStage([]);
+                                            setSelectedIds([]);
+                                            setPreviewIndex(0);
+                                            showToast(`👑 تم فرز وعرض بطاقات الأمير ونائب الأمير فقط (${ameerAndDeputyStudentsCount} طالب)`);
+                                        }}
+                                        className={`px-2.5 py-2 rounded-lg text-[11px] font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                                            studentRoleFilter === 'ameer_only'
+                                                ? 'bg-amber-600 text-white border-amber-700 shadow-xs ring-2 ring-amber-300'
+                                                : 'bg-white dark:bg-gray-800 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700 hover:bg-amber-50'
+                                        }`}
+                                    >
+                                        <span>👑 الأمير ونائبه ({ameerAndDeputyStudentsCount})</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setStudentRoleFilter('regular_only');
+                                            setSelectedIds([]);
+                                            setPreviewIndex(0);
+                                            showToast('👥 تم فرز بقية الطلاب (بدون الأمير ونائب الأمير)');
+                                        }}
+                                        className={`px-2.5 py-2 rounded-lg text-[11px] font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                                            studentRoleFilter === 'regular_only'
+                                                ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <span>بقية الطلاب ({Math.max(0, students.length - ameerAndDeputyStudentsCount)})</span>
+                                    </button>
+                                </div>
+
+                                {/* زر الطباعة المباشرة لبطاقات الأمير ونائب الأمير */}
+                                <button
+                                    type="button"
+                                    disabled={isGenerating || ameerAndDeputyStudentsCount === 0}
+                                    onClick={() => {
+                                        const ameerStudentsList = students.filter(s => isStudentAmeerOrDeputy(s.id));
+                                        if (ameerStudentsList.length === 0) {
+                                            showToast('⚠️ لم يتم تعيين أمير أو نائب أمير لأي حلقة حتى الآن');
+                                            return;
+                                        }
+                                        setStudentRoleFilter('ameer_only');
+                                        setSelectedStage([]);
+                                        setSelectedIds([]);
+                                        setPreviewIndex(0);
+                                        const ameerTargets = mapStudentsToCardTargets(ameerStudentsList);
+                                        generatePDF(ameerTargets);
+                                    }}
+                                    className="w-full py-2.5 px-3 rounded-xl font-black text-xs text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                                    style={{ backgroundColor: effectiveStageColors[AMEER_STAGE_KEY] || DEFAULT_AMEER_CARD_COLOR }}
+                                    title="فرز وطباعة البطاقات التعريفية للأمير ونائب الأمير لجميع الحلقات مباشرة بصيغة PDF"
+                                >
+                                    <Printer className="w-4 h-4 shrink-0" />
+                                    <span>طباعة بطاقات الأمير ونائب الأمير مباشرة ({ameerAndDeputyStudentsCount})</span>
+                                </button>
+                            </div>
+                        )}
                         {activeTab === 'students' && stages.length > 0 && (
                             <div className="mb-4">
                                 <FilterItem 
@@ -3321,15 +3499,22 @@ export const CardsManager: React.FC = () => {
                         />
 
                         {/* مؤشر حالة التصفية النشطة */}
-                        {((selectedStage.length > 0 && selectedStage.length !== stages.length && !selectedStage.includes('all') && !selectedStage.includes('ALL')) || (selectedIds.length > 0 && !selectedIds.includes('ALL') && !selectedIds.includes('all') && selectedIds.length !== options.length)) && (
+                        {(studentRoleFilter !== 'all' || (selectedStage.length > 0 && selectedStage.length !== stages.length && !selectedStage.includes('all') && !selectedStage.includes('ALL')) || (selectedIds.length > 0 && !selectedIds.includes('ALL') && !selectedIds.includes('all') && selectedIds.length !== options.length)) && (
                             <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between text-xs animate-fade-in">
                                 <div className="flex items-center gap-1.5 text-green-800 dark:text-green-300 font-bold truncate">
                                     <span>🎯</span>
-                                    <span>تم تصفية {activeTargets.length} {activeTab === 'students' ? 'طالب' : activeTab === 'teachers' ? 'معلم' : 'سجل'}</span>
+                                    <span>
+                                        {studentRoleFilter === 'ameer_only'
+                                            ? `فرز الأمير ونائب الأمير (${activeTargets.length} طالب)`
+                                            : studentRoleFilter === 'regular_only'
+                                            ? `فرز بقية الطلاب بدون الأمير ونائبه (${activeTargets.length} طالب)`
+                                            : `تم تصفية ${activeTargets.length} ${activeTab === 'students' ? 'طالب' : activeTab === 'teachers' ? 'معلم' : 'سجل'}`}
+                                    </span>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => {
+                                        setStudentRoleFilter('all');
                                         setSelectedIds([]);
                                         setSelectedStage([]);
                                         setPreviewIndex(0);
@@ -4798,6 +4983,131 @@ export const CardsManager: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {showAmeerColorPicker && (() => {
+                const currentAmeerColor = effectiveStageColors[AMEER_STAGE_KEY] || DEFAULT_AMEER_CARD_COLOR;
+                const otherStages = stages.filter(st => st !== AMEER_STAGE_KEY && effectiveStageColors[st]);
+                return (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowAmeerColorPicker(false)}>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 animate-fade-in max-w-xs w-full" onClick={(e) => e.stopPropagation()}>
+                            <div className="w-full flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shadow-xs" style={{ backgroundColor: currentAmeerColor }} />
+                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">تخصيص لون: {AMEER_STAGE_KEY}</h3>
+                                </div>
+                                <button type="button" onClick={() => setShowAmeerColorPicker(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm cursor-pointer">✕</button>
+                            </div>
+
+                            <HexColorPicker
+                                color={currentAmeerColor}
+                                onChange={(color) => handleStageColorChange(AMEER_STAGE_KEY, color)}
+                            />
+
+                            {otherStages.length > 0 && (
+                                <div className="w-full bg-amber-50/70 dark:bg-gray-700/40 p-2 rounded-xl border border-amber-200/70 dark:border-gray-600">
+                                    <span className="text-[10px] font-bold text-amber-900 dark:text-amber-200 block mb-1">
+                                        📋 نسخ ولصق نفس لون مرحلة أخرى مباشرة:
+                                    </span>
+                                    <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto scrollbar-hidden">
+                                        {otherStages.map((st) => {
+                                            const targetCol = effectiveStageColors[st];
+                                            const isSame = currentAmeerColor.toLowerCase() === targetCol.toLowerCase();
+                                            return (
+                                                <button
+                                                    key={st}
+                                                    type="button"
+                                                    onClick={() => handleStageColorChange(AMEER_STAGE_KEY, targetCol)}
+                                                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${isSame ? 'bg-amber-200 dark:bg-amber-800 text-amber-950 dark:text-white border-amber-400 shadow-xs' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 hover:bg-amber-100 dark:hover:bg-gray-700'}`}
+                                                    title={`تطبيق نفس لون ${st} (${targetCol})`}
+                                                >
+                                                    <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-2xs" style={{ backgroundColor: targetCol }} />
+                                                    <span className="truncate max-w-[90px]">{st}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="w-full">
+                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 block">ألوان مقترحة:</span>
+                                <div className="flex flex-wrap gap-1.5 justify-center">
+                                    {[
+                                        { name: 'عنابي ملكي (افتراضي)', color: '#881337' },
+                                        { name: 'أخضر', color: '#059669' },
+                                        { name: 'أزرق', color: '#2563eb' },
+                                        { name: 'برتقالي', color: '#ea580c' },
+                                        { name: 'بنفسجي', color: '#7c3aed' },
+                                        { name: 'كهرماني', color: '#d97706' },
+                                        { name: 'سماوي', color: '#0891b2' },
+                                        { name: 'وردي', color: '#db2777' },
+                                        { name: 'نيلي', color: '#4f46e5' },
+                                        { name: 'أحمر', color: '#dc2626' },
+                                    ].map(swatch => (
+                                        <button
+                                            key={swatch.color}
+                                            type="button"
+                                            onClick={() => handleStageColorChange(AMEER_STAGE_KEY, swatch.color)}
+                                            className={`w-6 h-6 rounded-full border-2 shadow-xs transition-transform hover:scale-110 active:scale-95 cursor-pointer ${
+                                                currentAmeerColor.toLowerCase() === swatch.color.toLowerCase()
+                                                    ? 'border-black dark:border-white scale-110'
+                                                    : 'border-white dark:border-gray-700'
+                                            }`}
+                                            style={{ backgroundColor: swatch.color }}
+                                            title={swatch.name}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="w-full flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 p-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0">HEX:</span>
+                                <input
+                                    type="text"
+                                    value={currentAmeerColor}
+                                    onChange={(e) => handleStageColorChange(AMEER_STAGE_KEY, e.target.value)}
+                                    onFocus={e => e.target.select()}
+                                    className="w-full bg-transparent text-sm font-mono text-center text-gray-800 dark:text-gray-200 focus:outline-none uppercase font-bold"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const hex = currentAmeerColor.startsWith('#') ? currentAmeerColor : `#${currentAmeerColor}`;
+                                        try { navigator.clipboard.writeText(hex); } catch (err) {}
+                                        setCopiedAmeerColorSuccess(true);
+                                        setTimeout(() => setCopiedAmeerColorSuccess(false), 2000);
+                                    }}
+                                    className="px-2 py-1 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-bold rounded border border-gray-200 dark:border-gray-600 shrink-0 flex items-center gap-1 shadow-2xs cursor-pointer"
+                                    title="نسخ كود اللون"
+                                >
+                                    {copiedAmeerColorSuccess ? <Check className="w-3 h-3 text-emerald-600" /> : null}
+                                    <span>{copiedAmeerColorSuccess ? 'تم' : 'نسخ'}</span>
+                                </button>
+                            </div>
+
+                            <div className="flex gap-2 w-full pt-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAmeerColorPicker(false)}
+                                    className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors cursor-pointer"
+                                >
+                                    تم واعتماد
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        handleStageColorChange(AMEER_STAGE_KEY, null);
+                                        setShowAmeerColorPicker(false);
+                                    }}
+                                    className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                >
+                                    استعادة الافتراضي
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {showNameColorPicker && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowNameColorPicker(false)}>

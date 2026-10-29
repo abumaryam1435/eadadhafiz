@@ -61,6 +61,7 @@ export interface Halaqa {
   testTeacherId?: number;
   updatedAt?: number;
   ameerStudentId?: number; // أمير الحلقة
+  deputyAmeerStudentId?: number; // نائب أمير الحلقة
   category?: 'ibri' | 'outside'; // جامع عبري أو خارج جامع عبري
 }
 
@@ -114,6 +115,7 @@ export interface SardHalaqa {
   category?: 'ibri' | 'outside';
   updatedAt?: number;
   ameerStudentId?: number; // أمير حلقة السرد
+  deputyAmeerStudentId?: number; // نائب أمير حلقة السرد
 }
 
 export interface SardPageRange {

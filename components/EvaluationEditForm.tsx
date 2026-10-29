@@ -63,6 +63,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
   const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
   const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
   const isAmeer = canSeeAmeer && halaqa?.ameerStudentId === currentStudent.id;
+  const isDeputyAmeer = canSeeAmeer && halaqa?.deputyAmeerStudentId === currentStudent.id;
 
   const isReviewAllowed = useMemo(() => {
     const effectiveTeacherId = initialEvaluation.teacherId || 
@@ -598,12 +599,12 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
       title={
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
-            {isAmeer && <span className="text-base">👑</span>}
-            <span className={isAmeer ? "text-amber-800 dark:text-amber-300 font-black" : ""}>{`تعديل: ${student.name}`}</span>
+            {(isAmeer || isDeputyAmeer) && <span className="text-base">👑</span>}
+            <span className={(isAmeer || isDeputyAmeer) ? "text-amber-800 dark:text-amber-300 font-black" : ""}>{`تعديل: ${student.name}`}</span>
           </div>
-          {isAmeer && (
+          {(isAmeer || isDeputyAmeer) && (
             <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
-              (أمير الحلقة)
+              {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
             </span>
           )}
           {student.isAlAmeen && (

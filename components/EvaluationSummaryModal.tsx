@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Modal from './Modal';
-import { Evaluation, Student, Halaqa, EvaluationType, AttendanceStatus } from '../types';
+import { AppContext } from '../App';
+import { Evaluation, Student, Halaqa, EvaluationType, AttendanceStatus, UserRole } from '../types';
 import { translationMap, toArabicDigits, formatRtlRange } from '../utils/exportWord';
 
 interface EvaluationSummaryModalProps {
@@ -22,6 +23,10 @@ const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
   onDelete,
 }) => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const context = useContext(AppContext);
+  const canSeeAmeer = context?.currentUser?.role === UserRole.SUPERVISOR || (context?.showAmeerToTeachers ?? false);
+  const isAmeer = canSeeAmeer && !!student && halaqa?.ameerStudentId === student.id;
+  const isDeputyAmeer = canSeeAmeer && !!student && halaqa?.deputyAmeerStudentId === student.id;
 
   const getAyahRangeDisplay = () => {
     if (evaluation.fromAyah && evaluation.toAyah) {
@@ -83,9 +88,15 @@ const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
         <div className="relative space-y-3">
             {/* الهيدر المتميز */}
             <div className="text-center pb-2 border-b-2 border-dashed border-green-200 dark:border-green-800">
-                <h4 className="text-[13px] font-black text-green-900 dark:text-green-300 leading-tight">
+                <h4 className={`text-[13px] font-black leading-tight ${(isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300' : 'text-green-900 dark:text-green-300'}`}>
+                    {(isAmeer || isDeputyAmeer) && <span className="ml-1">👑</span>}
                     {student?.name}
                 </h4>
+                {(isAmeer || isDeputyAmeer) && (
+                    <div className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
+                        {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
+                    </div>
+                )}
                 {student?.isAlAmeen && (
                     <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">
                         (من طلاب الأمين)

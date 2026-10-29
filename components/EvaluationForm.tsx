@@ -226,6 +226,19 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     }
   }, [canSeeAmeer, subject, selectedHalaqa, sardHalaqas, halaqas]);
 
+  const isStudentHalaqaDeputyAmeer = useCallback((s: Student | null | undefined): boolean => {
+    if (!s || !canSeeAmeer) return false;
+    if (subject === 'sard') {
+      const targetHalaqaId = selectedHalaqa || s.sardHalaqaId;
+      const sh = sardHalaqas.find(item => item.id === targetHalaqaId);
+      return sh?.deputyAmeerStudentId === s.id;
+    } else {
+      const targetHalaqaId = selectedHalaqa || s.halaqaId;
+      const h = halaqas.find(item => item.id === targetHalaqaId);
+      return h?.deputyAmeerStudentId === s.id;
+    }
+  }, [canSeeAmeer, subject, selectedHalaqa, sardHalaqas, halaqas]);
+
   useEffect(() => {
     if (context?.setTeacherSessionState) {
       context.setTeacherSessionState({
@@ -2156,6 +2169,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                       );
                       const isGroupSelected = selectedSardGroupIds.includes(s.id);
                       const isAmeer = isStudentHalaqaAmeer(s);
+                      const isDeputyAmeer = isStudentHalaqaDeputyAmeer(s);
                       return (
                         <button 
                           key={s.id} 
@@ -2179,7 +2193,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               ? 'bg-rose-50 text-rose-950 hover:bg-rose-100 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800'
                               : isEvaluated 
                               ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700' 
-                              : isAmeer
+                              : (isAmeer || isDeputyAmeer)
                               ? 'bg-amber-50/70 text-amber-950 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800'
                               : isAbsentInAsr
                               ? 'bg-amber-50/60 text-gray-800 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/20 dark:text-gray-200 dark:border-amber-800'
@@ -2187,10 +2201,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           }`}
                         >
                           <div className="flex flex-col items-start min-w-0">
-                            <span className={`truncate ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'text-white' : isAmeer ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
-                            {isAmeer && (
+                            <span className={`truncate ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'text-white' : (isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
+                            {(isAmeer || isDeputyAmeer) && (
                               <span className={`text-[10px] font-bold leading-tight mt-0.5 ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'text-amber-200' : 'text-amber-700 dark:text-amber-400'}`}>
-                                (أمير الحلقة)
+                                {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
                               </span>
                             )}
                             {s.isAlAmeen && (
@@ -2354,6 +2368,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                                    (!evalRecord && !hifzRecord && asrAttRecord?.status === MaghribAttendanceStatus.LATE);
                     const isPresentInHifzOnly = subject === 'mutoon' && !evalRecord && hifzRecord?.attendance === AttendanceStatus.PRESENT;
                     const isAmeer = isStudentHalaqaAmeer(s);
+                    const isDeputyAmeer = isStudentHalaqaDeputyAmeer(s);
                     return (
                       <button 
                         key={s.id} 
@@ -2371,16 +2386,16 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                             ? 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700' 
                             : isLate
                             ? 'bg-blue-50/80 text-blue-950 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-800 hover:bg-blue-100'
-                            : isAmeer 
+                            : (isAmeer || isDeputyAmeer) 
                             ? 'bg-amber-50/70 text-amber-950 hover:bg-amber-100 border-amber-300 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800' 
                             : 'bg-gray-50 text-gray-800 hover:bg-green-50 border-gray-100 dark:bg-gray-700 dark:text-gray-200'
                         }`}
                       >
                         <div className="flex flex-col justify-center items-start w-full">
-                          <span className={`truncate w-full ${selectedStudent === s.id ? 'text-white' : isAmeer ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
-                          {isAmeer && (
+                          <span className={`truncate w-full ${selectedStudent === s.id ? 'text-white' : (isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
+                          {(isAmeer || isDeputyAmeer) && (
                             <span className={`text-[10px] font-bold leading-tight mt-0.5 ${selectedStudent === s.id ? 'text-amber-200' : 'text-amber-700 dark:text-amber-400'}`}>
-                              (أمير الحلقة)
+                              {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
                             </span>
                           )}
                           {s.isAlAmeen && (
@@ -2424,20 +2439,21 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
         {currentStep === 'selectAttendance' && activeStudent && (() => {
           const isAmeer = isStudentHalaqaAmeer(activeStudent);
+          const isDeputyAmeer = isStudentHalaqaDeputyAmeer(activeStudent);
           return (
           <div className="space-y-4 max-w-lg mx-auto w-full">
             {/* بطاقة معلومات الطالب المختصرة */}
             <div className="text-center bg-gradient-to-b from-green-50 to-emerald-50/40 dark:from-green-950/40 dark:to-emerald-950/20 p-3 sm:p-4 rounded-2xl border border-green-200 dark:border-green-800 shadow-2xs">
               <div className="flex flex-col items-center justify-center">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg sm:text-xl">{isAmeer ? '👑' : '👤'}</span>
-                  <p className={`font-black text-lg sm:text-xl ${isAmeer ? 'text-amber-800 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
+                  <span className="text-lg sm:text-xl">{(isAmeer || isDeputyAmeer) ? '👑' : '👤'}</span>
+                  <p className={`font-black text-lg sm:text-xl ${(isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
                     {activeStudent.name}
                   </p>
                 </div>
-                {isAmeer && (
+                {(isAmeer || isDeputyAmeer) && (
                   <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 mt-0.5">
-                    (أمير الحلقة)
+                    {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
                   </p>
                 )}
                 {activeStudent.isAlAmeen && (

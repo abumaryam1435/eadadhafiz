@@ -34,6 +34,7 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
   const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
   const canSeeAmeer = currentUser?.role === UserRole.SUPERVISOR || showAmeerToTeachers;
   const isAmeer = canSeeAmeer && sardHalaqa?.ameerStudentId === student.id;
+  const isDeputyAmeer = canSeeAmeer && sardHalaqa?.deputyAmeerStudentId === student.id;
   const [date, setDate] = useState(evaluation.date || new Date().toISOString().split('T')[0]);
   const [isMushafModalOpen, setIsMushafModalOpen] = useState(false);
   const [attendance, setAttendance] = useState<AttendanceStatus>(() => {
@@ -409,12 +410,12 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
         title={
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              {isAmeer && <span className="text-base">👑</span>}
-              <span className={isAmeer ? "text-amber-800 dark:text-amber-300 font-black" : ""}>{`${isPlaceholderItem ? 'تقييم السرد' : 'تعديل تقييم السرد'}: ${student.name}`}</span>
+              {(isAmeer || isDeputyAmeer) && <span className="text-base">👑</span>}
+              <span className={(isAmeer || isDeputyAmeer) ? "text-amber-800 dark:text-amber-300 font-black" : ""}>{`${isPlaceholderItem ? 'تقييم السرد' : 'تعديل تقييم السرد'}: ${student.name}`}</span>
             </div>
-            {isAmeer && (
+            {(isAmeer || isDeputyAmeer) && (
               <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
-                (أمير الحلقة)
+                {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
               </span>
             )}
             {student.isAlAmeen && (
@@ -434,12 +435,12 @@ export const SardEvaluationEditModal: React.FC<SardEvaluationEditModalProps> = (
               <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">اسم الطالب</p>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  {isAmeer && <span className="text-base">👑</span>}
-                  <h4 className={`text-lg font-black ${isAmeer ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-950 dark:text-emerald-100'}`}>{student.name}</h4>
+                  {(isAmeer || isDeputyAmeer) && <span className="text-base">👑</span>}
+                  <h4 className={`text-lg font-black ${(isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-950 dark:text-emerald-100'}`}>{student.name}</h4>
                 </div>
-                {isAmeer && (
+                {(isAmeer || isDeputyAmeer) && (
                   <span className="text-[11px] text-amber-700 dark:text-amber-400 font-bold leading-tight mt-0.5">
-                    (أمير الحلقة)
+                    {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
                   </span>
                 )}
                 {student.isAlAmeen && (
