@@ -117,6 +117,9 @@ export const exportToExcel = async (
         if (headerText === 'م' || headerText === '#' || headerText === 'الرقم') {
             return { wch: 6 }; // Make serial number column fixed and narrow
         }
+        if (headerText === 'رقم الطالب') {
+            return { wch: 11 };
+        }
         let maxLength = 0;
         dataForExport.forEach(row => {
             if (row[i]) {

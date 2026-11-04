@@ -8,7 +8,7 @@ import { shareHtmlViaWhatsApp } from '../utils/exportHtml';
 import { isSmartMatch } from '../utils/searchUtils';
 import { HexColorPicker } from "react-colorful";
 import { getMemorizedPagesData, calculateStudentLevel, getLevelNumericRank, normalizeStudentLevel } from "../utils/pageUtils";
-import { compareReportRows } from "../utils/reportSortUtils";
+import { compareReportRows, compareStudentsByNumber, ensureStudentNumberColumn, matchesStudentNumberQuery } from "../utils/reportSortUtils";
 import { formatJuzsFromNumbers } from "../utils/juzUtils";
 import EvaluationEditForm from './EvaluationEditForm';
 import Modal from './Modal';
@@ -112,6 +112,7 @@ function getLevelRanks(data: any[], levelExtractor: (item: any) => string, score
 
 interface SummaryRow {
     id: number;
+    studentNumber?: number | string;
     studentName: string;
     halaqaId: number;
     halaqaName: string;
@@ -148,6 +149,7 @@ interface SummaryRow {
     onFilteredCountChange?: (count: number) => void;
   }> = ({ data, headers, rankColors, sortConfig, onSortConfigChange, onOpenRankColorsModal, colorMap, onColorChange, saveColors, onToggleSaveColors, manualRanks, setManualRanks, onUpdateScore, isCloudSynced, handleSync, students, halaqas, users, hijriAdjustments, onFilteredCountChange }) => {
     const globalContext = useContext(AppContext);
+    const [summaryStudentNumberFilter, setSummaryStudentNumberFilter] = useState<string>('');
     const [summaryStudentIds, setSummaryStudentIds] = useState<string[]>([]);
     const [summaryScoreFilter, setSummaryScoreFilter] = useState<ScoreFilterConfig>(defaultScoreFilterConfig);
     const [isSummaryWordModalOpen, setIsSummaryWordModalOpen] = useState(false);
@@ -198,14 +200,16 @@ interface SummaryRow {
             try {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    setSelectedSummaryColumnKeys(parsed);
-                    const customMiddle = parsed.filter(k => k !== 'sequence');
+                    const colsWithNum = ensureStudentNumberColumn(parsed);
+                    setSelectedSummaryColumnKeys(colsWithNum);
+                    const customMiddle = colsWithNum.filter(k => k !== 'sequence');
                     const remaining = baseOrder.filter(k => !customMiddle.includes(k) && k !== 'sequence');
                     setSummaryColumnOrder(['sequence', ...customMiddle, ...remaining]);
                 } else if (parsed && typeof parsed === 'object') {
-                    if (Array.isArray(parsed.selected)) setSelectedSummaryColumnKeys(parsed.selected);
+                    if (Array.isArray(parsed.selected)) setSelectedSummaryColumnKeys(ensureStudentNumberColumn(parsed.selected));
                     if (Array.isArray(parsed.order)) {
-                        const middle = parsed.order.filter((k: string) => k !== 'sequence');
+                        const orderedWithNum = ensureStudentNumberColumn(parsed.order);
+                        const middle = orderedWithNum.filter((k: string) => k !== 'sequence');
                         const missing = baseOrder.filter(k => !middle.includes(k) && k !== 'sequence');
                         setSummaryColumnOrder(['sequence', ...middle, ...missing]);
                     } else {
@@ -300,7 +304,7 @@ interface SummaryRow {
 
     const testOptions = useMemo(() => {
         return headers
-            .filter(h => !['studentName', 'level', 'totalScore'].includes(h.key))
+            .filter(h => !['studentNumber', 'studentName', 'level', 'totalScore'].includes(h.key))
             .map(h => ({ id: h.key, name: h.label }));
     }, [headers]);
 
@@ -312,7 +316,7 @@ interface SummaryRow {
 
         if (summaryTestKeys.length > 0 && !summaryTestKeys.includes('all')) {
             activeKeys = activeKeys.filter(k => 
-                ['studentName', 'level', 'totalScore', 'sequence'].includes(k) || 
+                ['studentNumber', 'studentName', 'level', 'totalScore', 'sequence'].includes(k) || 
                 summaryTestKeys.includes(k)
             );
         }
@@ -329,6 +333,9 @@ interface SummaryRow {
     const filteredData = useMemo(() => {
         let results = [...data];
 
+        if (summaryStudentNumberFilter.trim()) {
+            results = results.filter(r => matchesStudentNumberQuery(r.studentNumber, summaryStudentNumberFilter));
+        }
         if (summaryStudentIds.length > 0 && !summaryStudentIds.includes('all')) {
             results = results.filter(r => summaryStudentIds.includes(String(r.id)));
         }
@@ -409,9 +416,7 @@ interface SummaryRow {
                     if (halaqaComp !== 0) {
                         return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
                     }
-                    const sA = a.studentName || '';
-                    const sB = b.studentName || '';
-                    return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
+                    return compareReportRows(a, b, 'studentNumber', 'ascending');
                 }
 
                 const diff = compareReportRows(a, b, sortConfig.key, sortConfig.direction);
@@ -434,18 +439,7 @@ interface SummaryRow {
         });
 
         if (!sortConfig) {
-            finalResults.sort((a, b) => {
-                const levelA = getLevelNum(a.level);
-                const levelB = getLevelNum(b.level);
-                if (levelA !== levelB) return levelA - levelB;
-                
-                const validRankA = (a.rank !== undefined && a.rank > 0) ? a.rank : Infinity;
-                const validRankB = (b.rank !== undefined && b.rank > 0) ? b.rank : Infinity;
-                
-                if (validRankA !== validRankB) return validRankA - validRankB;
-                
-                return b.totalScore - a.totalScore;
-            });
+            finalResults.sort((a, b) => compareReportRows(a, b, 'studentNumber', 'ascending'));
         }
         
         let seq = 1;
@@ -455,7 +449,7 @@ interface SummaryRow {
             }
             return { ...r, sequence: seq++ };
         });
-    }, [data, summaryStudentIds, summaryHalaqaIds, summaryTeacherIds, summaryLevels, summaryStudentLevels, summaryTestKeys, summaryEvalStatus, summaryAlAmeen, summaryFromIbri, summaryScoreFilter, halaqas, sortConfig, manualRanks]);
+    }, [data, summaryStudentNumberFilter, summaryStudentIds, summaryHalaqaIds, summaryTeacherIds, summaryLevels, summaryStudentLevels, summaryTestKeys, summaryEvalStatus, summaryAlAmeen, summaryFromIbri, summaryScoreFilter, halaqas, sortConfig, manualRanks]);
 
     useEffect(() => {
         if (onFilteredCountChange) {
@@ -473,7 +467,30 @@ interface SummaryRow {
         <>
             <div className="space-y-6 animate-in fade-in duration-500">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3 no-print">
-                <FilterItem id="sumStudent" title="الطالب" selectedValues={summaryStudentIds} options={students.map(s => ({id: s.id, name: s.name}))} onSelect={setSummaryStudentIds} search={summarySearch.student} setSearch={(v) => setSummarySearch(p => ({...p, student: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
+                <div className="relative w-full">
+                  <label className="text-[10px] mb-1 block font-bold text-gray-500 dark:text-gray-400">رقم الطالب:</label>
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      inputMode="text"
+                      value={summaryStudentNumberFilter}
+                      onChange={e => setSummaryStudentNumberFilter(e.target.value)}
+                      placeholder="مثال: 5 أو 1-10"
+                      className="py-2 text-xs h-10 w-full bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 dark:text-gray-200 px-3 pl-7 font-bold outline-none focus:border-indigo-600"
+                    />
+                    {summaryStudentNumberFilter && (
+                      <button
+                        type="button"
+                        onClick={() => setSummaryStudentNumberFilter('')}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                        title="مسح رقم الطالب"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <FilterItem id="sumStudent" title="الطالب" selectedValues={summaryStudentIds} options={[...students].sort(compareStudentsByNumber).map(s => ({id: s.id, name: s.name, studentNumber: s.studentNumber}))} onSelect={setSummaryStudentIds} search={summarySearch.student} setSearch={(v) => setSummarySearch(p => ({...p, student: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
                 <FilterItem id="sumHalaqa" title="حلقة الطالب" selectedValues={summaryHalaqaIds} options={halaqaOptionsSummary} onSelect={setSummaryHalaqaIds} search={summarySearch.halaqa} setSearch={(v) => setSummarySearch(p => ({...p, halaqa: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
                 <FilterItem id="sumTeacher" title="المعلم" selectedValues={summaryTeacherIds} options={users.filter(u => u.role === UserRole.TEACHER).map(t => ({id: t.id, name: t.name}))} onSelect={setSummaryTeacherIds} search={summarySearch.teacher} setSearch={(v) => setSummarySearch(p => ({...p, teacher: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} />
                 <FilterItem id="sumLevel" title="المستوى" selectedValues={summaryLevels} options={levelOptions} onSelect={setSummaryLevels} search={summarySearch.level} setSearch={(v) => setSummarySearch(p => ({...p, level: v}))} openDropdown={summaryOpenDropdown} setOpenDropdown={setSummaryOpenDropdown} showColorPicker={true} colorMap={colorMap} onColorChange={onColorChange} saveColors={saveColors} onToggleSaveColors={onToggleSaveColors} />
@@ -933,12 +950,13 @@ export const TestsReportTable: React.FC = () => {
   const [selectedEvalStatus, setSelectedEvalStatus] = useState<string[]>([TESTED]);
   const [selectedAlAmeen, setSelectedAlAmeen] = useState<string[]>([]);
   const [selectedFromIbri, setSelectedFromIbri] = useState<string[]>(['نعم']);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'studentNumber', direction: 'ascending' });
 
   const [showRankColorsModal, setShowRankColorsModal] = useState(false);
   const [activeRankTarget, setActiveRankTarget] = useState<string | null>(null);
 
   const [studentSearch, setStudentSearch] = useState('');
+  const [studentNumberFilter, setStudentNumberFilter] = useState('');
   const [isDetailedWordModalOpen, setIsDetailedWordModalOpen] = useState(false);
   const [isDetailedExcelModalOpen, setIsDetailedExcelModalOpen] = useState(false);
   const [halaqaSearch, setHalaqaSearch] = useState('');
@@ -1054,6 +1072,7 @@ export const TestsReportTable: React.FC = () => {
         const juzsCount = progress?.memorizedJuzsCount ?? (pagesData.totalCount >= 20 ? Math.floor(pagesData.totalCount / 20) : 0);
         const row: any = {
             id: s.id,
+            studentNumber: s.studentNumber ?? '—',
             studentName: s.name,
             isAlAmeen: s.isAlAmeen,
             isFromIbri: s.isFromIbri !== false,
@@ -1097,6 +1116,7 @@ export const TestsReportTable: React.FC = () => {
 
   const summaryHeaders = useMemo(() => [
     { key: 'sequence', label: '#' },
+    { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
     { key: 'studentName', label: 'اسم الطالب' },
     { key: 'level', label: 'المستوى' },
     { key: 'memorizedJuzsCount', label: 'عدد الأجزاء' },
@@ -1120,6 +1140,7 @@ export const TestsReportTable: React.FC = () => {
 
   const allHeaders = useMemo(() => [
     { key: 'sequence', label: '#' },
+    { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
     { key: 'studentName', label: 'الطالب' },
     { key: 'level', label: 'المستوى' },
     { key: 'memorizedJuzsCount', label: 'عدد الأجزاء' },
@@ -1149,7 +1170,7 @@ export const TestsReportTable: React.FC = () => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
             const hasJuzs = parsed.includes('memorizedJuzsCount');
-            const finalParsed = hasJuzs ? parsed : [...parsed, 'memorizedJuzsCount'];
+            const finalParsed = ensureStudentNumberColumn(hasJuzs ? parsed : [...parsed, 'memorizedJuzsCount']);
             setSelectedColumnKeys(finalParsed);
             const customMiddle = finalParsed.filter(k => k !== 'sequence' && k !== 'notes');
             const remaining = baseOrder.filter(k => !customMiddle.includes(k) && k !== 'sequence' && k !== 'notes');
@@ -1157,10 +1178,11 @@ export const TestsReportTable: React.FC = () => {
         } else if (parsed && typeof parsed === 'object') {
             if (Array.isArray(parsed.selected)) {
                 const hasJuzs = parsed.selected.includes('memorizedJuzsCount');
-                setSelectedColumnKeys(hasJuzs ? parsed.selected : [...parsed.selected, 'memorizedJuzsCount']);
+                setSelectedColumnKeys(ensureStudentNumberColumn(hasJuzs ? parsed.selected : [...parsed.selected, 'memorizedJuzsCount']));
             }
             if (Array.isArray(parsed.order)) {
-                const middle = parsed.order.filter((k: string) => k !== 'sequence' && k !== 'notes');
+                const orderedWithNum = ensureStudentNumberColumn(parsed.order);
+                const middle = orderedWithNum.filter((k: string) => k !== 'sequence' && k !== 'notes');
                 const missing = baseOrder.filter(k => !middle.includes(k) && k !== 'sequence' && k !== 'notes');
                 setColumnOrder(['sequence', ...middle, ...missing, 'notes']);
             } else {
@@ -1236,6 +1258,7 @@ export const TestsReportTable: React.FC = () => {
       const pagesData = student ? getMemorizedPagesData(student, evaluations) : { totalCount: 0 };
       return { 
         ...e, 
+        studentNumber: student?.studentNumber ?? '—',
         studentName: student?.name || 'غير معروف', 
         isAlAmeen: student?.isAlAmeen,
         isAlAmeenStr: student?.isAlAmeen ? 'نعم' : 'لا',
@@ -1331,7 +1354,7 @@ export const TestsReportTable: React.FC = () => {
                 const sJuzsCount = studentPages.totalCount >= 20 ? Math.floor(studentPages.totalCount / 20) : 0;
                 const progress = studentProgressMap.get(s.id);
                 return { 
-                  id: `p-${s.id}-${weekNum}`, studentId: s.id, studentName: s.name, 
+                  id: `p-${s.id}-${weekNum}`, studentId: s.id, studentNumber: s.studentNumber ?? '—', studentName: s.name, 
                   isAlAmeen: s.isAlAmeen, isAlAmeenStr: s.isAlAmeen ? 'نعم' : 'لا', 
                   isFromIbri: s.isFromIbri !== false, isFromIbriStr: (s.isFromIbri !== false) ? 'نعم' : 'لا',
                   halaqaId: s.halaqaId, teacherId: studentHalaqa?.teacherId, 
@@ -1349,6 +1372,9 @@ export const TestsReportTable: React.FC = () => {
         });
     }
 
+    if (studentNumberFilter.trim()) {
+        items = items.filter(i => matchesStudentNumberQuery(i.studentNumber, studentNumberFilter));
+    }
     if (selectedStudentIds.length > 0 && !selectedStudentIds.includes('all')) items = items.filter(i => selectedStudentIds.includes(String(i.studentId)));
     if (selectedHalaqaIds.length > 0 && !selectedHalaqaIds.includes('all')) {
         items = items.filter(i => 
@@ -1398,9 +1424,7 @@ export const TestsReportTable: React.FC = () => {
             if (halaqaComp !== 0) {
                 return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
             }
-            const sA = a.studentName || '';
-            const sB = b.studentName || '';
-            return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
+            return compareReportRows(a, b, 'studentNumber', 'ascending');
         }
 
         const diff = compareReportRows(a, b, sortConfig.key, sortConfig.direction);
@@ -1418,15 +1442,7 @@ export const TestsReportTable: React.FC = () => {
         return scoreB - scoreA;
       });
     } else {
-        items.sort((a, b) => {
-            const levelA = getLevelNum(a.level);
-            const levelB = getLevelNum(b.level);
-            if (levelA !== levelB) return levelA - levelB;
-            
-            const scoreA = a.numericScore ?? 0;
-            const scoreB = b.numericScore ?? 0;
-            return scoreB - scoreA;
-        });
+        items.sort((a, b) => compareReportRows(a, b, 'studentNumber', 'ascending'));
     }
 
     const studentRankMap = getLevelRanks(items, item => item.level, item => item.numericScore ?? 0);
@@ -1436,7 +1452,7 @@ export const TestsReportTable: React.FC = () => {
         sequence: index + 1,
         rank: studentRankMap.get(item) 
     }));
-  }, [processedEvaluationData, students, halaqas, users, selectedWeeks, selectedStudentIds, selectedHalaqaIds, selectedTeacherIds, selectedEvalStatus, selectedLevels, selectedAlAmeen, selectedFromIbri, detailedScoreFilter, sortConfig, selectedColumnKeys]);
+  }, [processedEvaluationData, students, halaqas, users, selectedWeeks, studentNumberFilter, selectedStudentIds, selectedHalaqaIds, selectedTeacherIds, selectedEvalStatus, selectedLevels, selectedAlAmeen, selectedFromIbri, detailedScoreFilter, sortConfig, selectedColumnKeys]);
 
   const exportHeaderInfo = useMemo(() => {
     const isAllWeeks = selectedWeeks.includes('all') || selectedWeeks.length === 0;
@@ -1657,7 +1673,30 @@ export const TestsReportTable: React.FC = () => {
       
       <div className={activeTab === 'detailed' ? 'block' : 'hidden'}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3 mb-8 no-print">
-              <FilterItem id="student" title="الطالب" selectedValues={selectedStudentIds} options={students.map(s => ({id: s.id, name: s.name}))} onSelect={setSelectedStudentIds} search={studentSearch} setSearch={setStudentSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
+              <div className="relative w-full">
+                <label className="text-[10px] mb-1 block font-bold text-gray-500 dark:text-gray-400">رقم الطالب:</label>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    inputMode="text"
+                    value={studentNumberFilter}
+                    onChange={e => setStudentNumberFilter(e.target.value)}
+                    placeholder="مثال: 5 أو 1-10"
+                    className="py-2 text-xs h-10 w-full bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 dark:text-gray-200 px-3 pl-7 font-bold outline-none focus:border-indigo-600"
+                  />
+                  {studentNumberFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setStudentNumberFilter('')}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                      title="مسح رقم الطالب"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+              <FilterItem id="student" title="الطالب" selectedValues={selectedStudentIds} options={[...students].sort(compareStudentsByNumber).map(s => ({id: s.id, name: s.name, studentNumber: s.studentNumber}))} onSelect={setSelectedStudentIds} search={studentSearch} setSearch={setStudentSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
               <FilterItem id="halaqa" title="حلقة الطالب" selectedValues={selectedHalaqaIds} options={[{ id: '0', name: 'غير محدد' }, ...[...halaqas].sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })).map(h => ({id: h.id, name: h.name}))]} onSelect={setSelectedHalaqaIds} search={halaqaSearch} setSearch={setHalaqaSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
               <FilterItem id="teacher" title="المقيم" selectedValues={selectedTeacherIds} options={users.filter(u => u.role === UserRole.TEACHER).map(t => ({id: t.id, name: t.name}))} onSelect={setSelectedTeacherIds} search={teacherSearch} setSearch={setTeacherSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
               <FilterItem id="level" title="المستوى" selectedValues={selectedLevels} options={levelOptionsDetailed} onSelect={setSelectedLevels} search={levelSearch} setSearch={setLevelSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />

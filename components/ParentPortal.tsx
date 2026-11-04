@@ -5,6 +5,7 @@ import {
   matchesParentPhone,
   getParentRandomCode
 } from '../utils/parentReportUtils';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 import { 
   AttendanceStatus, 
   EvaluationType, 
@@ -66,13 +67,14 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({ parentPhone }) => {
 
   // البحث عن الطلاب المطابقين لهذا الرقم
   const matchedStudents = useMemo(() => {
-    const list = rawStudents.filter(s => matchesParentPhone(s.parentPhone, cleanPhone));
+    const list = rawStudents.filter(s => matchesParentPhone(s.parentPhone, cleanPhone)).sort(compareStudentsByNumber);
     
     // بيانات نموذجية لتجربة التقرير في حال كان الرقم 99375259
     if (list.length === 0 && (cleanPhone === '99375259' || cleanPhone.endsWith('99375259'))) {
       const demoStudents: Student[] = [
         {
           id: 993701,
+          studentNumber: 1,
           name: 'مالك بن هلال بن محمد الصارخي',
           halaqaId: 1,
           schoolStage: 'الصف السادس',
@@ -82,6 +84,7 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({ parentPhone }) => {
         },
         {
           id: 993702,
+          studentNumber: 2,
           name: 'محمد بن منير بن محمد الصارخي',
           halaqaId: 2,
           schoolStage: 'الصف السادس',
@@ -500,6 +503,11 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({ parentPhone }) => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        {student.studentNumber !== undefined && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-lg font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            رقم الطالب: {student.studentNumber}
+                          </span>
+                        )}
                         <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
                           {student.name}
                         </h3>

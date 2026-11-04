@@ -3,6 +3,7 @@ import { AppContext } from '../App';
 import { AttendanceStatus, AbsenceReason, IlmiyyaAttendance, Student, MaghribAttendanceStatus } from '../types';
 import { isTeacherFromOutside, isStudentFromOutside } from '../utils/categoryUtils';
 import { isSmartMatch } from '../utils/searchUtils';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 
 interface IlmiyyaAttendanceFormProps {
   teacherId: number;
@@ -101,7 +102,7 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
     return rawStudents.filter(s => {
       // خاصة بطلاب الأمين - مشتركة ليظهر جميع طلاب الأمين سواء كان في جامع عبري أو خارج عبري
       return !!s.isAlAmeen;
-    }).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+    }).sort(compareStudentsByNumber);
   }, [rawStudents]);
 
   // تحميل بيانات التحضير المسجلة مسبقاً لهذا الأسبوع والحلقة، أو التعيين الافتراضي (الكل حاضر)
@@ -255,7 +256,7 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
   // تصفية الطلاب بحسب البحث وحالة الحضور والقسم (جامع عبري / خارج عبري)
   const filteredStudents = useMemo(() => {
     return availableStudents.filter(s => {
-      if (searchQuery.trim() && !isSmartMatch(s.name, searchQuery)) return false;
+      if (searchQuery.trim() && !isSmartMatch(s.name, searchQuery) && !String(s.studentNumber ?? '').includes(searchQuery.trim())) return false;
 
       if (sectionFilter !== 'all') {
         const isOutside = isStudentFromOutside(s, rawHalaqas, rawSardHalaqas, ilmiyyaHalaqas);
@@ -610,8 +611,8 @@ export const IlmiyyaAttendanceForm: React.FC<IlmiyyaAttendanceFormProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   {/* Student Info */}
                   <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs font-black shrink-0">
-                      {idx + 1}
+                    <span className="px-2 py-1 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center text-xs font-black shrink-0" title="رقم الطالب">
+                      #{student.studentNumber ?? idx + 1}
                     </span>
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">

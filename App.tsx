@@ -230,6 +230,53 @@ const generateId = () => {
   return _lastId;
 };
 
+const assignMissingStudentNumbers = (students: Student[]): { updated: Student[]; changed: Student[] } => {
+  if (!Array.isArray(students) || students.length === 0) {
+    return { updated: students || [], changed: [] };
+  }
+  const usedNumbers = new Set<number>();
+  let maxNumber = 0;
+
+  // Sort by id ascending so earlier students keep their number if there's any collision
+  const sortedById = [...students].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+  const validStudentIds = new Map<number, number>();
+
+  for (const st of sortedById) {
+    const num = Number(st.studentNumber);
+    if (!isNaN(num) && num > 0 && Number.isInteger(num) && !usedNumbers.has(num)) {
+      usedNumbers.add(num);
+      validStudentIds.set(st.id, num);
+      if (num > maxNumber) maxNumber = num;
+    }
+  }
+
+  const changed: Student[] = [];
+  const assignedMap = new Map<number, number>(validStudentIds);
+
+  for (const st of sortedById) {
+    if (!assignedMap.has(st.id)) {
+      maxNumber += 1;
+      while (usedNumbers.has(maxNumber)) {
+        maxNumber += 1;
+      }
+      usedNumbers.add(maxNumber);
+      assignedMap.set(st.id, maxNumber);
+    }
+  }
+
+  const updated = students.map(st => {
+    const targetNum = assignedMap.get(st.id)!;
+    if (st.studentNumber !== targetNum) {
+      const updatedSt = { ...st, studentNumber: targetNum };
+      changed.push(updatedSt);
+      return updatedSt;
+    }
+    return st;
+  });
+
+  return { updated, changed };
+};
+
 const getInitialStoredData = (): FullBackupData | null => {
   try {
     if (typeof window !== 'undefined' && (window as any).embeddedAppData) {
@@ -297,13 +344,13 @@ const App: React.FC = () => {
     halaqas: initialBackupData?.halaqas || [],
     sardHalaqas: initialBackupData?.sardHalaqas || [],
     ilmiyyaHalaqas: initialBackupData?.ilmiyyaHalaqas || [],
-    students: (initialBackupData?.students || []).map(s => ({
+    students: assignMissingStudentNumbers((initialBackupData?.students || []).map(s => ({
       ...s,
       isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true,
       manualStudentLevel: undefined,
       manualLevel: undefined,
       studentLevel: undefined,
-    })),
+    }))).updated,
     evaluations: initialBackupData?.evaluations || [],
     sardEvaluations: initialBackupData?.sardEvaluations || [],
     ilmiyyaAttendances: initialBackupData?.ilmiyyaAttendances || [],
@@ -503,7 +550,7 @@ const App: React.FC = () => {
         halaqas: loadedConfig?.halaqas || prev.halaqas || [],
         sardHalaqas: loadedConfig?.sardHalaqas || prev.sardHalaqas || [],
         ilmiyyaHalaqas: loadedConfig?.ilmiyyaHalaqas || prev.ilmiyyaHalaqas || [],
-        students: loadedConfig?.students || prev.students || [],
+        students: assignMissingStudentNumbers(loadedConfig?.students || prev.students || []).updated,
         evaluations: loadedConfig?.evaluations || prev.evaluations || [],
         sardEvaluations: loadedConfig?.sardEvaluations || prev.sardEvaluations || [],
         ilmiyyaAttendances: loadedConfig?.ilmiyyaAttendances || prev.ilmiyyaAttendances || [],
@@ -1307,6 +1354,26 @@ const App: React.FC = () => {
     });
   }, [isLoading, isLoadingFirebase, data.students, data.evaluations, data.sardEvaluations, data.maghribAttendances]);
 
+  // ضمان امتلاك كل طالب لرقم طالب ثابت وفريد ومزامنته مع قاعدة البيانات
+  useEffect(() => {
+    if (isLoading || isLoadingFirebase) return;
+    if (!data.students || data.students.length === 0) return;
+    const { updated, changed } = assignMissingStudentNumbers(data.students);
+    if (changed.length > 0) {
+      setData(prev => ({ ...prev, students: updated }));
+      const db = getDb();
+      changed.forEach(st => {
+        if (db && navigator.onLine) {
+          db.ref(`data/students/${st.id}`).set(sanitizeForFirebase(st)).catch(() => {
+            queueForSync(`data/students/${st.id}`, st);
+          });
+        } else {
+          queueForSync(`data/students/${st.id}`, st);
+        }
+      });
+    }
+  }, [isLoading, isLoadingFirebase, data.students]);
+
   const addEvaluation = (ev: any) => {
     if (!ev.isTest) {
       if (ev.subject !== 'mutoon') {
@@ -1481,7 +1548,13 @@ const App: React.FC = () => {
 
   const addStudent = (s: any) => {
     const id = generateId();
-    writeData(`data/students/${id}`, { ...s, id, isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true, updatedAt: id });
+    const existingNums = (data.students || [])
+      .map(st => Number(st.studentNumber))
+      .filter(n => !isNaN(n) && n > 0);
+    const maxNum = existingNums.length > 0 ? Math.max(...existingNums) : 0;
+    const requestedNum = Number(s.studentNumber);
+    const studentNumber = (!isNaN(requestedNum) && requestedNum > 0) ? requestedNum : (maxNum + 1);
+    writeData(`data/students/${id}`, { ...s, id, studentNumber, isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true, updatedAt: id });
     return id;
   };
   const updateStudent = (s: any) => writeData(`data/students/${s.id}`, { ...s, updatedAt: Date.now() });
@@ -1747,8 +1820,13 @@ const App: React.FC = () => {
     if (!currentTest) return;
 
     const newStudentId = generateId();
+    const existingNums = (data.students || [])
+      .map(st => Number(st.studentNumber))
+      .filter(n => !isNaN(n) && n > 0);
+    const maxNum = existingNums.length > 0 ? Math.max(...existingNums) : 0;
     const newStudent: Student = {
       id: newStudentId,
+      studentNumber: maxNum + 1,
       name: currentTest.studentName.trim(),
       halaqaId: Number(halaqaId) || 0,
       schoolStage: currentTest.grade.trim() || undefined,
@@ -1907,6 +1985,7 @@ const App: React.FC = () => {
   };
 
   const handleImportFullBackup = (d: FullBackupData) => {
+      const normalizedStudents = assignMissingStudentNumbers(d.students || []).updated;
       const db = getDb();
       if (db) {
           const toObj = (arr: any[]) => arr.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});
@@ -1915,7 +1994,7 @@ const App: React.FC = () => {
               halaqas: toObj(d.halaqas || []),
               sardHalaqas: toObj(d.sardHalaqas || []),
               ilmiyyaHalaqas: toObj(d.ilmiyyaHalaqas || []),
-              students: toObj(d.students || []),
+              students: toObj(normalizedStudents),
               evaluations: toObj(d.evaluations || []),
               sardEvaluations: toObj(d.sardEvaluations || []),
               ilmiyyaAttendances: toObj(d.ilmiyyaAttendances || []),
@@ -1930,7 +2009,7 @@ const App: React.FC = () => {
               appName: d.appName, customLogo: d.customLogo, supervisorPassword: d.supervisorPassword, maghribPassword: d.maghribPassword, teacherIbriPassword: d.teacherIbriPassword, teacherOutsidePassword: d.teacherOutsidePassword, hijriAdjustments: d.hijriAdjustments, isTestActive: d.isTestActive, testScore: d.testScore, testName: d.testName, lastUsedWeek: d.lastUsedWeek, showAmeerToTeachers: d.showAmeerToTeachers ?? false
           }));
       }
-      setData({ users: d.users, halaqas: d.halaqas, sardHalaqas: d.sardHalaqas || [], ilmiyyaHalaqas: d.ilmiyyaHalaqas || [], students: d.students, evaluations: d.evaluations, sardEvaluations: d.sardEvaluations || [], ilmiyyaAttendances: d.ilmiyyaAttendances || [], maghribAttendances: d.maghribAttendances || [], suggestions: d.suggestions || [], studentBehaviors: d.studentBehaviors || [], matns: d.matns || [], newStudentTests: d.newStudentTests || [] });
+      setData({ users: d.users, halaqas: d.halaqas, sardHalaqas: d.sardHalaqas || [], ilmiyyaHalaqas: d.ilmiyyaHalaqas || [], students: normalizedStudents, evaluations: d.evaluations, sardEvaluations: d.sardEvaluations || [], ilmiyyaAttendances: d.ilmiyyaAttendances || [], maghribAttendances: d.maghribAttendances || [], suggestions: d.suggestions || [], studentBehaviors: d.studentBehaviors || [], matns: d.matns || [], newStudentTests: d.newStudentTests || [] });
       if(d.appName) setAppNameState(d.appName);
       if(d.customLogo !== undefined) setCustomLogoState(d.customLogo);
       if(d.supervisorPassword) setSupervisorPasswordState(d.supervisorPassword);

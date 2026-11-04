@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { HexColorPicker } from "react-colorful";
 import { isSmartMatch } from '../utils/searchUtils';
+import { matchesStudentNumberQuery } from '../utils/reportSortUtils';
+import { toArabicDigits } from '../utils/exportWord';
 import { Copy, Check, ClipboardPaste } from 'lucide-react';
 
 export interface FilterItemProps {
@@ -100,8 +102,37 @@ export const FilterItem: React.FC<FilterItemProps> = ({
       displayLabel = `${selectedValues.length} مختار`;
   }
 
-  const handleSelectAll = () => onSelect(options.map((o: any) => String(o.id)));
-  const handleDeselectAll = () => onSelect([]);
+  const filteredOptions = options.filter((o: any) => {
+    if (!search.trim()) return true;
+    const hasStudentNum = o.studentNumber !== undefined && o.studentNumber !== null && String(o.studentNumber).trim() !== '' && String(o.studentNumber).trim() !== '—';
+    if (hasStudentNum && matchesStudentNumberQuery(o.studentNumber, search)) {
+      return true;
+    }
+    return isSmartMatch(o.name, search) || (o.stage && isSmartMatch(o.stage, search));
+  });
+
+  const handleSelectAll = () => {
+    if (search.trim()) {
+      const matchedIds = filteredOptions.map((o: any) => String(o.id));
+      if (isAllSelected) {
+        onSelect(matchedIds);
+      } else {
+        const merged = Array.from(new Set([...(selectedValues || []), ...matchedIds]));
+        onSelect(merged);
+      }
+    } else {
+      onSelect(options.map((o: any) => String(o.id)));
+    }
+  };
+  const handleDeselectAll = () => {
+    if (search.trim()) {
+      const matchedSet = new Set(filteredOptions.map((o: any) => String(o.id)));
+      const baseVals = isAllSelected ? options.map((o: any) => String(o.id)) : (selectedValues || []);
+      onSelect(baseVals.filter(v => !matchedSet.has(String(v))));
+    } else {
+      onSelect([]);
+    }
+  };
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -152,7 +183,7 @@ export const FilterItem: React.FC<FilterItemProps> = ({
             <input 
               ref={searchInputRef}
               type="text" 
-              placeholder="بحث..." 
+              placeholder={options.some((o: any) => o.studentNumber !== undefined) ? "بحث بالاسم أو الرقم (مثال: 5 أو 1-10)..." : "بحث..."} 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
               className="w-full p-2 pr-7 pl-7 text-[10px] rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600 focus:ring-green-500 dark:text-gray-200 outline-none" 
@@ -182,11 +213,12 @@ export const FilterItem: React.FC<FilterItemProps> = ({
               <button onClick={handleDeselectAll} className="text-[10px] text-red-600 font-bold hover:underline">إلغاء الكل</button>
           </div>
           <ul className="max-h-56 overflow-y-auto scrollbar-hidden space-y-0.5">
-            {options.filter((o: any) => isSmartMatch(o.name, search) || (o.stage && isSmartMatch(o.stage, search))).map((o: any) => {
+            {filteredOptions.map((o: any) => {
               const strId = String(o.id);
               const isChecked = isAllSelected || (selectedValues || []).includes(strId);
               const itemColor = colorMap[strId] || defaultColorPickerValue;
               const isCopiedThis = copiedSuccessId === strId;
+              const hasStudentNum = o.studentNumber !== undefined && o.studentNumber !== null && String(o.studentNumber).trim() !== '' && String(o.studentNumber).trim() !== '—';
 
               return (
                 <li key={o.id} 
@@ -206,9 +238,14 @@ export const FilterItem: React.FC<FilterItemProps> = ({
                             }
                         }
                     }}
-                    className="flex items-center gap-2 flex-grow cursor-pointer min-w-0"
+                    className="flex items-center gap-1.5 flex-grow cursor-pointer min-w-0"
                   >
                     <input type="checkbox" checked={isChecked} readOnly className="h-3.5 w-3.5 rounded text-green-600 border-gray-300 dark:border-gray-500 dark:bg-gray-700 pointer-events-none shrink-0" />
+                    {hasStudentNum && (
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 shrink-0 font-mono">
+                        #{toArabicDigits(o.studentNumber)}
+                      </span>
+                    )}
                     <span className="truncate" style={colorMap && colorMap[String(o.id)] ? { color: colorMap[String(o.id)], fontWeight: 'bold' } : {}}>{o.name}</span>
                     {o.stage && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700/80 text-gray-500 dark:text-gray-400 font-normal shrink-0 mr-auto">

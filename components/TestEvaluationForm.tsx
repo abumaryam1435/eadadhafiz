@@ -11,6 +11,7 @@ import { preloadMushafPages } from '../utils/mushafPreload';
 import { generateSuggestedTestPassages, generateSingleReplacementPassage, SuggestedTestPassage, formatPassageDescription } from '../utils/testPassageGenerator';
 import { registerBackHandler } from '../utils/navigationHistory';
 import { isTeacherFromOutside, isStudentFromOutside } from '../utils/categoryUtils';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 import { 
   BookOpen, 
   CheckCircle2, 
@@ -263,13 +264,13 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
   const isFloating = testHalaqas.length === 0;
 
   const baseStudents = useMemo(() => {
-    if (isGuest || isFloating) return students.sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+    if (isGuest || isFloating) return [...students].sort(compareStudentsByNumber);
     const halaqaIds = new Set(testHalaqas.map(h => h.id));
-    return students.filter(s => halaqaIds.has(s.halaqaId)).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+    return students.filter(s => halaqaIds.has(s.halaqaId)).sort(compareStudentsByNumber);
   }, [students, testHalaqas, isGuest, isFloating]);
 
   const filteredStudents = useMemo(() => {
-    return baseStudents.filter(s => isSmartMatch(s.name, studentSearch));
+    return baseStudents.filter(s => isSmartMatch(s.name, studentSearch) || String(s.studentNumber ?? '').includes(studentSearch.trim()));
   }, [baseStudents, studentSearch]);
 
   // Test evaluations for this week
@@ -597,7 +598,14 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
                                 onClick={() => { setActiveStudent(student); loadExistingEvaluation(student); setCurrentStep('test'); }}
                                 className={`flex flex-col text-right p-4 rounded-2xl border-2 transition-all group hover:scale-[1.02] whitespace-nowrap overflow-hidden ${student.name.length > 35 ? 'text-[11px]' : 'text-sm'} sm:text-base ${isAmeer ? 'bg-amber-50/70 border-amber-300 dark:bg-amber-950/30 dark:border-amber-800' : isEvaluated ? 'bg-indigo-50/50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800' : 'bg-white border-gray-100 hover:border-indigo-300 hover:shadow-md dark:bg-gray-800 dark:border-gray-700'}`}
                             >
-                                <span className={`font-black mb-1 truncate w-full ${isAmeer ? 'text-amber-800 dark:text-amber-300' : isEvaluated ? 'text-indigo-800 dark:text-indigo-300' : 'text-gray-800 dark:text-gray-200'}`}>{student.name}</span>
+                                <span className={`font-black mb-1 truncate w-full flex items-center gap-1.5 ${isAmeer ? 'text-amber-800 dark:text-amber-300' : isEvaluated ? 'text-indigo-800 dark:text-indigo-300' : 'text-gray-800 dark:text-gray-200'}`}>
+                                    {student.studentNumber !== undefined && (
+                                        <span className="px-1.5 py-0.2 rounded-md text-[10px] font-black bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 shrink-0">
+                                            #{student.studentNumber}
+                                        </span>
+                                    )}
+                                    <span className="truncate">{student.name}</span>
+                                </span>
                                 {isAmeer && (
                                     <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold leading-tight -mt-0.5 mb-1 text-right w-full">
                                         (أمير الحلقة)
@@ -701,6 +709,11 @@ export const TestEvaluationForm: React.FC<TestEvaluationFormProps> = ({ teacherI
                 <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800">
                     <div className="flex items-center gap-2">
                         <span className="text-xl">{isActiveAmeer ? '👑' : '👤'}</span>
+                        {activeStudent.studentNumber !== undefined && (
+                            <span className="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200">
+                                #{activeStudent.studentNumber}
+                            </span>
+                        )}
                         <p className={`text-lg font-black mb-0.5 ${isActiveAmeer ? 'text-amber-800 dark:text-amber-300' : 'text-indigo-900 dark:text-indigo-100'}`}>{activeStudent.name}</p>
                     </div>
                     {isActiveAmeer && (

@@ -180,6 +180,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
 
   const studentsHeaders = [
     "id",
+    "studentNumber",
     "name",
     "halaqaId",
     "sardHalaqaId",
@@ -197,6 +198,7 @@ export const exportFullBackup = (data: FullBackupData, fileName: string) => {
     data.students || [],
     (s) => [
       s.id,
+      s.studentNumber ?? "",
       s.name,
       s.halaqaId,
       s.sardHalaqaId || "",
@@ -616,6 +618,7 @@ export const importFullBackup = (file: File): Promise<FullBackupData> => {
 
         importedData.students = processSheet("Students", (r, h) => ({
           id: Number(getValue(r, h, "id") || 0),
+          studentNumber: safeNum(getValue(r, h, "studentNumber")) || safeNum(getValue(r, h, "رقم الطالب")) || undefined,
           name: String(getValue(r, h, "name") || ""),
           halaqaId: Number(getValue(r, h, "halaqaId") || 0),
           sardHalaqaId: safeNum(getValue(r, h, "sardHalaqaId")),

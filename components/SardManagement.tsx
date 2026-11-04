@@ -12,6 +12,7 @@ import { exportToExcel } from '../utils/exportExcel';
 import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 
 export const SardManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -152,11 +153,11 @@ export const SardManagement: React.FC = () => {
         });
     }, [unassignedStudents, evaluations]);
 
-    // Filtered and sorted students for assignment modal (Sorted by level smallest to largest, then by name)
+    // Filtered and sorted students for assignment modal (Sorted by level smallest to largest, then by studentNumber)
     const filteredAndSortedStudentsToAssign = useMemo(() => {
         return unassignedStudents
             .filter(s => {
-                const matchesSearch = !existingStudentSearch.trim() || isSmartMatch(s.name, existingStudentSearch);
+                const matchesSearch = !existingStudentSearch.trim() || isSmartMatch(s.name, existingStudentSearch) || String(s.studentNumber ?? '').includes(existingStudentSearch.trim());
                 const matchesLevel = selectedLevelFilter === 'all' || getStudentLevel(s) === selectedLevelFilter;
                 const matchesCat = assignCategoryFilter === 'all'
                     ? true
@@ -169,7 +170,7 @@ export const SardManagement: React.FC = () => {
                 const rankA = getLevelNumericRank(getStudentLevel(a));
                 const rankB = getLevelNumericRank(getStudentLevel(b));
                 if (rankA !== rankB) return rankA - rankB;
-                return a.name.localeCompare(b.name, 'ar', { numeric: true });
+                return compareStudentsByNumber(a, b);
             });
     }, [unassignedStudents, existingStudentSearch, selectedLevelFilter, assignCategoryFilter, evaluations]);
 
@@ -366,6 +367,7 @@ export const SardManagement: React.FC = () => {
         { key: 'sequence', label: 'م' },
         { key: 'halaqaName', label: 'اسم حلقة السرد' },
         { key: 'teacherName', label: 'اسم المعلم' },
+        { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
         { key: 'studentName', label: 'اسم الطالب' },
     ];
 
@@ -374,16 +376,18 @@ export const SardManagement: React.FC = () => {
         let seq = 1;
         sortedSardHalaqas.forEach(h => {
             const teacher = users.find(u => u.id === h.teacherId);
-            const hStudents = students.filter(s => s.sardHalaqaId === h.id).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+            const hStudents = students.filter(s => s.sardHalaqaId === h.id).sort(compareStudentsByNumber);
             if (hStudents.length === 0) {
                 exportData.push({
                     sequence: seq,
                     halaqaName: h.name,
                     teacherName: teacher?.name || 'غير معين',
+                    studentNumber: '—',
                     studentName: 'لا يوجد طلاب',
                     'م': seq,
                     'اسم حلقة السرد': h.name,
                     'اسم المعلم': teacher?.name || 'غير معين',
+                    'رقم الطالب': '—',
                     'اسم الطالب': 'لا يوجد طلاب'
                 });
                 seq++;
@@ -393,10 +397,12 @@ export const SardManagement: React.FC = () => {
                         sequence: seq,
                         halaqaName: h.name,
                         teacherName: teacher?.name || 'غير معين',
+                        studentNumber: s.studentNumber ?? '—',
                         studentName: s.name,
                         'م': seq,
                         'اسم حلقة السرد': h.name,
                         'اسم المعلم': teacher?.name || 'غير معين',
+                        'رقم الطالب': s.studentNumber ?? '—',
                         'اسم الطالب': s.name
                     });
                     seq++;
@@ -430,7 +436,7 @@ export const SardManagement: React.FC = () => {
         items,
         resolveConflictMode,
     }: {
-        items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; }[];
+        items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; studentNumber?: number; }[];
         resolveConflictMode: 'overwrite' | 'preserve';
     }) => {
         let importedSardHalaqasCount = 0;
@@ -500,11 +506,15 @@ export const SardManagement: React.FC = () => {
                     if (targetSardHalaqaId && existingStudent.sardHalaqaId !== targetSardHalaqaId) {
                         assignStudentToSardHalaqa(existingStudent.id, targetSardHalaqaId);
                     }
+                    if (row.studentNumber && row.studentNumber > 0 && existingStudent.studentNumber !== row.studentNumber) {
+                        updateStudent({ ...existingStudent, sardHalaqaId: targetSardHalaqaId || existingStudent.sardHalaqaId, studentNumber: row.studentNumber });
+                    }
                 } else {
                     addStudent({
                         name: sName,
                         halaqaId: 0,
                         sardHalaqaId: targetSardHalaqaId || undefined,
+                        studentNumber: row.studentNumber && row.studentNumber > 0 ? row.studentNumber : undefined,
                     });
                     importedStudentsCount++;
                 }
@@ -731,7 +741,14 @@ export const SardManagement: React.FC = () => {
                                                 className="w-5 h-5 text-emerald-600 rounded cursor-pointer"
                                             />
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900 dark:text-gray-100 text-base">{student.name}</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    {student.studentNumber !== undefined && (
+                                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                                                            #{student.studentNumber}
+                                                        </span>
+                                                    )}
+                                                    <span className="font-bold text-gray-900 dark:text-gray-100 text-base">{student.name}</span>
+                                                </div>
                                                 <div className="flex items-center gap-1.5 flex-wrap mt-1">
                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-black bg-emerald-100 text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
                                                         {level}
@@ -1076,9 +1093,9 @@ export const SardManagement: React.FC = () => {
                         <div className="space-y-4">
                             {filteredHalaqasForList.map(halaqa => {
                                 const isOpen = openHalaqaId === halaqa.id;
-                                const halaqaStudents = students.filter(s => s.sardHalaqaId === halaqa.id).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+                                const halaqaStudents = students.filter(s => s.sardHalaqaId === halaqa.id).sort(compareStudentsByNumber);
                                 const teacher = users.find(u => u.id === halaqa.teacherId);
-                                const filteredStudentsInHalaqa = halaqaStudents.filter(s => isSmartMatch(s.name, studentSearchTerm));
+                                const filteredStudentsInHalaqa = halaqaStudents.filter(s => isSmartMatch(s.name, studentSearchTerm) || String(s.studentNumber ?? '').includes(studentSearchTerm.trim()));
 
                                 return (
                                     <div key={halaqa.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 dark:bg-gray-800 dark:border-gray-700 overflow-hidden transition-all">
@@ -1251,6 +1268,11 @@ export const SardManagement: React.FC = () => {
                                                                 <div key={student.id} className="p-3 bg-gray-50 dark:bg-slate-700/60 rounded-xl border border-gray-200 dark:border-slate-600 flex justify-between items-center group">
                                                                     <div>
                                                                         <div className="flex items-center gap-1.5 flex-wrap">
+                                                                            {student.studentNumber !== undefined && (
+                                                                                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shrink-0" title="رقم الطالب">
+                                                                                    #{student.studentNumber}
+                                                                                </span>
+                                                                            )}
                                                                             <p className={`font-bold text-sm ${(student.id === halaqa.ameerStudentId || student.id === halaqa.deputyAmeerStudentId) ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-800 dark:text-gray-100'}`}>{student.name}</p>
                                                                             {student.id === halaqa.ameerStudentId && (
                                                                                 <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700 inline-flex items-center">

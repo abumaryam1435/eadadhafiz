@@ -1,6 +1,7 @@
 declare const XLSX: any;
 export const exportSheetTemplate = (fileName: string) => {
   const headers = [
+    "رقم الطالب",
     "اسم الطالب",
     "اسم الحلقة",
     "اسم المعلم",
@@ -31,6 +32,7 @@ export const exportSheetTemplate = (fileName: string) => {
     }
   }
   const exampleRow = [
+    1,
     "عبدالله فهد",
     "حلقة 1",
     "خالد محمد",

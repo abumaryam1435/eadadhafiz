@@ -185,6 +185,97 @@ export function parseDateTimestamp(val: any): number | null {
  *   - Dates: chronological comparison
  *   - When values are equal: secondary sort by studentName alphabetically!
  */
+/**
+ * Compare two student objects or report rows by studentNumber ascending (then name alphabetically)
+ */
+export function compareStudentsByNumber(a: any, b: any): number {
+  const numA = extractNumeric(a?.studentNumber);
+  const numB = extractNumeric(b?.studentNumber);
+  const validA = numA !== null && numA > 0;
+  const validB = numB !== null && numB > 0;
+
+  if (validA && validB && numA !== numB) {
+    return numA - numB;
+  }
+  if (validA && !validB) return -1;
+  if (!validA && validB) return 1;
+
+  const nameA = String(a?.studentName || a?.name || '');
+  const nameB = String(b?.studentName || b?.name || '');
+  return nameA.localeCompare(nameB, 'ar', { sensitivity: 'base' });
+}
+
+/**
+ * Ensures 'studentNumber' is present in a column keys array, placed immediately before 'studentName'
+ */
+export function ensureStudentNumberColumn(cols: string[]): string[] {
+  if (!Array.isArray(cols)) return cols;
+  if (cols.includes('studentNumber')) return cols;
+  const nameIdx = cols.indexOf('studentName');
+  if (nameIdx !== -1) {
+    return [...cols.slice(0, nameIdx), 'studentNumber', ...cols.slice(nameIdx)];
+  }
+  if (cols[0] === 'sequence' || cols[0] === 'serialNumber') {
+    return [cols[0], 'studentNumber', ...cols.slice(1)];
+  }
+  return ['studentNumber', ...cols];
+}
+
+/**
+ * Matches a student's number against a filter query supporting:
+ * - Single exact number (e.g. "5" or "٥")
+ * - Multiple numbers separated by comma or space (e.g. "5, 12, 19" or "٥ ١٢")
+ * - Numeric ranges (e.g. "1-10" or "١-١٠")
+ */
+export function matchesStudentNumberQuery(studentNumber: any, query: string): boolean {
+  if (!query || !String(query).trim()) return true;
+  if (studentNumber === undefined || studentNumber === null || studentNumber === '' || studentNumber === '—') {
+    return false;
+  }
+
+  const normalizeDigits = (str: string) =>
+    String(str)
+      .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+      .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+
+  const numStr = normalizeDigits(String(studentNumber)).trim();
+  const numVal = parseInt(numStr, 10);
+  if (isNaN(numVal)) return false;
+
+  const cleanQuery = normalizeDigits(query)
+    .replace(/\s*[-–—:]\s*/g, '-')
+    .trim();
+
+  if (!cleanQuery) return true;
+
+  const parts = cleanQuery.split(/[,،;؛\s]+/).filter(Boolean);
+  if (parts.length === 0) return true;
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const rangeBounds = part.split('-').filter(Boolean);
+      if (rangeBounds.length === 2) {
+        const start = parseInt(rangeBounds[0], 10);
+        const end = parseInt(rangeBounds[1], 10);
+        if (!isNaN(start) && !isNaN(end)) {
+          const min = Math.min(start, end);
+          const max = Math.max(start, end);
+          if (numVal >= min && numVal <= max) return true;
+        }
+      } else if (rangeBounds.length === 1) {
+        const single = parseInt(rangeBounds[0], 10);
+        if (!isNaN(single) && numVal === single) return true;
+      }
+    } else {
+      const target = parseInt(part, 10);
+      if (!isNaN(target) && numVal === target) return true;
+    }
+  }
+
+  return false;
+}
+
+
 export function compareReportRows<T extends Record<string, any>>(
   a: T,
   b: T,
@@ -193,22 +284,51 @@ export function compareReportRows<T extends Record<string, any>>(
 ): number {
   const dirMultiplier = direction === 'ascending' ? 1 : -1;
 
-  // Helper for secondary tie-breaker by studentName
+  // Helper for secondary tie-breaker by studentNumber then studentName
   const tieBreakByStudent = () => {
+    const cmp = compareStudentsByNumber(a, b);
+    if (cmp !== 0) return cmp;
+    const weekA = extractNumeric(a.weekNumber);
+    const weekB = extractNumeric(b.weekNumber);
+    if (weekA !== null && weekB !== null && weekA !== weekB) {
+      return weekA - weekB;
+    }
+    return 0;
+  };
+
+  // 0. Student Number (رقم الطالب): Numeric ascending/descending
+  if (key === 'studentNumber') {
+    const numA = extractNumeric(a.studentNumber);
+    const numB = extractNumeric(b.studentNumber);
+    const validA = numA !== null && numA > 0;
+    const validB = numB !== null && numB > 0;
+
+    if (!validA && validB) return 1;
+    if (validA && !validB) return -1;
+    if (validA && validB && numA !== numB) {
+      return (numA - numB) * dirMultiplier;
+    }
     const nameA = String(a.studentName || a.name || '');
     const nameB = String(b.studentName || b.name || '');
-    return nameA.localeCompare(nameB, 'ar', { sensitivity: 'base' });
-  };
+    const nameDiff = nameA.localeCompare(nameB, 'ar', { sensitivity: 'base' });
+    if (nameDiff !== 0) return nameDiff * dirMultiplier;
+    const weekA = extractNumeric(a.weekNumber);
+    const weekB = extractNumeric(b.weekNumber);
+    if (weekA !== null && weekB !== null && weekA !== weekB) {
+      return weekA - weekB;
+    }
+    return 0;
+  }
 
   // 1. Student Name: Purely alphabetical
   if (key === 'studentName' || key === 'name') {
     const sA = String(a.studentName || a.name || '');
     const sB = String(b.studentName || b.name || '');
     const diff = sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
-    return diff !== 0 ? diff * dirMultiplier : 0;
+    return diff !== 0 ? diff * dirMultiplier : tieBreakByStudent();
   }
 
-  // 2. Teacher Name / Evaluator Name: Purely alphabetical, fallback to studentName
+  // 2. Teacher Name / Evaluator Name: Purely alphabetical, fallback to student
   if (key === 'teacherName' || key === 'evaluatorName' || key === 'testTeacherName') {
     const tA = String(a[key] || '');
     const tB = String(b[key] || '');

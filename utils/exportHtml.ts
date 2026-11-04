@@ -405,10 +405,36 @@ export const shareHtmlViaWhatsApp = async (
   const today = new Date();
   const dateLine = gregorianToHijriFormatted(today, adjustments);
 
-  // Extract unique student names for quick-filter dropdown
-  const uniqueStudents = Array.from(
-    new Set(data.map(item => String(item.studentName || item.name || '').trim()).filter(Boolean))
-  ).sort((a: string, b: string) => a.localeCompare(b, 'ar'));
+  // Extract unique student names & numbers for quick-filter dropdown (sorted by studentNumber ascending)
+  const studentNumberMap = new Map<string, string>();
+  data.forEach(item => {
+    const sName = String(item.studentName || item.name || '').trim();
+    if (!sName) return;
+    const rawNum =
+      item.studentNumber !== undefined &&
+      item.studentNumber !== null &&
+      String(item.studentNumber).trim() !== '' &&
+      String(item.studentNumber).trim() !== '—'
+        ? String(item.studentNumber)
+            .trim()
+            .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+            .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+        : '';
+    if (!studentNumberMap.has(sName) || (!studentNumberMap.get(sName) && rawNum)) {
+      studentNumberMap.set(sName, rawNum);
+    }
+  });
+
+  const uniqueStudents = Array.from(studentNumberMap.keys()).sort((a: string, b: string) => {
+    const numA = parseInt(studentNumberMap.get(a) || '', 10);
+    const numB = parseInt(studentNumberMap.get(b) || '', 10);
+    const validA = !isNaN(numA) && numA > 0;
+    const validB = !isNaN(numB) && numB > 0;
+    if (validA && validB && numA !== numB) return numA - numB;
+    if (validA && !validB) return -1;
+    if (!validA && validB) return 1;
+    return a.localeCompare(b, 'ar');
+  });
 
   // Table Headers
   const ths = headers.map(h => {
@@ -421,7 +447,12 @@ export const shareHtmlViaWhatsApp = async (
       h.label === 'م' ||
       h.label === 'الرقم' ||
       h.label === 'التسلسل';
-    const seqStyle = isSequence ? 'style="width: 1% !important; white-space: nowrap !important; min-width: 32px; max-width: 45px; text-align: center;"' : '';
+    const isStudentNum = h.key === 'studentNumber' || h.label === 'رقم الطالب';
+    const seqStyle = isSequence
+      ? 'style="width: 1% !important; white-space: nowrap !important; min-width: 32px; max-width: 45px; text-align: center;"'
+      : isStudentNum
+      ? 'style="width: 1% !important; white-space: nowrap !important; min-width: 60px; text-align: center;"'
+      : '';
     return `<th ${seqStyle}>${escapeHtmlText(h.label)}</th>`;
   }).join('');
 
@@ -440,6 +471,16 @@ export const shareHtmlViaWhatsApp = async (
     }
 
     const studentNameVal = String(item.studentName || item.name || '').trim();
+    const rawStudentNumber =
+      item.studentNumber !== undefined &&
+      item.studentNumber !== null &&
+      String(item.studentNumber).trim() !== '' &&
+      String(item.studentNumber).trim() !== '—'
+        ? String(item.studentNumber)
+            .trim()
+            .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+            .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+        : (studentNumberMap.get(studentNameVal) || '');
 
     const tds = headers.map(h => {
       const value = item[h.key];
@@ -458,6 +499,10 @@ export const shareHtmlViaWhatsApp = async (
 
       if (isSequence) {
         cellStyle += ' width: 1% !important; white-space: nowrap !important; min-width: 32px; max-width: 45px; text-align: center; font-weight: 800; font-family: monospace;';
+      }
+
+      if (h.key === 'studentNumber' || h.label === 'رقم الطالب') {
+        cellStyle += ' width: 1% !important; white-space: nowrap !important; text-align: center; font-weight: 900; font-family: monospace; color: #065f46; background-color: rgba(16, 185, 129, 0.06);';
       }
 
       if (h.key === 'studentName' || h.key === 'name') {
@@ -511,6 +556,7 @@ export const shareHtmlViaWhatsApp = async (
     }).join('');
     
     const searchTokens = [
+      rawStudentNumber ? `#${rawStudentNumber} ${rawStudentNumber}` : '',
       studentNameVal,
       item.studentOriginalHalaqaName || '',
       item.halaqaName || '',
@@ -528,7 +574,7 @@ export const shareHtmlViaWhatsApp = async (
       item.weekNumber ? `أسبوع ${item.weekNumber}` : ''
     ].filter(Boolean).join(' ');
 
-    return `<tr class="data-row ${bgClass}" data-student="${escapeAttr(studentNameVal)}" data-search="${escapeAttr(searchTokens)}">${tds}</tr>`;
+    return `<tr class="data-row ${bgClass}" data-student="${escapeAttr(studentNameVal)}" data-student-number="${escapeAttr(rawStudentNumber)}" data-search="${escapeAttr(searchTokens)}">${tds}</tr>`;
   }).join('');
 
   const htmlContent = `<!DOCTYPE html>
@@ -941,13 +987,25 @@ export const shareHtmlViaWhatsApp = async (
       <!-- Controls & Search -->
       <div class="controls-panel">
         <div class="filter-group">
+          <div class="search-wrapper" style="min-width: 195px; max-width: 280px; flex: 0.85;">
+            <span class="search-icon">🔢</span>
+            <input 
+              type="text" 
+              id="studentNumberInput" 
+              class="search-input" 
+              placeholder="تصفية برقم الطالب (مثال: 5 أو 1-10)..." 
+              autocomplete="off"
+            />
+            <button type="button" id="clearNumberBtn" class="clear-btn" title="مسح رقم الطالب">✕</button>
+          </div>
+
           <div class="search-wrapper">
             <span class="search-icon">🔍</span>
             <input 
               type="text" 
               id="searchInput" 
               class="search-input" 
-              placeholder="ابحث بأي جزء من اسم الطالب، الأسبوع، الحلقة..." 
+              placeholder="ابحث باسم الطالب، رقم الطالب، الأسبوع، الحلقة..." 
               autocomplete="off"
             />
             <button type="button" id="clearBtn" class="clear-btn" title="مسح">✕</button>
@@ -969,7 +1027,7 @@ export const shareHtmlViaWhatsApp = async (
                   type="text" 
                   id="studentSearchInput" 
                   class="dropdown-search-input" 
-                  placeholder="بحث سريع في أسماء الطلاب..." 
+                  placeholder="بحث برقم الطالب أو اسمه (مثال: 5 أو 1-10)..." 
                   autocomplete="off"
                 />
               </div>
@@ -978,12 +1036,15 @@ export const shareHtmlViaWhatsApp = async (
                 <button type="button" id="btnDeselectAllStudents" class="btn-action btn-deselect-all">إلغاء التحديد</button>
               </div>
               <div id="studentOptionsList" class="dropdown-options-list">
-                ${uniqueStudents.map((name) => `
-                  <label class="dropdown-option" data-student-name="${escapeAttr(name)}">
-                    <input type="checkbox" class="dropdown-checkbox student-cb" value="${escapeAttr(name)}" checked />
+                ${uniqueStudents.map((name) => {
+                  const sNum = studentNumberMap.get(name) || '';
+                  return `
+                  <label class="dropdown-option" data-student-name="${escapeAttr(name)}" data-student-number="${escapeAttr(sNum)}">
+                    <input type="checkbox" class="dropdown-checkbox student-cb" value="${escapeAttr(name)}" data-num="${escapeAttr(sNum)}" checked />
+                    ${sNum ? `<span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:1px 6px;border-radius:6px;font-size:0.78rem;font-weight:900;font-family:monospace;flex-shrink:0;">#${escapeHtmlText(toArabicDigits(sNum))}</span>` : ''}
                     <span>${escapeHtmlText(name)}</span>
                   </label>
-                `).join('')}
+                `;}).join('')}
               </div>
             </div>
           </div>` : ''}
@@ -1032,19 +1093,87 @@ export const shareHtmlViaWhatsApp = async (
         return arr;
       }
 
+      function normalizeDigits(str) {
+        if (!str) return "";
+        var s = String(str);
+        var arDigits = "٠١٢٣٤٥٦٧٨٩";
+        var faDigits = "۰۱۲۳۴۵۶۷۸۹";
+        for (var d = 0; d < 10; d++) {
+          s = s.split(arDigits[d]).join(String(d));
+          s = s.split(faDigits[d]).join(String(d));
+        }
+        return s;
+      }
+
       function normalizeArabic(text) {
         if (!text) return "";
-        var str = String(text).toLowerCase();
+        var str = normalizeDigits(text).toLowerCase();
         str = str.replace(/[أإآ]/g, "ا")
                  .replace(/ة/g, "ه")
                  .replace(/ى/g, "ي")
                  .replace(/[\\u064B-\\u065F\\u0670]/g, "")
                  .replace(/ـ+/g, "");
-        var arDigits = "٠١٢٣٤٥٦٧٨٩";
-        for (var d = 0; d < 10; d++) {
-          str = str.split(arDigits[d]).join(String(d));
-        }
         return str.replace(/[\\r\\n\\t]+/g, " ").replace(/\\s+/g, " ").trim();
+      }
+
+      function matchesStudentNumber(studentNumStr, query) {
+        if (!query || !String(query).trim()) return true;
+        if (studentNumStr === undefined || studentNumStr === null || String(studentNumStr).trim() === "" || String(studentNumStr).trim() === "—") {
+          return false;
+        }
+        var numClean = normalizeDigits(String(studentNumStr)).replace(/[^0-9]/g, "");
+        var numVal = parseInt(numClean, 10);
+        if (isNaN(numVal)) return false;
+
+        var qClean = normalizeDigits(String(query))
+          .replace(/#/g, "")
+          .replace(/\\s*[-–—:]\\s*/g, "-")
+          .trim();
+        if (!qClean) return true;
+
+        var parts = qClean.split(/[,،;؛\\s]+/).filter(function(p) { return p.length > 0; });
+        if (parts.length === 0) return true;
+
+        var matchedAnyToken = false;
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i];
+          if (part.indexOf("-") !== -1) {
+            var bounds = part.split("-").filter(function(b) { return b.length > 0; });
+            if (bounds.length === 2) {
+              var s = parseInt(bounds[0], 10);
+              var e = parseInt(bounds[1], 10);
+              if (!isNaN(s) && !isNaN(e)) {
+                var min = Math.min(s, e);
+                var max = Math.max(s, e);
+                if (numVal >= min && numVal <= max) return true;
+                matchedAnyToken = true;
+              }
+            } else if (bounds.length === 1) {
+              var single = parseInt(bounds[0], 10);
+              if (!isNaN(single)) {
+                if (numVal === single) return true;
+                matchedAnyToken = true;
+              }
+            }
+          } else {
+            if (/^\\d+$/.test(part)) {
+              var target = parseInt(part, 10);
+              if (!isNaN(target)) {
+                if (numVal === target) return true;
+                matchedAnyToken = true;
+              }
+            } else {
+              return false;
+            }
+          }
+        }
+        return matchedAnyToken ? false : false;
+      }
+
+      function isNumericOrRangeQuery(query) {
+        if (!query || !String(query).trim()) return false;
+        var qClean = normalizeDigits(String(query)).replace(/#/g, "").trim();
+        return /^[0-9\\s,،;؛\\-–—:]+$/.test(qClean) && /[0-9]/.test(qClean);
       }
 
       function isSmartMatch(targetText, query) {
@@ -1087,7 +1216,10 @@ export const shareHtmlViaWhatsApp = async (
         for (var i = 0; i < total; i++) {
           if (cbs[i].checked) {
             checked++;
-            if (!firstChecked) firstChecked = cbs[i].value;
+            if (!firstChecked) {
+              var sNum = cbs[i].getAttribute("data-num");
+              firstChecked = (sNum ? "#" + sNum + " " : "") + cbs[i].value;
+            }
           }
         }
 
@@ -1111,6 +1243,13 @@ export const shareHtmlViaWhatsApp = async (
             clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
           }
 
+          var studentNumberInput = document.getElementById("studentNumberInput");
+          var rawNumQuery = studentNumberInput ? (studentNumberInput.value || "") : "";
+          var clearNumberBtn = document.getElementById("clearNumberBtn");
+          if (clearNumberBtn) {
+            clearNumberBtn.style.display = rawNumQuery.trim() ? "flex" : "none";
+          }
+
           var studentCbs = toArray(document.querySelectorAll(".student-cb"));
           var totalCbs = studentCbs.length;
           var checkedMap = {};
@@ -1132,11 +1271,20 @@ export const shareHtmlViaWhatsApp = async (
             var row = rows[r];
             var rowSearchText = row.getAttribute("data-search") || row.textContent || "";
             var studentAttr = (row.getAttribute("data-student") || "").trim();
+            var studentNumAttr = (row.getAttribute("data-student-number") || "").trim();
 
-            var matchesQuery = !rawQuery.trim() || isSmartMatch(rowSearchText, rawQuery);
+            var matchesNumber = !rawNumQuery.trim() || matchesStudentNumber(studentNumAttr, rawNumQuery);
+            var matchesQuery = true;
+            if (rawQuery.trim()) {
+              if (isNumericOrRangeQuery(rawQuery)) {
+                matchesQuery = matchesStudentNumber(studentNumAttr, rawQuery);
+              } else {
+                matchesQuery = isSmartMatch(rowSearchText, rawQuery);
+              }
+            }
             var matchesStudent = !filterByStudent || !!checkedMap[studentAttr];
 
-            if (matchesQuery && matchesStudent) {
+            if (matchesNumber && matchesQuery && matchesStudent) {
               row.style.display = "";
               visibleCount++;
             } else {
@@ -1164,11 +1312,16 @@ export const shareHtmlViaWhatsApp = async (
         for (var i = 0; i < options.length; i++) {
           var opt = options[i];
           var name = opt.getAttribute("data-student-name") || opt.textContent || "";
-          if (!q.trim() || isSmartMatch(name, q)) {
-            opt.style.display = "flex";
+          var sNum = opt.getAttribute("data-student-number") || "";
+          var matches = false;
+          if (!q.trim()) {
+            matches = true;
+          } else if (isNumericOrRangeQuery(q)) {
+            matches = matchesStudentNumber(sNum, q);
           } else {
-            opt.style.display = "none";
+            matches = isSmartMatch(name + " " + sNum, q);
           }
+          opt.style.display = matches ? "flex" : "none";
         }
       }
 
@@ -1207,9 +1360,15 @@ export const shareHtmlViaWhatsApp = async (
           if (e.preventDefault) e.preventDefault();
           if (e.stopPropagation) e.stopPropagation();
         }
-        var cbs = toArray(document.querySelectorAll(".student-cb"));
-        for (var i = 0; i < cbs.length; i++) {
-          cbs[i].checked = true;
+        var searchIn = document.getElementById("studentSearchInput");
+        var hasSubSearch = searchIn && searchIn.value && searchIn.value.trim().length > 0;
+        var options = toArray(document.querySelectorAll(".dropdown-option"));
+        for (var i = 0; i < options.length; i++) {
+          var cb = options[i].querySelector(".student-cb");
+          if (!cb) continue;
+          if (!hasSubSearch || options[i].style.display !== "none") {
+            cb.checked = true;
+          }
         }
         updateStudentLabel();
         filterTable();
@@ -1220,9 +1379,15 @@ export const shareHtmlViaWhatsApp = async (
           if (e.preventDefault) e.preventDefault();
           if (e.stopPropagation) e.stopPropagation();
         }
-        var cbs = toArray(document.querySelectorAll(".student-cb"));
-        for (var i = 0; i < cbs.length; i++) {
-          cbs[i].checked = false;
+        var searchIn = document.getElementById("studentSearchInput");
+        var hasSubSearch = searchIn && searchIn.value && searchIn.value.trim().length > 0;
+        var options = toArray(document.querySelectorAll(".dropdown-option"));
+        for (var i = 0; i < options.length; i++) {
+          var cb = options[i].querySelector(".student-cb");
+          if (!cb) continue;
+          if (!hasSubSearch || options[i].style.display !== "none") {
+            cb.checked = false;
+          }
         }
         updateStudentLabel();
         filterTable();
@@ -1233,6 +1398,15 @@ export const shareHtmlViaWhatsApp = async (
         if (searchInput) {
           searchInput.value = "";
           searchInput.focus();
+        }
+        filterTable();
+      }
+
+      function clearNumberSearch() {
+        var studentNumberInput = document.getElementById("studentNumberInput");
+        if (studentNumberInput) {
+          studentNumberInput.value = "";
+          studentNumberInput.focus();
         }
         filterTable();
       }
@@ -1253,6 +1427,20 @@ export const shareHtmlViaWhatsApp = async (
             });
           }
 
+          var studentNumberInput = document.getElementById("studentNumberInput");
+          if (studentNumberInput) {
+            studentNumberInput.addEventListener("input", function() { filterTable(); });
+            studentNumberInput.addEventListener("keyup", function() { filterTable(); });
+          }
+
+          var clearNumberBtn = document.getElementById("clearNumberBtn");
+          if (clearNumberBtn) {
+            clearNumberBtn.addEventListener("click", function(e) {
+              e.preventDefault();
+              clearNumberSearch();
+            });
+          }
+
           var studentDropdownBtn = document.getElementById("studentDropdownBtn");
           if (studentDropdownBtn) {
             studentDropdownBtn.addEventListener("click", function(e) {
@@ -1263,6 +1451,7 @@ export const shareHtmlViaWhatsApp = async (
           var studentSearchInput = document.getElementById("studentSearchInput");
           if (studentSearchInput) {
             studentSearchInput.addEventListener("input", function() { filterStudentOptions(); });
+            studentSearchInput.addEventListener("keyup", function() { filterStudentOptions(); });
           }
 
           var btnSelectAll = document.getElementById("btnSelectAllStudents");
@@ -1351,7 +1540,7 @@ export const shareCardsListHtml = async (
     ].filter(Boolean).join(' ');
 
     return `
-      <tr class="data-row ${bgClass}" data-stage="${escapeAttr(targetStage)}" data-name="${escapeAttr(nameVal)}" data-search="${escapeAttr(searchTokens)}">
+      <tr class="data-row ${bgClass}" data-stage="${escapeAttr(targetStage)}" data-name="${escapeAttr(nameVal)}" data-student-number="${escapeAttr(String(item.stageIndex !== undefined && item.stageIndex !== null ? item.stageIndex : idx + 1))}" data-search="${escapeAttr(searchTokens)}">
         <td class="seq-cell" style="width: 1% !important; white-space: nowrap !important; min-width: 32px; max-width: 48px; text-align: center; font-weight: 800; font-family: monospace; color: #475569;">${toArabicDigits(idx + 1)}</td>
         <td style="font-weight: 900; text-align: right; color: #044e3b; font-size: 14.5px; padding-right: 14px;">${escapeHtmlText(nameVal)}</td>
         <td style="text-align: center;">
@@ -1768,6 +1957,19 @@ export const shareCardsListHtml = async (
             <button type="button" id="clearBtn" class="clear-btn" title="مسح">✕</button>
           </div>
 
+          <div class="search-wrapper" style="min-width: 190px; max-width: 260px;">
+            <span class="search-icon">🔢</span>
+            <input 
+              type="text" 
+              id="studentNumberInput" 
+              class="search-input" 
+              placeholder="تصفية برقم الطالب/البطاقة (مثال: 5 أو 1-10)..." 
+              autocomplete="off"
+              inputmode="text"
+            />
+            <button type="button" id="clearNumberBtn" class="clear-btn" title="مسح رقم الطالب">✕</button>
+          </div>
+
           ${uniqueStages.length > 1 ? `
           <div class="dropdown-container" id="stageDropdownContainer">
             <button type="button" id="stageDropdownBtn" class="dropdown-btn">
@@ -1925,6 +2127,40 @@ export const shareCardsListHtml = async (
         }
       }
 
+      function matchesStudentNumber(studentNumAttr, query) {
+        var normQ = normalizeArabic(query);
+        if (!normQ) return true;
+        var cleanTarget = normalizeArabic(studentNumAttr).replace(/[^0-9]/g, "");
+        if (!cleanTarget) return false;
+        var targetNum = parseInt(cleanTarget, 10);
+        if (isNaN(targetNum)) return false;
+
+        var parts = normQ.split(/[,،\\s]+/).filter(function(p) { return p.length > 0; });
+        if (parts.length === 0) return true;
+
+        for (var i = 0; i < parts.length; i++) {
+          var cleanPart = parts[i].replace(/^#/, "");
+          if (cleanPart.indexOf("-") !== -1) {
+            var rangeParts = cleanPart.split("-");
+            if (rangeParts.length === 2) {
+              var s = parseInt(rangeParts[0], 10);
+              var e = parseInt(rangeParts[1], 10);
+              if (!isNaN(s) && !isNaN(e)) {
+                var min = Math.min(s, e);
+                var max = Math.max(s, e);
+                if (targetNum >= min && targetNum <= max) return true;
+              }
+            }
+          } else {
+            var exact = parseInt(cleanPart, 10);
+            if (!isNaN(exact) && String(exact) === cleanPart && targetNum === exact) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
       function filterTable() {
         try {
           var searchInput = document.getElementById("searchInput");
@@ -1932,6 +2168,13 @@ export const shareCardsListHtml = async (
           var clearBtn = document.getElementById("clearBtn");
           if (clearBtn) {
             clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
+          }
+
+          var studentNumberInput = document.getElementById("studentNumberInput");
+          var rawNumberQuery = studentNumberInput ? (studentNumberInput.value || "") : "";
+          var clearNumberBtn = document.getElementById("clearNumberBtn");
+          if (clearNumberBtn) {
+            clearNumberBtn.style.display = rawNumberQuery.trim() ? "flex" : "none";
           }
 
           var stageCbs = toArray(document.querySelectorAll(".stage-cb"));
@@ -1955,11 +2198,13 @@ export const shareCardsListHtml = async (
             var row = rows[r];
             var rowSearchText = row.getAttribute("data-search") || row.textContent || "";
             var stageAttr = (row.getAttribute("data-stage") || "").trim();
+            var studentNumAttr = (row.getAttribute("data-student-number") || "").trim();
 
-            var matchesQuery = !rawQuery.trim() || isSmartMatch(rowSearchText, rawQuery);
+            var matchesQuery = !rawQuery.trim() || isSmartMatch(rowSearchText, rawQuery) || matchesStudentNumber(studentNumAttr, rawQuery);
+            var matchesNum = !rawNumberQuery.trim() || matchesStudentNumber(studentNumAttr, rawNumberQuery);
             var matchesStage = !filterByStage || !!checkedMap[stageAttr];
 
-            if (matchesQuery && matchesStage) {
+            if (matchesQuery && matchesNum && matchesStage) {
               row.style.display = "";
               visibleCount++;
             } else {
@@ -2060,6 +2305,15 @@ export const shareCardsListHtml = async (
         filterTable();
       }
 
+      function clearNumberSearch() {
+        var studentNumberInput = document.getElementById("studentNumberInput");
+        if (studentNumberInput) {
+          studentNumberInput.value = "";
+          studentNumberInput.focus();
+        }
+        filterTable();
+      }
+
       function initListeners() {
         try {
           var searchInput = document.getElementById("searchInput");
@@ -2073,6 +2327,20 @@ export const shareCardsListHtml = async (
             clearBtn.addEventListener("click", function(e) {
               e.preventDefault();
               clearSearch();
+            });
+          }
+
+          var studentNumberInput = document.getElementById("studentNumberInput");
+          if (studentNumberInput) {
+            studentNumberInput.addEventListener("input", function() { filterTable(); });
+            studentNumberInput.addEventListener("keyup", function() { filterTable(); });
+          }
+
+          var clearNumberBtn = document.getElementById("clearNumberBtn");
+          if (clearNumberBtn) {
+            clearNumberBtn.addEventListener("click", function(e) {
+              e.preventDefault();
+              clearNumberSearch();
             });
           }
 
@@ -3262,12 +3530,27 @@ export const shareInteractiveCardsHtml = async (
             type="text" 
             id="searchInput" 
             class="search-input" 
-            placeholder="ابحث باسم الطالب (أو أي جزء من اسمه)..." 
+            placeholder="ابحث باسم الطالب أو رقم البطاقة..." 
             autocomplete="off"
             oninput="filterCards()"
             onkeyup="filterCards()"
           />
           <button type="button" id="clearBtn" class="clear-btn" title="مسح" onclick="clearSearch()">✕</button>
+        </div>
+
+        <div class="search-wrapper" style="min-width: 190px; max-width: 260px;">
+          <span class="search-icon">🔢</span>
+          <input 
+            type="text" 
+            id="studentNumberInput" 
+            class="search-input" 
+            placeholder="تصفية برقم الطالب/البطاقة (مثال: 5 أو 1-10)..." 
+            autocomplete="off"
+            inputmode="text"
+            oninput="filterCards()"
+            onkeyup="filterCards()"
+          />
+          <button type="button" id="clearNumberBtn" class="clear-btn" title="مسح الرقم" onclick="clearNumberSearch()">✕</button>
         </div>
 
         ${uniqueStudents.length > 0 ? `
@@ -3666,6 +3949,40 @@ export const shareInteractiveCardsHtml = async (
       }
       window.updateTeacherLabel = updateTeacherLabel;
 
+      function matchesStudentNumber(studentNumAttr, query) {
+        var normQ = normalizeArabic(query);
+        if (!normQ) return true;
+        var cleanTarget = normalizeArabic(studentNumAttr).replace(/[^0-9]/g, "");
+        if (!cleanTarget) return false;
+        var targetNum = parseInt(cleanTarget, 10);
+        if (isNaN(targetNum)) return false;
+
+        var parts = normQ.split(/[,،\\s]+/).filter(function(p) { return p.length > 0; });
+        if (parts.length === 0) return true;
+
+        for (var i = 0; i < parts.length; i++) {
+          var cleanPart = parts[i].replace(/^#/, "");
+          if (cleanPart.indexOf("-") !== -1) {
+            var rangeParts = cleanPart.split("-");
+            if (rangeParts.length === 2) {
+              var s = parseInt(rangeParts[0], 10);
+              var e = parseInt(rangeParts[1], 10);
+              if (!isNaN(s) && !isNaN(e)) {
+                var min = Math.min(s, e);
+                var max = Math.max(s, e);
+                if (targetNum >= min && targetNum <= max) return true;
+              }
+            }
+          } else {
+            var exact = parseInt(cleanPart, 10);
+            if (!isNaN(exact) && String(exact) === cleanPart && targetNum === exact) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
       function filterCards() {
         try {
           var searchInput = document.getElementById("searchInput");
@@ -3673,6 +3990,13 @@ export const shareInteractiveCardsHtml = async (
           var clearBtn = document.getElementById("clearBtn");
           if (clearBtn) {
             clearBtn.style.display = rawQuery.trim() ? "flex" : "none";
+          }
+
+          var studentNumberInput = document.getElementById("studentNumberInput");
+          var rawNumberQuery = studentNumberInput ? (studentNumberInput.value || "") : "";
+          var clearNumberBtn = document.getElementById("clearNumberBtn");
+          if (clearNumberBtn) {
+            clearNumberBtn.style.display = rawNumberQuery.trim() ? "flex" : "none";
           }
 
           // Student filter map
@@ -3736,9 +4060,14 @@ export const shareInteractiveCardsHtml = async (
               }
             }
 
+            var cardNumber = (card.getAttribute("data-number") || String(Number(cardIdx) + 1)).trim();
+            var matchesNum = !rawNumberQuery.trim() || matchesStudentNumber(cardNumber, rawNumberQuery);
+
             var matchesQuery = true;
             if (rawQuery.trim()) {
-              if (cardRole === 'معلم') {
+              if (matchesStudentNumber(cardNumber, rawQuery)) {
+                matchesQuery = true;
+              } else if (cardRole === 'معلم') {
                 // For teacher card, search query does not match unless their students match
                 if (cardStudentNames.length > 0) {
                   matchesQuery = cardStudentNames.some(function(st) {
@@ -3793,7 +4122,7 @@ export const shareInteractiveCardsHtml = async (
               }
             }
 
-            if (matchesQuery && matchesStudent && matchesTeacher) {
+            if (matchesQuery && matchesNum && matchesStudent && matchesTeacher) {
               card.style.display = "";
               card.classList.remove("hidden-by-filter");
               visibleCount++;
@@ -3849,11 +4178,25 @@ export const shareInteractiveCardsHtml = async (
       }
       window.filterCards = filterCards;
 
+      function clearNumberSearch() {
+        var studentNumberInput = document.getElementById("studentNumberInput");
+        if (studentNumberInput) {
+          studentNumberInput.value = "";
+          studentNumberInput.focus();
+        }
+        filterCards();
+      }
+      window.clearNumberSearch = clearNumberSearch;
+
       function clearSearch() {
         var searchInput = document.getElementById("searchInput");
         if (searchInput) {
           searchInput.value = "";
           searchInput.focus();
+        }
+        var studentNumberInput = document.getElementById("studentNumberInput");
+        if (studentNumberInput) {
+          studentNumberInput.value = "";
         }
         var studentSearchInput = document.getElementById("studentSearchInput");
         if (studentSearchInput) {

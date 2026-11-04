@@ -4,6 +4,7 @@ import { UserRole, IlmiyyaHalaqa, User, Student, AttendanceStatus, AbsenceReason
 import Modal from './Modal';
 import { isSmartMatch } from '../utils/searchUtils';
 import { isTeacherFromOutside, isStudentFromOutside } from '../utils/categoryUtils';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 
 export const IlmiyyaManagement: React.FC = () => {
   const context = useContext(AppContext);
@@ -65,19 +66,19 @@ export const IlmiyyaManagement: React.FC = () => {
   // طلاب الأمين الإجمالي
   const alAmeenStudents = useMemo(() => {
     return students.filter(s => !!s.isAlAmeen)
-      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+      .sort(compareStudentsByNumber);
   }, [students]);
 
   // طلاب الأمين التابعين لجامع عبري تلقائياً
   const ibriAlAmeenStudents = useMemo(() => {
     return students.filter(s => !!s.isAlAmeen && s.isFromIbri !== false && !isStudentFromOutside(s, halaqas, sardHalaqas, ilmiyyaHalaqas))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+      .sort(compareStudentsByNumber);
   }, [students, halaqas, sardHalaqas, ilmiyyaHalaqas]);
 
   // طلاب الأمين التابعين لخارج جامع عبري تلقائياً
   const outsideAlAmeenStudents = useMemo(() => {
     return students.filter(s => !!s.isAlAmeen && isStudentFromOutside(s, halaqas, sardHalaqas, ilmiyyaHalaqas))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+      .sort(compareStudentsByNumber);
   }, [students, halaqas, sardHalaqas, ilmiyyaHalaqas]);
 
   // المعلمون المتاحون للاختيار في الاستمارة (مشتركة أو بحسب فلتر المعلمين)
@@ -210,8 +211,9 @@ export const IlmiyyaManagement: React.FC = () => {
   }, [availableTeachersForForm, teacherSearch]);
 
   const filteredStudentsForModal = useMemo(() => {
-    if (!studentSearch.trim()) return students;
-    return students.filter(s => isSmartMatch(s.name, studentSearch));
+    const sorted = [...students].sort(compareStudentsByNumber);
+    if (!studentSearch.trim()) return sorted;
+    return sorted.filter(s => isSmartMatch(s.name, studentSearch) || String(s.studentNumber ?? '').includes(studentSearch.trim()));
   }, [students, studentSearch]);
 
   return (
@@ -585,7 +587,7 @@ export const IlmiyyaManagement: React.FC = () => {
                       const isOut = isStudentFromOutside(s, halaqas, sardHalaqas, ilmiyyaHalaqas);
                       return (
                         <div key={s.id} className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center justify-between bg-white/60 dark:bg-gray-800/60 px-2 py-1 rounded-lg">
-                          <span>• {s.name}</span>
+                          <span>• {s.studentNumber ? `#${s.studentNumber} ` : ''}{s.name}</span>
                           <span className={`text-[10px] font-bold ${isOut ? 'text-blue-600' : 'text-emerald-600'}`}>
                             {isOut ? 'خارج عبري' : 'جامع عبري'}
                           </span>
@@ -793,8 +795,8 @@ export const IlmiyyaManagement: React.FC = () => {
                       className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 text-xs font-black flex items-center justify-center">
-                          {idx + 1}
+                        <span className="px-1.5 py-0.5 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 text-xs font-black flex items-center justify-center">
+                          #{s.studentNumber ?? idx + 1}
                         </span>
                         <span className="font-bold text-sm text-gray-900 dark:text-white">
                           {s.name}
@@ -871,8 +873,13 @@ export const IlmiyyaManagement: React.FC = () => {
                         {isAlAmeen ? '✓' : ''}
                       </span>
                       <div>
-                        <span className="font-bold text-sm text-gray-900 dark:text-white block">
-                          {st.name}
+                        <span className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1.5">
+                          {st.studentNumber !== undefined && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                              #{st.studentNumber}
+                            </span>
+                          )}
+                          <span>{st.name}</span>
                         </span>
                         <div className="flex items-center gap-2 text-[11px] text-gray-400">
                           <span>{st.schoolStage || 'طالب'}</span>
@@ -960,6 +967,11 @@ export const IlmiyyaManagement: React.FC = () => {
                     >
                       <div>
                         <div className="flex items-center gap-2">
+                          {student?.studentNumber !== undefined && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                              #{student.studentNumber}
+                            </span>
+                          )}
                           <span className="font-bold text-sm text-gray-900 dark:text-white block">
                             {student?.name || `طالب #${rec.studentId}`}
                           </span>

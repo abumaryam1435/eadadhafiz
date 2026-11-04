@@ -12,13 +12,14 @@ import Modal from "./Modal";
 import { FilterItem } from "./FilterItem";
 import { formatAndCountJuzs, parseJuzsToNumbers } from "../utils/juzUtils";
 import { getMemorizedPagesData, calculateStudentLevel, getCompletedJuzs, getLastMemorizedPage, getLevelNumericRank, ALL_LEVEL_NAMES, normalizeStudentLevel } from "../utils/pageUtils";
-import { compareReportRows } from "../utils/reportSortUtils";
+import { compareReportRows, compareStudentsByNumber, ensureStudentNumberColumn, matchesStudentNumberQuery } from "../utils/reportSortUtils";
 import { WordExportModal } from "./WordExportModal";
 import { ExcelExportModal } from "./ExcelExportModal";
 
 interface CombinedDataItem {
   serialNumber?: number;
   studentId: number;
+  studentNumber?: number | string;
   studentName: string;
   halaqaId: number;
   halaqaName: string;
@@ -217,6 +218,7 @@ export const OverviewTable: React.FC = () => {
   const hijriAdjustments = context?.hijriAdjustments;
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [studentNumberFilter, setStudentNumberFilter] = useState("");
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [showResetLevelsModal, setShowResetLevelsModal] = useState(false);
@@ -252,10 +254,11 @@ export const OverviewTable: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof CombinedDataItem;
     direction: "ascending" | "descending";
-  } | null>({ key: "halaqaName", direction: "ascending" });
+  } | null>({ key: "studentNumber", direction: "ascending" });
 
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<number | null>(null);
+  const [editStudentNumber, setEditStudentNumber] = useState("");
   const [editName, setEditName] = useState("");
   const [editHalaqaId, setEditHalaqaId] = useState<number>(0);
   const [editSchoolStage, setEditSchoolStage] = useState("");
@@ -285,9 +288,10 @@ export const OverviewTable: React.FC = () => {
 
   const defaultExcludedKeys = useMemo(() => ["lastMemorizedPageStr", "parentPhone"], []);
 
-  const allHeaders: { key: keyof CombinedDataItem; label: string }[] = useMemo(
+  const allHeaders: { key: keyof CombinedDataItem; label: string; type?: string }[] = useMemo(
     () => [
       { key: "serialNumber", label: "م" },
+      { key: "studentNumber", label: "رقم الطالب", type: "number" },
       { key: "studentName", label: "اسم الطالب" },
       { key: "halaqaName", label: "اسم الحلقة" },
       { key: "teacherName", label: "اسم المعلم" },
@@ -315,9 +319,9 @@ export const OverviewTable: React.FC = () => {
       try {
         const parsed = JSON.parse(savedColumns);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return ensureStudentNumberColumn(parsed);
         } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.selected)) {
-          return parsed.selected;
+          return ensureStudentNumberColumn(parsed.selected);
         }
       } catch (e) {
         console.error("Error parsing columns", e);
@@ -350,14 +354,16 @@ export const OverviewTable: React.FC = () => {
       try {
         const parsed = JSON.parse(savedColumns);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSelectedColumnKeys(parsed);
-          const customMiddle = parsed.filter(k => k !== 'serialNumber');
+          const colsWithNum = ensureStudentNumberColumn(parsed);
+          setSelectedColumnKeys(colsWithNum);
+          const customMiddle = colsWithNum.filter(k => k !== 'serialNumber');
           const remaining = baseOrder.filter(k => !customMiddle.includes(k) && k !== 'serialNumber');
           setColumnOrder(['serialNumber', ...customMiddle, ...remaining]);
         } else if (parsed && typeof parsed === 'object') {
-          if (Array.isArray(parsed.selected)) setSelectedColumnKeys(parsed.selected);
+          if (Array.isArray(parsed.selected)) setSelectedColumnKeys(ensureStudentNumberColumn(parsed.selected));
           if (Array.isArray(parsed.order)) {
-            const middle = parsed.order.filter((k: string) => k !== 'serialNumber');
+            const orderedWithNum = ensureStudentNumberColumn(parsed.order);
+            const middle = orderedWithNum.filter((k: string) => k !== 'serialNumber');
             const missing = baseOrder.filter(k => !middle.includes(k) && k !== 'serialNumber');
             setColumnOrder(['serialNumber', ...middle, ...missing]);
           } else {
@@ -424,6 +430,7 @@ export const OverviewTable: React.FC = () => {
   const handleApplyComprehensiveTemplateOrder = () => {
     // الأعمدة الموجودة في "تنزيل القالب الشامل (مع المراحل وهاتف ولي الأمر والحفظ القديم ومستوى الطالب)" بالإعدادات وبنفس الترتيب
     const templateKeys: string[] = [
+      "studentNumber",
       "studentName",
       "halaqaName",
       "teacherName",
@@ -478,6 +485,7 @@ export const OverviewTable: React.FC = () => {
   // تحديث قيم المدخلات عند اختيار طالب للتعديل لضمان عدم ظهورها فارغة
   useEffect(() => {
     if (editingStudent) {
+      setEditStudentNumber(editingStudent.studentNumber ? String(editingStudent.studentNumber) : "");
       setEditName(editingStudent.name);
       const studentHalaqaExists = halaqas.some((h) => h.id === editingStudent.halaqaId);
       setEditHalaqaId(studentHalaqaExists ? editingStudent.halaqaId : 0);
@@ -490,6 +498,7 @@ export const OverviewTable: React.FC = () => {
       const currentManual = normalizeStudentLevel(editingStudent.manualStudentLevel || editingStudent.manualLevel);
       setEditStudentLevel(currentManual);
     } else {
+      setEditStudentNumber("");
       setEditName("");
       setEditHalaqaId(0);
       setEditSchoolStage("");
@@ -528,6 +537,7 @@ export const OverviewTable: React.FC = () => {
         autoCompletedJuzsCount,
         lastMemorizedPageStr,
         studentId: student.id,
+        studentNumber: student.studentNumber ?? "—",
         studentName: student.name,
         halaqaId: halaqa?.id || 0,
         halaqaName: halaqa?.name || "غير محدد",
@@ -545,7 +555,9 @@ export const OverviewTable: React.FC = () => {
 
 
   const studentOptions = useMemo(() => {
-    return students.map((s) => ({ id: String(s.id), name: s.name }));
+    return [...students]
+      .sort(compareStudentsByNumber)
+      .map((s) => ({ id: String(s.id), name: s.name, studentNumber: s.studentNumber }));
   }, [students]);
 
   const halaqaOptions = useMemo(() => {
@@ -583,9 +595,16 @@ export const OverviewTable: React.FC = () => {
 
   const filteredAndSortedData = useMemo(() => {
     let sortableItems = [...combinedData];
+    if (studentNumberFilter.trim()) {
+      sortableItems = sortableItems.filter((item) =>
+        matchesStudentNumberQuery(item.studentNumber, studentNumberFilter),
+      );
+    }
     if (searchTerm.trim()) {
       sortableItems = sortableItems.filter(
         (item) =>
+          matchesStudentNumberQuery(item.studentNumber, searchTerm) ||
+          isSmartMatch(String(item.studentNumber || ""), searchTerm) ||
           isSmartMatch(item.studentName, searchTerm) ||
           isSmartMatch(item.halaqaName, searchTerm) ||
           isSmartMatch(item.teacherName, searchTerm) ||
@@ -639,9 +658,7 @@ export const OverviewTable: React.FC = () => {
           if (halaqaComp !== 0) {
             return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
           }
-          const sA = a.studentName || '';
-          const sB = b.studentName || '';
-          return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
+          return compareReportRows(a, b, 'studentNumber', 'ascending');
         }
 
         return compareReportRows(a, b, String(sortConfig.key), sortConfig.direction);
@@ -653,6 +670,7 @@ export const OverviewTable: React.FC = () => {
     }));
   }, [
     combinedData,
+    studentNumberFilter,
     searchTerm,
     sortConfig,
     selectedStudentIds,
@@ -708,6 +726,7 @@ export const OverviewTable: React.FC = () => {
     }
     // ضمان بقاء أعمدة القالب الشامل ظاهرة دائماً عند اختيارها
     const templateKeys = [
+      "studentNumber",
       "studentName",
       "halaqaName",
       "teacherName",
@@ -734,8 +753,11 @@ export const OverviewTable: React.FC = () => {
       const normalizedManual = normalizeStudentLevel(editStudentLevel);
       const finalStudentLevel = (!normalizedManual || normalizedManual === calculatedStudentLevel) ? "" : normalizedManual;
 
+      const parsedNum = parseInt(String(editStudentNumber).trim().replace(/[٠-٩]/g, d => (d.charCodeAt(0) - 1632).toString()), 10);
+
       updateStudent({
         ...editingStudent,
+        studentNumber: !isNaN(parsedNum) && parsedNum > 0 ? parsedNum : editingStudent.studentNumber,
         name: editName.trim(),
         halaqaId: editHalaqaId,
         schoolStage: editSchoolStage.trim(),
@@ -835,7 +857,20 @@ export const OverviewTable: React.FC = () => {
           hideDefaultCloseButton={true}
         >
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
+                  رقم الطالب:
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editStudentNumber}
+                  onChange={(e) => setEditStudentNumber(e.target.value)}
+                  className="input-style text-lg font-bold placeholder:text-gray-400 dark:placeholder:text-gray-500 placeholder:font-normal"
+                  placeholder="رقم الطالب"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
                   اسم الطالب:
@@ -1029,7 +1064,30 @@ export const OverviewTable: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mt-4 sm:mt-6 mb-4 no-print">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 sm:gap-3 mt-4 sm:mt-6 mb-4 no-print">
+          <div className="relative w-full">
+            <label className="text-[10px] mb-1 block font-bold text-gray-500 dark:text-gray-400">رقم الطالب:</label>
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                inputMode="text"
+                value={studentNumberFilter}
+                onChange={(e) => setStudentNumberFilter(e.target.value)}
+                placeholder="مثال: 5 أو 1-10"
+                className="py-2 text-xs h-10 w-full bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 dark:text-gray-200 px-3 pl-7 font-bold outline-none focus:border-green-600"
+              />
+              {studentNumberFilter && (
+                <button
+                  type="button"
+                  onClick={() => setStudentNumberFilter("")}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                  title="مسح رقم الطالب"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
           <FilterItem
             id="student"
             title="الطالب"

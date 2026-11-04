@@ -14,6 +14,7 @@ import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
 import { IlmiyyaManagement } from './IlmiyyaManagement';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 
 const StudentManagement: React.FC = () => {
     const context = useContext(AppContext);
@@ -102,7 +103,7 @@ const StudentManagement: React.FC = () => {
     // Unassigned students who have no halaqa assigned
     const unassignedStudents = useMemo(() => {
         return students.filter(s => !s.halaqaId || s.halaqaId === 0 || !halaqas.some(h => h.id === s.halaqaId))
-                       .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+                       .sort(compareStudentsByNumber);
     }, [students, halaqas]);
 
     const filteredTeachers = useMemo(() => {
@@ -267,6 +268,7 @@ const StudentManagement: React.FC = () => {
         { key: 'sequence', label: 'م' },
         { key: 'halaqaName', label: 'اسم الحلقة' },
         { key: 'teacherName', label: 'اسم المعلم' },
+        { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
         { key: 'studentName', label: 'اسم الطالب' },
     ];
 
@@ -275,16 +277,18 @@ const StudentManagement: React.FC = () => {
         let seq = 1;
         sortedHalaqas.forEach(h => {
             const teacher = users.find(u => u.id === h.teacherId);
-            const hStudents = students.filter(s => s.halaqaId === h.id).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+            const hStudents = students.filter(s => s.halaqaId === h.id).sort(compareStudentsByNumber);
             if (hStudents.length === 0) {
                 exportData.push({
                     sequence: seq,
                     halaqaName: h.name,
                     teacherName: teacher?.name || 'غير معين',
+                    studentNumber: '—',
                     studentName: 'لا يوجد طلاب',
                     'م': seq,
                     'اسم الحلقة': h.name,
                     'اسم المعلم': teacher?.name || 'غير معين',
+                    'رقم الطالب': '—',
                     'اسم الطالب': 'لا يوجد طلاب'
                 });
                 seq++;
@@ -294,10 +298,12 @@ const StudentManagement: React.FC = () => {
                         sequence: seq,
                         halaqaName: h.name,
                         teacherName: teacher?.name || 'غير معين',
+                        studentNumber: s.studentNumber ?? '—',
                         studentName: s.name,
                         'م': seq,
                         'اسم الحلقة': h.name,
                         'اسم المعلم': teacher?.name || 'غير معين',
+                        'رقم الطالب': s.studentNumber ?? '—',
                         'اسم الطالب': s.name
                     });
                     seq++;
@@ -331,7 +337,7 @@ const StudentManagement: React.FC = () => {
         items,
         resolveConflictMode,
     }: {
-        items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; }[];
+        items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; studentNumber?: number; }[];
         resolveConflictMode: 'overwrite' | 'preserve';
     }) => {
         let importedHalaqasCount = 0;
@@ -398,13 +404,15 @@ const StudentManagement: React.FC = () => {
                 const studentIdFromRow = row.studentIdStr && !isNaN(parseInt(row.studentIdStr)) ? parseInt(row.studentIdStr) : null;
                 const existingStudent = students.find(s => studentIdFromRow ? s.id === studentIdFromRow : s.name.trim().toLowerCase() === sName.toLowerCase());
                 if (existingStudent) {
-                    if (targetHalaqaId && existingStudent.halaqaId !== targetHalaqaId) {
-                        updateStudent({ ...existingStudent, halaqaId: targetHalaqaId });
+                    const nextNum = row.studentNumber && row.studentNumber > 0 ? row.studentNumber : existingStudent.studentNumber;
+                    if ((targetHalaqaId && existingStudent.halaqaId !== targetHalaqaId) || nextNum !== existingStudent.studentNumber) {
+                        updateStudent({ ...existingStudent, halaqaId: targetHalaqaId || existingStudent.halaqaId, studentNumber: nextNum });
                     }
                 } else {
                     addStudent({
                         name: sName,
                         halaqaId: targetHalaqaId || 0,
+                        studentNumber: row.studentNumber && row.studentNumber > 0 ? row.studentNumber : undefined,
                     });
                     importedStudentsCount++;
                 }
@@ -949,7 +957,7 @@ const StudentManagement: React.FC = () => {
                             <div className="space-y-4">
                                 {filteredHalaqasForList.map(halaqa => {
                                     const isOpen = openHalaqaId === halaqa.id;
-                                    const halaqaStudents = students.filter(s => s.halaqaId === halaqa.id).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+                                    const halaqaStudents = students.filter(s => s.halaqaId === halaqa.id).sort(compareStudentsByNumber);
                                     const currentTeacher = teachers.find(t => t.id === halaqa.teacherId);
 
                                     return (
@@ -1151,14 +1159,21 @@ const StudentManagement: React.FC = () => {
                                                                                 {/* قائمة الطلاب غير المحددين */}
                                                                                 <div className="max-h-60 overflow-y-auto space-y-1.5 pr-0.5">
                                                                                     {unassignedStudents
-                                                                                        .filter(s => isSmartMatch(s.name, unassignedSearchTerm))
+                                                                                        .filter(s => isSmartMatch(s.name, unassignedSearchTerm) || String(s.studentNumber ?? '').includes(unassignedSearchTerm.trim()))
                                                                                         .map(student => (
                                                                                             <div
                                                                                                 key={student.id}
                                                                                                 className="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-700/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-gray-100 dark:border-slate-600 transition-colors"
                                                                                             >
                                                                                                 <div className="flex flex-col min-w-0 pr-1">
-                                                                                                    <span className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">{student.name}</span>
+                                                                                                    <div className="flex items-center gap-1.5">
+                                                                                                        {student.studentNumber !== undefined && (
+                                                                                                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 shrink-0">
+                                                                                                                #{student.studentNumber}
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                        <span className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">{student.name}</span>
+                                                                                                    </div>
                                                                                                     {student.isAlAmeen && (
                                                                                                         <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
                                                                                                             (من طلاب الأمين)
@@ -1188,7 +1203,7 @@ const StudentManagement: React.FC = () => {
                                                                                         </div>
                                                                                     )}
 
-                                                                                    {unassignedStudents.length > 0 && unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm)).length === 0 && (
+                                                                                    {unassignedStudents.length > 0 && unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm) || String(s.studentNumber ?? '').includes(unassignedSearchTerm.trim())).length === 0 && (
                                                                                         <div className="py-4 text-center text-xs text-gray-400 dark:text-gray-500 font-bold">
                                                                                             لا يوجد طلاب يطابقون البحث
                                                                                         </div>
@@ -1196,22 +1211,22 @@ const StudentManagement: React.FC = () => {
                                                                                 </div>
 
                                                                                 {/* إضافة الكل للحلقة عند وجود أكثر من نتيجة مطابقة */}
-                                                                                {unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm)).length > 1 && (
+                                                                                {unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm) || String(s.studentNumber ?? '').includes(unassignedSearchTerm.trim())).length > 1 && (
                                                                                     <div className="pt-2 mt-2 border-t dark:border-slate-700 flex justify-between items-center">
                                                                                         <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
-                                                                                            مطابق: {unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm)).length} طالب
+                                                                                            مطابق: {unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm) || String(s.studentNumber ?? '').includes(unassignedSearchTerm.trim())).length} طالب
                                                                                         </span>
                                                                                         <button
                                                                                             type="button"
                                                                                             onClick={() => {
                                                                                                 const isTargetOutside = halaqa.category === 'outside';
-                                                                                                const matching = unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm));
+                                                                                                const matching = unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm) || String(s.studentNumber ?? '').includes(unassignedSearchTerm.trim()));
                                                                                                 matching.forEach(s => updateStudent({ ...s, halaqaId: halaqa.id, isFromIbri: !isTargetOutside }));
                                                                                                 showToast(`✅ تم إضافة ${matching.length} طالب إلى ${halaqa.name}`);
                                                                                             }}
                                                                                             className="text-[10px] font-black px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer"
                                                                                         >
-                                                                                            إضافة الكل للحلقة ({unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm)).length})
+                                                                                            إضافة الكل للحلقة ({unassignedStudents.filter(s => isSmartMatch(s.name, unassignedSearchTerm) || String(s.studentNumber ?? '').includes(unassignedSearchTerm.trim())).length})
                                                                                         </button>
                                                                                     </div>
                                                                                 )}
@@ -1242,21 +1257,55 @@ const StudentManagement: React.FC = () => {
                                                         </div>
                                                         
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                            {halaqaStudents.filter(s => isSmartMatch(s.name, studentSearchTerm)).map(student => {
+                                                            {halaqaStudents.filter(s => isSmartMatch(s.name, studentSearchTerm) || String(s.studentNumber ?? '').includes(studentSearchTerm.trim())).map(student => {
                                                                 const isStudEditing = editingStudent?.id === student.id;
                                                                 const currentHalaqaName = halaqas.find(h => h.id === student.halaqaId)?.name || 'بدون حلقة';
                                                                 return (
                                                                     <div key={student.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 group hover:border-green-300 transition-all">
                                                                         {isStudEditing ? (
-                                                                            <input 
-                                                                                type="text" autoFocus defaultValue={student.name}
-                                                                                onBlur={(e) => { updateStudent({ ...student, name: e.target.value.trim() }); setEditingStudent(null); }}
-                                                                                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                                                                                className="input-style flex-grow py-1 text-sm mr-2"
-                                                                            />
+                                                                            <div className="flex items-center gap-1.5 flex-grow mr-2">
+                                                                                <input 
+                                                                                    type="number"
+                                                                                    min={1}
+                                                                                    value={editingStudent?.studentNumber ?? ''}
+                                                                                    onChange={(e) => setEditingStudent(prev => prev ? { ...prev, studentNumber: e.target.value ? Number(e.target.value) : undefined } : null)}
+                                                                                    placeholder="رقم الطالب"
+                                                                                    className="input-style w-20 py-1 px-2 text-xs font-black text-center"
+                                                                                    title="رقم الطالب"
+                                                                                />
+                                                                                <input 
+                                                                                    type="text" autoFocus
+                                                                                    value={editingStudent?.name ?? ''}
+                                                                                    onChange={(e) => setEditingStudent(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter' && editingStudent) {
+                                                                                            updateStudent({ ...student, name: editingStudent.name.trim(), studentNumber: editingStudent.studentNumber });
+                                                                                            setEditingStudent(null);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="input-style flex-grow py-1 text-sm"
+                                                                                />
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        if (editingStudent) {
+                                                                                            updateStudent({ ...student, name: editingStudent.name.trim(), studentNumber: editingStudent.studentNumber });
+                                                                                            setEditingStudent(null);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="px-2.5 py-1 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700"
+                                                                                >
+                                                                                    حفظ
+                                                                                </button>
+                                                                            </div>
                                                                         ) : (
                                                                             <div className="flex flex-col">
                                                                                 <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                    {student.studentNumber !== undefined && (
+                                                                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shrink-0" title="رقم الطالب">
+                                                                                            #{student.studentNumber}
+                                                                                        </span>
+                                                                                    )}
                                                                                     <span className={`font-bold text-sm ${(student.id === halaqa.ameerStudentId || student.id === halaqa.deputyAmeerStudentId) ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-700 dark:text-gray-200'}`}>{student.name}</span>
                                                                                     {student.id === halaqa.ameerStudentId && (
                                                                                         <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700 inline-flex items-center">

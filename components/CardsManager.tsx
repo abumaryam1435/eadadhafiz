@@ -8,6 +8,7 @@ import { HexColorPicker } from 'react-colorful';
 import { parseSafeNumber, safeNumberVal } from '../utils/juzUtils';
 import { shareCardsListHtml, shareInteractiveCardsHtml, InteractiveCardItem } from '../utils/exportHtml';
 import { RotateCcw, CreditCard, Users, Sparkles, Palette, Check, Printer, Download, Plus, Trash2, Layers, Hash, Eye, EyeOff, Globe } from 'lucide-react';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
     let cleanHex = hex.replace('#', '');
@@ -113,6 +114,7 @@ export interface UnifiedHalaqaCardItem {
 
 export interface CardTargetItem {
     id: number | string;
+    studentNumber?: number | string;
     name: string;
     stage: string | null;
     stageIndex: number | string;
@@ -544,7 +546,7 @@ export const CardsManager: React.FC = () => {
             const numStr = extractNumber(h.name, h.id);
             const hStudents = (students || [])
                 .filter(s => s.halaqaId !== undefined && s.halaqaId !== null && (String(s.halaqaId) === String(h.id) || Number(s.halaqaId) === Number(h.id)))
-                .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
+                .sort(compareStudentsByNumber)
                 .map(s => ({
                     id: s.id,
                     name: s.name,
@@ -569,7 +571,7 @@ export const CardsManager: React.FC = () => {
             const numStr = extractNumber(sh.name, sh.id);
             const shStudents = (students || [])
                 .filter(s => s.sardHalaqaId !== undefined && s.sardHalaqaId !== null && (String(s.sardHalaqaId) === String(sh.id) || Number(s.sardHalaqaId) === Number(sh.id)))
-                .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
+                .sort(compareStudentsByNumber)
                 .map(s => ({
                     id: s.id,
                     name: s.name,
@@ -816,8 +818,9 @@ export const CardsManager: React.FC = () => {
                         return `
                             <tr style="background-color: ${bg}; height: 8.5mm; page-break-inside: avoid !important; break-inside: avoid !important;">
                                 <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 800; font-family: monospace; font-size: 11px; width: 10%; color: #334155;">${seq}</td>
-                                <td style="border: 1px solid #cbd5e1; padding: 4px 10px; text-align: right; font-weight: 800; font-size: 11.5px; color: #0f172a; width: 60%;">${target.name}</td>
-                                <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-size: 11px; width: 30%;">
+                                <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 800; font-family: monospace; font-size: 11px; width: 12%; color: #059669;">${target.studentNumber ?? '—'}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 4px 10px; text-align: right; font-weight: 800; font-size: 11.5px; color: #0f172a; width: 50%;">${target.name}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-size: 11px; width: 28%;">
                                     <span style="display: inline-flex; align-items: center; gap: 4px; color: ${group.color}; font-weight: 800; background: ${group.color}15; padding: 2px 8px; border-radius: 6px; border: 1px solid ${group.color}30;">
                                         ● ${targetStage}
                                     </span>
@@ -868,8 +871,9 @@ export const CardsManager: React.FC = () => {
                                 <thead>
                                     <tr style="height: 8.5mm;">
                                         <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: center; border: 1px solid #004D40; padding: 4px 4px; font-size: 11px; width: 10%;">م</th>
-                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: right; border: 1px solid #004D40; padding: 4px 10px; font-size: 11px; width: 60%;">الاسم</th>
-                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: center; border: 1px solid #004D40; padding: 4px 4px; font-size: 11px; width: 30%;">المرحلة / المستوى</th>
+                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: center; border: 1px solid #004D40; padding: 4px 4px; font-size: 11px; width: 12%;">رقم الطالب</th>
+                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: right; border: 1px solid #004D40; padding: 4px 10px; font-size: 11px; width: 50%;">الاسم</th>
+                                        <th style="background-color: #006A4E; color: #ffffff; font-weight: 800; text-align: center; border: 1px solid #004D40; padding: 4px 4px; font-size: 11px; width: 28%;">المرحلة / المستوى</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2245,6 +2249,7 @@ export const CardsManager: React.FC = () => {
 
             return {
                 id: s.id,
+                studentNumber: s.studentNumber ?? '—',
                 name: s.name,
                 stage,
                 stageIndex: targetStageIndex

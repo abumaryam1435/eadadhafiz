@@ -13,15 +13,16 @@ export const exportMainHalaqasTemplate = (
     'اسم الحلقة',
     'اسم المعلم',
     'رقم المعلم (ID)',
+    'رقم الطالب',
     'اسم الطالب',
     'رقم الطالب (ID)'
   ];
 
   const exampleRows = [
-    ['حلقة أبي بكر الصديق', 'الشيخ أحمد محمد', '', 'عبدالرحمن خالد', ''],
-    ['حلقة أبي بكر الصديق', 'الشيخ أحمد محمد', '', 'عمر فاروق', ''],
-    ['حلقة عثمان بن عفان', 'الشيخ سعد إبراهيم', '', 'سالم علي', ''],
-    ['حلقة علي بن أبي طالب', 'الشيخ يوسف عبدالله', '', 'حمزة طارق', '']
+    ['حلقة أبي بكر الصديق', 'الشيخ أحمد محمد', '', 1, 'عبدالرحمن خالد', ''],
+    ['حلقة أبي بكر الصديق', 'الشيخ أحمد محمد', '', 2, 'عمر فاروق', ''],
+    ['حلقة عثمان بن عفان', 'الشيخ سعد إبراهيم', '', 3, 'سالم علي', ''],
+    ['حلقة علي بن أبي طالب', 'الشيخ يوسف عبدالله', '', 4, 'حمزة طارق', '']
   ];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleRows]);
@@ -30,6 +31,7 @@ export const exportMainHalaqasTemplate = (
     { wch: 25 }, // اسم الحلقة
     { wch: 25 }, // اسم المعلم
     { wch: 20 }, // رقم المعلم (ID)
+    { wch: 14 }, // رقم الطالب
     { wch: 25 }, // اسم الطالب
     { wch: 20 }, // رقم الطالب (ID)
   ];
@@ -48,11 +50,11 @@ export const exportMainHalaqasTemplate = (
   }
 
   if (students && students.length > 0) {
-    const studentHeaders = ['اسم الطالب', 'رقم الطالب (ID)'];
-    const studentRows = students.map(s => [s.name, s.id]);
+    const studentHeaders = ['رقم الطالب', 'اسم الطالب', 'رقم الطالب (ID)'];
+    const studentRows = students.map(s => [s.studentNumber ?? '', s.name, s.id]);
     const wsStudents = XLSX.utils.aoa_to_sheet([studentHeaders, ...studentRows]);
     wsStudents['!rightToLeft'] = true;
-    wsStudents['!cols'] = [{ wch: 25 }, { wch: 20 }];
+    wsStudents['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, wsStudents, 'الطلاب');
   }
 
@@ -72,15 +74,16 @@ export const exportSardHalaqasTemplate = (
     'اسم حلقة السرد',
     'اسم المعلم',
     'رقم المعلم (ID)',
+    'رقم الطالب',
     'اسم الطالب',
     'رقم الطالب (ID)'
   ];
 
   const exampleRows = [
-    ['سرد الأجزاء الخمسة الأولى', 'الشيخ محمد عبدالعزيز', '', 'عبدالرحمن خالد', ''],
-    ['سرد الأجزاء الخمسة الأولى', 'الشيخ محمد عبدالعزيز', '', 'عمر فاروق', ''],
-    ['سرد العشرة أجزاء', 'الشيخ عبدالسلام القحطاني', '', 'سالم علي', ''],
-    ['سرد القرآن كاملاً', 'الشيخ فهد التميمي', '', 'حمزة طارق', '']
+    ['سرد الأجزاء الخمسة الأولى', 'الشيخ محمد عبدالعزيز', '', 1, 'عبدالرحمن خالد', ''],
+    ['سرد الأجزاء الخمسة الأولى', 'الشيخ محمد عبدالعزيز', '', 2, 'عمر فاروق', ''],
+    ['سرد العشرة أجزاء', 'الشيخ عبدالسلام القحطاني', '', 3, 'سالم علي', ''],
+    ['سرد القرآن كاملاً', 'الشيخ فهد التميمي', '', 4, 'حمزة طارق', '']
   ];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleRows]);
@@ -89,6 +92,7 @@ export const exportSardHalaqasTemplate = (
     { wch: 28 }, // اسم حلقة السرد
     { wch: 25 }, // اسم المعلم
     { wch: 20 }, // رقم المعلم (ID)
+    { wch: 14 }, // رقم الطالب
     { wch: 25 }, // اسم الطالب
     { wch: 20 }, // رقم الطالب (ID)
   ];
@@ -107,11 +111,11 @@ export const exportSardHalaqasTemplate = (
   }
 
   if (students && students.length > 0) {
-    const studentHeaders = ['اسم الطالب', 'رقم الطالب (ID)'];
-    const studentRows = students.map(s => [s.name, s.id]);
+    const studentHeaders = ['رقم الطالب', 'اسم الطالب', 'رقم الطالب (ID)'];
+    const studentRows = students.map(s => [s.studentNumber ?? '', s.name, s.id]);
     const wsStudents = XLSX.utils.aoa_to_sheet([studentHeaders, ...studentRows]);
     wsStudents['!rightToLeft'] = true;
-    wsStudents['!cols'] = [{ wch: 25 }, { wch: 20 }];
+    wsStudents['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, wsStudents, 'الطلاب');
   }
 

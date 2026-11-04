@@ -12,7 +12,7 @@ import Modal from './Modal';
 import { FilterItem } from './FilterItem';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
-import { compareReportRows } from '../utils/reportSortUtils';
+import { compareReportRows, matchesStudentNumberQuery } from '../utils/reportSortUtils';
 
 const getHijriDate = (dateInput: string, adjustments: Record<string, number> = {}) => {
   if (!dateInput || dateInput === '—') return null;
@@ -100,11 +100,12 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
   const [filterWeeks, setFilterWeeks] = useState<string[]>(['ALL']);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterAlAmeen, setFilterAlAmeen] = useState<string[]>([]);
+  const [studentNumberFilter, setStudentNumberFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState(''); 
   const [weekSearch, setWeekSearch] = useState('');
   const [alAmeenSearch, setAlAmeenSearch] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'studentNumber', direction: 'ascending' });
   const [mobileDisplayMode, setMobileDisplayMode] = useState<'cards' | 'table'>('cards');
   
   const [editingItem, setEditingItem] = useState<MaghribAttendance | null>(null);
@@ -126,6 +127,7 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
       const halaqa = student ? halaqas.find(h => h.id === student.halaqaId) : undefined;
       return {
         ...attendance,
+        studentNumber: student?.studentNumber ?? '—',
         studentName: student?.name || 'طالب محذوف',
         isAlAmeen: student?.isAlAmeen,
         isFromIbri: student?.isFromIbri !== false,
@@ -155,21 +157,25 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
     if (filterAlAmeen.length > 0 && !filterAlAmeen.includes('ALL') && !filterAlAmeen.includes('all')) {
       items = items.filter(i => filterAlAmeen.includes(i.isAlAmeenStr));
     }
-    if (searchTerm.trim()) items = items.filter(i => isSmartMatch(i.studentName, searchTerm) || isSmartMatch(i.halaqaName, searchTerm));
+    if (studentNumberFilter.trim()) {
+      items = items.filter(i => matchesStudentNumberQuery(i.studentNumber, studentNumberFilter));
+    }
+    if (searchTerm.trim()) items = items.filter(i => matchesStudentNumberQuery(i.studentNumber, searchTerm) || isSmartMatch(String(i.studentNumber || ''), searchTerm) || isSmartMatch(i.studentName, searchTerm) || isSmartMatch(i.halaqaName, searchTerm));
 
     if (sortConfig) {
       items.sort((a, b) => {
         return compareReportRows(a, b, sortConfig.key, sortConfig.direction);
       });
     } else {
-        items.sort((a,b) => b.weekNumber !== a.weekNumber ? b.weekNumber - a.weekNumber : a.studentName.localeCompare(b.studentName, 'ar', { sensitivity: 'base' }));
+        items.sort((a, b) => compareReportRows(a, b, 'studentNumber', 'ascending'));
     }
     return items.map((item, index) => ({ ...item, sequence: index + 1 }));
-  }, [combinedData, filterWeeks, filterStatus, filterAlAmeen, searchTerm, sortConfig]);
+  }, [combinedData, filterWeeks, filterStatus, filterAlAmeen, studentNumberFilter, searchTerm, sortConfig]);
 
   const headers = useMemo(() => {
     const allHeaders = [
       { key: 'sequence', label: '#' },
+      { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
       { key: 'studentName', label: 'الطالب' },
       { key: 'halaqaName', label: 'الحلقة' },
       { key: 'weekNumber', label: 'الأسبوع' },
@@ -344,7 +350,27 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
         </div>
 
         {/* فلاتر البحث والأسابيع متناسقة في شبكة متجاوبة */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
+            <div className="relative flex items-center w-full">
+              <input 
+                type="text" 
+                inputMode="text"
+                placeholder="تصفية برقم الطالب (مثال: 5 أو 1-10)..." 
+                value={studentNumberFilter} 
+                onChange={e => setStudentNumberFilter(e.target.value)} 
+                className="input-style w-full pl-8 py-2 text-xs font-bold" 
+              />
+              {studentNumberFilter && (
+                <button
+                  type="button"
+                  onClick={() => setStudentNumberFilter('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                  title="مسح رقم الطالب"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <div className="relative flex items-center w-full">
               <input 
                 type="text" 
@@ -485,6 +511,11 @@ export const MaghribReportTable: React.FC<MaghribReportTableProps> = ({ programT
                   <div className="min-w-0" onClick={() => setEditingItem(item)}>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-black text-gray-500">#{idx + 1}</span>
+                      {item.studentNumber && item.studentNumber !== '—' && (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200">
+                          رقم الطالب: {toArabicDigits(item.studentNumber)}
+                        </span>
+                      )}
                       <span className={`font-black text-sm truncate ${isAbsent ? 'text-rose-950 dark:text-rose-100' : 'text-gray-900 dark:text-white'}`}>
                         {item.studentName}
                       </span>

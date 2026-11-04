@@ -380,12 +380,24 @@ export const Settings: React.FC = () => {
                 ? (isFromIbriStr === "نعم" || isFromIbriStr === "صح" || isFromIbriStr === "true" || isFromIbriStr === "1")
                 : true;
 
+              const rawStudentNumber = row["رقم الطالب"];
+              const parsedStudentNumber =
+                rawStudentNumber !== undefined &&
+                rawStudentNumber !== "" &&
+                !isNaN(Number(rawStudentNumber)) &&
+                Number(rawStudentNumber) > 0
+                  ? Math.floor(Number(rawStudentNumber))
+                  : undefined;
+
               const studentData: any = {
                 name: studentName,
                 halaqaId: targetHalaqaId,
                 isAlAmeen,
                 isFromIbri,
               };
+              if (parsedStudentNumber !== undefined) {
+                studentData.studentNumber = parsedStudentNumber;
+              }
 
               if (schoolStage) {
                 studentData.schoolStage = schoolStage;
@@ -424,7 +436,7 @@ export const Settings: React.FC = () => {
     items,
     resolveConflictMode,
   }: {
-    items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; }[];
+    items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; studentNumber?: number; }[];
     resolveConflictMode: 'overwrite' | 'preserve';
   }) => {
     const isSard = importModalType === 'sard';
@@ -500,21 +512,25 @@ export const Settings: React.FC = () => {
       if (sName && sName !== 'لا يوجد طلاب') {
         const studentIdFromRow = row.studentIdStr && !isNaN(parseInt(row.studentIdStr)) ? parseInt(row.studentIdStr) : null;
         const existingStudent = students.find(s => studentIdFromRow ? s.id === studentIdFromRow : s.name.trim().toLowerCase() === sName.toLowerCase());
+        const rowNum = row.studentNumber && row.studentNumber > 0 ? row.studentNumber : undefined;
         if (existingStudent) {
           if (isSard) {
             if (targetHalaqaId && existingStudent.sardHalaqaId !== targetHalaqaId) {
               assignStudentToSardHalaqa(existingStudent.id, targetHalaqaId);
             }
+            if (rowNum && existingStudent.studentNumber !== rowNum) {
+              updateStudent({ ...existingStudent, sardHalaqaId: targetHalaqaId || existingStudent.sardHalaqaId, studentNumber: rowNum });
+            }
           } else {
-            if (targetHalaqaId && existingStudent.halaqaId !== targetHalaqaId) {
-              updateStudent({ ...existingStudent, halaqaId: targetHalaqaId });
+            if ((targetHalaqaId && existingStudent.halaqaId !== targetHalaqaId) || (rowNum && existingStudent.studentNumber !== rowNum)) {
+              updateStudent({ ...existingStudent, halaqaId: targetHalaqaId || existingStudent.halaqaId, studentNumber: rowNum ?? existingStudent.studentNumber });
             }
           }
         } else {
           if (isSard) {
-            addStudent({ name: sName, halaqaId: 0, sardHalaqaId: targetHalaqaId || undefined });
+            addStudent({ name: sName, halaqaId: 0, sardHalaqaId: targetHalaqaId || undefined, studentNumber: rowNum });
           } else {
-            addStudent({ name: sName, halaqaId: targetHalaqaId || 0 });
+            addStudent({ name: sName, halaqaId: targetHalaqaId || 0, studentNumber: rowNum });
           }
           importedStudentsCount++;
         }

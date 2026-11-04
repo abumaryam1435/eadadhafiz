@@ -8,10 +8,11 @@ import * as XLSX from 'xlsx';
 import { exportToWord } from '../utils/exportWord';
 import { exportToExcel as exportToExcelFile } from '../utils/exportExcel';
 import { exportToPdf, sharePdfDirectly } from '../utils/exportPdf';
+import { shareHtmlViaWhatsApp } from '../utils/exportHtml';
 import { WordExportModal } from './WordExportModal';
 import { ExcelExportModal } from './ExcelExportModal';
 import { FilterItem } from './FilterItem';
-import { compareReportRows } from '../utils/reportSortUtils';
+import { compareReportRows, compareStudentsByNumber, ensureStudentNumberColumn, matchesStudentNumberQuery } from '../utils/reportSortUtils';
 
 interface ColumnDef {
   key: string;
@@ -20,6 +21,7 @@ interface ColumnDef {
 
 const ALL_NEW_STUDENT_COLUMNS: ColumnDef[] = [
   { key: 'sequence', label: 'م' },
+  { key: 'studentNumber', label: 'رقم الطالب' },
   { key: 'studentName', label: 'اسم الطالب' },
   { key: 'isAlAmeenStr', label: 'من الأمين؟' },
   { key: 'isFromIbriStr', label: 'من جامع عبري؟' },
@@ -81,6 +83,7 @@ export const NewStudentsTestsTable: React.FC = () => {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
+  const [studentNumberFilter, setStudentNumberFilter] = useState('');
   const [selectedStudentNames, setSelectedStudentNames] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -92,18 +95,19 @@ export const NewStudentsTestsTable: React.FC = () => {
   // Student filter options from tests list
   const studentOptions = useMemo(() => {
     const uniqueNames = new Set<string>();
-    const list: { id: string; name: string }[] = [];
+    const list: { id: string; name: string; studentNumber?: number | string }[] = [];
 
     newStudentTests.forEach(test => {
       const name = (test.studentName || '').trim();
       if (name && !uniqueNames.has(name)) {
         uniqueNames.add(name);
-        list.push({ id: name, name });
+        const acc = getAcceptedStudent(test);
+        list.push({ id: name, name, studentNumber: acc?.studentNumber });
       }
     });
 
-    return list.sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
-  }, [newStudentTests]);
+    return list.sort(compareStudentsByNumber);
+  }, [newStudentTests, students]);
 
   // Modals
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -123,7 +127,7 @@ export const NewStudentsTestsTable: React.FC = () => {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_COLUMNS);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return ensureStudentNumberColumn(parsed);
       }
     } catch (e) {
       console.error(e);
@@ -136,7 +140,7 @@ export const NewStudentsTestsTable: React.FC = () => {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ORDER);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return ensureStudentNumberColumn(parsed);
       }
     } catch (e) {
       console.error(e);
@@ -250,9 +254,16 @@ export const NewStudentsTestsTable: React.FC = () => {
     return newStudentTests.filter(test => {
       const acceptedStudent = getAcceptedStudent(test);
 
+      if (studentNumberFilter.trim()) {
+        if (!matchesStudentNumberQuery(acceptedStudent?.studentNumber, studentNumberFilter)) {
+          return false;
+        }
+      }
+
       // Search match
       if (searchTerm.trim()) {
         const term = searchTerm.trim();
+        const matchesNum = acceptedStudent?.studentNumber && (matchesStudentNumberQuery(acceptedStudent.studentNumber, term) || String(acceptedStudent.studentNumber).includes(term));
         const matchesName = isSmartMatch(test.studentName, term);
         const matchesGrade = isSmartMatch(test.grade || '', term);
         const matchesPhone = test.parentPhone?.includes(term);
@@ -260,7 +271,7 @@ export const NewStudentsTestsTable: React.FC = () => {
         const matchesAlAmeen = acceptedStudent?.isAlAmeen && (isSmartMatch('من طلاب الأمين', term) || isSmartMatch('الأمين', term));
         const matchesIbri = (acceptedStudent && acceptedStudent.isFromIbri !== false) && (isSmartMatch('من جامع عبري', term) || isSmartMatch('عبري', term));
 
-        if (!matchesName && !matchesGrade && !matchesPhone && !matchesTeacher && !matchesAlAmeen && !matchesIbri) {
+        if (!matchesNum && !matchesName && !matchesGrade && !matchesPhone && !matchesTeacher && !matchesAlAmeen && !matchesIbri) {
           return false;
         }
       }
@@ -307,9 +318,9 @@ export const NewStudentsTestsTable: React.FC = () => {
 
       return true;
     });
-  }, [newStudentTests, searchTerm, selectedStudentNames, statusFilter, passFilter, alAmeenFilter, ibriFilter, students]);
+  }, [newStudentTests, studentNumberFilter, searchTerm, selectedStudentNames, statusFilter, passFilter, alAmeenFilter, ibriFilter, students]);
 
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'studentNumber', direction: 'ascending' });
 
   const sortedTests = useMemo(() => {
     let list = [...filteredTests];
@@ -319,11 +330,13 @@ export const NewStudentsTestsTable: React.FC = () => {
         const accB = getAcceptedStudent(b);
         const itemA = {
           ...a,
+          studentNumber: accA?.studentNumber ?? '—',
           isAlAmeenStr: accA?.isAlAmeen ? 'نعم' : 'لا',
           isFromIbriStr: (accA && accA.isFromIbri !== false) ? 'نعم' : 'لا',
         };
         const itemB = {
           ...b,
+          studentNumber: accB?.studentNumber ?? '—',
           isAlAmeenStr: accB?.isAlAmeen ? 'نعم' : 'لا',
           isFromIbriStr: (accB && accB.isFromIbri !== false) ? 'نعم' : 'لا',
         };
@@ -360,6 +373,9 @@ export const NewStudentsTestsTable: React.FC = () => {
         switch (c.key) {
           case 'sequence':
             row.sequence = idx + 1;
+            break;
+          case 'studentNumber':
+            row.studentNumber = acceptedStudent?.studentNumber ?? '—';
             break;
           case 'studentName': {
             let nameStr = t.studentName;
@@ -447,6 +463,7 @@ export const NewStudentsTestsTable: React.FC = () => {
       return exportCols.map(c => {
         switch (c.key) {
           case 'sequence': return idx + 1;
+          case 'studentNumber': return acceptedStudent?.studentNumber ?? '—';
           case 'studentName': {
             let nameStr = t.studentName;
             if (acceptedStudent) {
@@ -595,9 +612,9 @@ export const NewStudentsTestsTable: React.FC = () => {
       <div className="bg-white dark:bg-gray-800 rounded-3xl p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Search & Student Filter dropdown */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1 max-w-2xl">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1 max-w-3xl">
             {/* Search */}
-            <div className="relative w-full sm:w-80">
+            <div className="relative w-full sm:w-72">
               <input
                 type="text"
                 value={searchTerm}
@@ -610,6 +627,28 @@ export const NewStudentsTestsTable: React.FC = () => {
                 <button
                   onClick={() => setSearchTerm('')}
                   className="absolute left-3 top-2.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Student Number Filter */}
+            <div className="relative w-full sm:w-48">
+              <input
+                type="text"
+                inputMode="text"
+                value={studentNumberFilter}
+                onChange={e => setStudentNumberFilter(e.target.value)}
+                placeholder="رقم الطالب (مثال: 5 أو 1-10)..."
+                className="w-full pl-7 pr-8 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-indigo-500"
+              />
+              <span className="absolute right-2.5 top-3 text-xs text-gray-400">🔢</span>
+              {studentNumberFilter && (
+                <button
+                  type="button"
+                  onClick={() => setStudentNumberFilter('')}
+                  className="absolute left-2.5 top-2.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
                 >
                   ✕
                 </button>
@@ -794,7 +833,7 @@ export const NewStudentsTestsTable: React.FC = () => {
         </div>
 
         {/* Clear all filters bar if active */}
-        {((selectedStudentNames.length > 0 && !selectedStudentNames.includes('all') && !selectedStudentNames.includes('ALL')) || statusFilter !== 'all' || passFilter !== 'all' || alAmeenFilter !== 'all' || ibriFilter !== 'all' || searchTerm.trim() !== '') && (
+        {((selectedStudentNames.length > 0 && !selectedStudentNames.includes('all') && !selectedStudentNames.includes('ALL')) || statusFilter !== 'all' || passFilter !== 'all' || alAmeenFilter !== 'all' || ibriFilter !== 'all' || searchTerm.trim() !== '' || studentNumberFilter.trim() !== '') && (
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/60 text-xs">
             <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-bold">
               <span>🎯</span>
@@ -805,6 +844,7 @@ export const NewStudentsTestsTable: React.FC = () => {
               onClick={() => {
                 setSelectedStudentNames([]);
                 setSearchTerm('');
+                setStudentNumberFilter('');
                 setStatusFilter('all');
                 setPassFilter('all');
                 setAlAmeenFilter('all');
@@ -862,6 +902,15 @@ export const NewStudentsTestsTable: React.FC = () => {
             </svg>
             <span>مشاركة PDF</span>
           </button>
+          <button
+            type="button"
+            onClick={() => shareHtmlViaWhatsApp(exportHeaders, exportData, exportHeaderInfo.fileName, exportHeaderInfo.title, exportHeaderInfo.subtitle, hijriAdjustments)}
+            className="px-2.5 sm:px-3 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-xl shadow-xs active:scale-95 flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 whitespace-nowrap"
+            title="مشاركة تقرير تفاعلي (HTML) يتيح البحث وتصفية الطلاب في الهاتف"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <span>تفاعلي HTML</span>
+          </button>
 
           {/* زر الأعمدة */}
           <div ref={columnPickerRef} className="relative inline-block text-right shrink-0">
@@ -909,7 +958,7 @@ export const NewStudentsTestsTable: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSelectedColumnKeys(['sequence', 'studentName'])}
+                      onClick={() => setSelectedColumnKeys(['sequence', 'studentNumber', 'studentName'])}
                       className="text-[11px] text-red-600 dark:text-red-400 font-bold hover:underline flex-1 text-center bg-red-50 dark:bg-red-900/30 py-1.5 rounded-lg cursor-pointer"
                     >
                       إخفاء الاختياري
@@ -1078,6 +1127,8 @@ export const NewStudentsTestsTable: React.FC = () => {
                     switch (col.key) {
                       case 'sequence':
                         return <th key="sequence" onClick={handleHeaderClick} className={`${baseCls} w-10 text-center`}>م{arrow}</th>;
+                      case 'studentNumber':
+                        return <th key="studentNumber" onClick={handleHeaderClick} className={`${baseCls} w-20 text-center`}>رقم الطالب{arrow}</th>;
                       case 'studentName':
                         return <th key="studentName" onClick={handleHeaderClick} className={`${baseCls} px-4`}>اسم الطالب{arrow}</th>;
                       case 'isAlAmeenStr':
@@ -1135,6 +1186,13 @@ export const NewStudentsTestsTable: React.FC = () => {
                             return (
                               <td key="sequence" className="py-3.5 px-3.5 text-center font-bold text-gray-400">
                                 {index + 1}
+                              </td>
+                            );
+
+                          case 'studentNumber':
+                            return (
+                              <td key="studentNumber" className="py-3.5 px-3 text-center font-mono font-black text-indigo-700 dark:text-indigo-300">
+                                {acceptedStudent?.studentNumber ?? '—'}
                               </td>
                             );
 

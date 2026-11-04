@@ -6,6 +6,7 @@ import Modal from './Modal';
 import { isSmartMatch } from '../utils/searchUtils';
 import { translationMap, toArabicDigits } from '../utils/exportWord';
 import { isStudentFromOutside } from '../utils/categoryUtils';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 
 interface MaghribProgramFormProps {
   onBack: () => void;
@@ -38,7 +39,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
   const ibriStudents = useMemo(() => {
     return students
       .filter(s => s.isFromIbri !== false && !isStudentFromOutside(s, halaqas, sardHalaqas, ilmiyyaHalaqas))
-      .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }));
+      .sort(compareStudentsByNumber);
   }, [students, halaqas, sardHalaqas, ilmiyyaHalaqas]);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -175,7 +176,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
   const filteredStudents = useMemo(() => {
     return visibleIbriStudents
       .filter(s => {
-        if (searchTerm.trim() && !isSmartMatch(s.name, searchTerm)) return false;
+        if (searchTerm.trim() && !isSmartMatch(s.name, searchTerm) && !String(s.studentNumber ?? '').includes(searchTerm.trim())) return false;
         const info = studentAttendanceMap.get(s.id);
         const isRecorded = !!(info && (info.isAbsent || info.status === MaghribAttendanceStatus.LATE));
         if (filterView === 'absent' && !isRecorded) return false;
@@ -189,7 +190,7 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
         const bRecorded = !!(bInfo?.isAbsent || bInfo?.status === MaghribAttendanceStatus.LATE);
         if (aRecorded && !bRecorded) return -1;
         if (!aRecorded && bRecorded) return 1;
-        return a.name.localeCompare(b.name, 'ar', { numeric: true });
+        return compareStudentsByNumber(a, b);
       });
   }, [visibleIbriStudents, searchTerm, filterView, studentAttendanceMap]);
 
@@ -677,6 +678,11 @@ export const MaghribProgramForm: React.FC<MaghribProgramFormProps> = ({
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
+                              {student.studentNumber !== undefined && (
+                                <span className="px-1.5 py-0.2 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                                  #{student.studentNumber}
+                                </span>
+                              )}
                               <span className={`font-black text-xs sm:text-sm ${isAbsent ? 'text-rose-950 dark:text-rose-100' : ''}`}>
                                 {student.name}
                               </span>

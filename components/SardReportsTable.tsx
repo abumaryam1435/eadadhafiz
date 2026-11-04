@@ -11,7 +11,7 @@ import { ExcelExportModal } from './ExcelExportModal';
 import Modal from './Modal';
 import { SardEvaluationEditModal } from './SardEvaluationEditModal';
 import { surahNames } from '../utils/quranData';
-import { compareReportRows } from '../utils/reportSortUtils';
+import { compareReportRows, compareStudentsByNumber, ensureStudentNumberColumn, matchesStudentNumberQuery } from '../utils/reportSortUtils';
 import { getSardActivityName, SARD_ACTIVITY_PRESETS } from '../utils/sardUtils';
 
 const NOT_RECORDED = 'not_recorded';
@@ -52,7 +52,7 @@ export const SardReportsTable: React.FC = () => {
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [selectedAlAmeen, setSelectedAlAmeen] = useState<string[]>([]);
   const [selectedFromIbri, setSelectedFromIbri] = useState<string[]>(['نعم']);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'halaqaName', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' } | null>({ key: 'studentNumber', direction: 'ascending' });
   const [topStudentsCount, setTopStudentsCount] = useState<string>('');
   const [topStudentsSortDesc, setTopStudentsSortDesc] = useState<boolean>(false);
   const [strictMode, setStrictMode] = useState(false);
@@ -75,6 +75,7 @@ export const SardReportsTable: React.FC = () => {
   });
 
   const [studentSearch, setStudentSearch] = useState('');
+  const [studentNumberFilter, setStudentNumberFilter] = useState('');
   const [halaqaSearch, setHalaqaSearch] = useState('');
   const [teacherSearch, setTeacherSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
@@ -146,6 +147,7 @@ export const SardReportsTable: React.FC = () => {
 
   const allHeaders = useMemo(() => [
     { key: 'sequence', label: '#' },
+    { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
     { key: 'studentName', label: 'الطالب' },
     { key: 'studentOriginalHalaqaName', label: 'حلقة السرد' },
     { key: 'evaluatorName', label: 'معلم السرد' },
@@ -182,14 +184,16 @@ export const SardReportsTable: React.FC = () => {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSelectedColumnKeys(parsed);
-          const customMiddle = parsed.filter(k => k !== 'sequence' && k !== 'notes');
+          const colsWithNum = ensureStudentNumberColumn(parsed);
+          setSelectedColumnKeys(colsWithNum);
+          const customMiddle = colsWithNum.filter(k => k !== 'sequence' && k !== 'notes');
           const remaining = baseOrder.filter(k => !customMiddle.includes(k) && k !== 'sequence' && k !== 'notes');
           setColumnOrder(['sequence', ...customMiddle, ...remaining, 'notes']);
         } else if (parsed && typeof parsed === 'object') {
-          if (Array.isArray(parsed.selected)) setSelectedColumnKeys(parsed.selected);
+          if (Array.isArray(parsed.selected)) setSelectedColumnKeys(ensureStudentNumberColumn(parsed.selected));
           if (Array.isArray(parsed.order)) {
-            const middle = parsed.order.filter((k: string) => k !== 'sequence' && k !== 'notes');
+            const orderedWithNum = ensureStudentNumberColumn(parsed.order);
+            const middle = orderedWithNum.filter((k: string) => k !== 'sequence' && k !== 'notes');
             const missing = baseOrder.filter(k => !middle.includes(k) && k !== 'sequence' && k !== 'notes');
             setColumnOrder(['sequence', ...middle, ...missing, 'notes']);
           } else {
@@ -268,6 +272,7 @@ export const SardReportsTable: React.FC = () => {
 
       return {
         ...e,
+        studentNumber: student?.studentNumber ?? '—',
         studentName: student?.name || 'غير معروف',
         isAlAmeen: student?.isAlAmeen,
         isAlAmeenStr: student?.isAlAmeen ? 'نعم' : 'لا',
@@ -361,6 +366,7 @@ export const SardReportsTable: React.FC = () => {
           return { 
             id: `p-${s.id}-${weekNum}`, 
             studentId: s.id, 
+            studentNumber: s.studentNumber ?? '—',
             studentName: s.name, 
             isAlAmeen: s.isAlAmeen,
             isAlAmeenStr: s.isAlAmeen ? 'نعم' : 'لا',
@@ -391,6 +397,9 @@ export const SardReportsTable: React.FC = () => {
       });
     }
 
+    if (studentNumberFilter.trim()) {
+      items = items.filter(i => matchesStudentNumberQuery(i.studentNumber, studentNumberFilter));
+    }
     if (selectedStudentIds.length > 0 && !selectedStudentIds.includes('ALL')) items = items.filter(i => selectedStudentIds.includes(String(i.studentId)));
     if (selectedHalaqaIds.length > 0 && !selectedHalaqaIds.includes('ALL')) items = items.filter(i => selectedHalaqaIds.includes(String(i.studentOriginalHalaqaId)));
     if (selectedTeacherIds.length > 0 && !selectedTeacherIds.includes('ALL')) items = items.filter(i => selectedTeacherIds.includes(String(i.teacherId)));
@@ -482,6 +491,7 @@ export const SardReportsTable: React.FC = () => {
         newItems.push({
           id: `top-${sid}`,
           studentId: sid,
+          studentNumber: group[0]?.studentNumber ?? '—',
           studentName: group[0]?.studentName || 'غير معروف',
           isAlAmeen: group[0]?.isAlAmeen,
           selectedWeeksDisplay: weeksText,
@@ -500,9 +510,7 @@ export const SardReportsTable: React.FC = () => {
           if (halaqaComp !== 0) {
             return sortConfig.direction === 'ascending' ? halaqaComp : -halaqaComp;
           }
-          const sA = a.studentName || '';
-          const sB = b.studentName || '';
-          return sA.localeCompare(sB, 'ar', { sensitivity: 'base' });
+          return compareReportRows(a, b, 'studentNumber', 'ascending');
         }
 
         return compareReportRows(a, b, sortConfig.key, sortConfig.direction);
@@ -510,7 +518,7 @@ export const SardReportsTable: React.FC = () => {
     }
     
     return items.map((item, index) => ({ ...item, sequence: index + 1 }));
-  }, [processedSardData, targetStudents, sardHalaqas, users, selectedWeeks, selectedStudentIds, selectedHalaqaIds, selectedTeacherIds, selectedAlAmeen, selectedFromIbri, selectedAttendance, selectedGrades, sortConfig, strictMode, selectedColumnKeys, topStudentsSortDesc, topStudentsCount]);
+  }, [processedSardData, targetStudents, sardHalaqas, users, selectedWeeks, studentNumberFilter, selectedStudentIds, selectedHalaqaIds, selectedTeacherIds, selectedAlAmeen, selectedFromIbri, selectedAttendance, selectedGrades, sortConfig, strictMode, selectedColumnKeys, topStudentsSortDesc, topStudentsCount]);
 
   const exportHeaderInfo = useMemo(() => {
     const isAllWeeks = selectedWeeks.includes('ALL') || selectedWeeks.length === 0;
@@ -555,6 +563,7 @@ export const SardReportsTable: React.FC = () => {
     if (topStudentsSortDesc) {
       return [
         { key: 'sequence', label: '#', type: 'text' },
+        { key: 'studentNumber', label: 'رقم الطالب', type: 'number' },
         { key: 'studentName', label: 'اسم الطالب', type: 'text' },
         { key: 'totalPagesInSelectedWeeks', label: 'إجمالي الصفحات المسردة', type: 'text' }
       ];
@@ -801,8 +810,31 @@ export const SardReportsTable: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-8 no-print">
-        <FilterItem id="student" title="الطالب" selectedValues={selectedStudentIds} options={targetStudents.map(s => ({id: s.id, name: s.name}))} onSelect={setSelectedStudentIds} search={studentSearch} setSearch={setStudentSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3 mb-8 no-print">
+        <div className="relative w-full">
+          <label className="text-[10px] mb-1 block font-bold text-gray-500 dark:text-gray-400">رقم الطالب:</label>
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              inputMode="text"
+              value={studentNumberFilter}
+              onChange={e => setStudentNumberFilter(e.target.value)}
+              placeholder="مثال: 5 أو 1-10"
+              className="py-2 text-xs h-10 w-full bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 dark:text-gray-200 px-3 pl-7 font-bold outline-none focus:border-emerald-600"
+            />
+            {studentNumberFilter && (
+              <button
+                type="button"
+                onClick={() => setStudentNumberFilter('')}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                title="مسح رقم الطالب"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+        <FilterItem id="student" title="الطالب" selectedValues={selectedStudentIds} options={[...targetStudents].sort(compareStudentsByNumber).map(s => ({id: s.id, name: s.name, studentNumber: s.studentNumber}))} onSelect={setSelectedStudentIds} search={studentSearch} setSearch={setStudentSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
         <FilterItem id="halaqa" title="حلقة السرد" selectedValues={selectedHalaqaIds} options={[...targetHalaqas].sort((a,b) => a.name.localeCompare(b.name, 'ar', { numeric: true })).map(h => ({id: h.id, name: h.name}))} onSelect={setSelectedHalaqaIds} search={halaqaSearch} setSearch={setHalaqaSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
         <FilterItem id="teacher" title="معلم السرد" selectedValues={selectedTeacherIds} options={users.filter(u => u.role === UserRole.TEACHER).map(t => ({id: t.id, name: t.name}))} onSelect={setSelectedTeacherIds} search={teacherSearch} setSearch={setTeacherSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />
         <FilterItem id="week" title="الأسبوع" selectedValues={selectedWeeks} options={allWeeks.filter(w => w !== 'all').map(w => ({id: w, name: `أسبوع ${w}`}))} onSelect={setSelectedWeeks} search={weekSearch} setSearch={setWeekSearch} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} />

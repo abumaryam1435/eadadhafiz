@@ -67,6 +67,7 @@ export interface Halaqa {
 
 export interface Student {
   id: number;
+  studentNumber?: number; // رقم الطالب الثابت
   name: string;
   halaqaId: number;
   sardHalaqaId?: number; // حلقة السرد

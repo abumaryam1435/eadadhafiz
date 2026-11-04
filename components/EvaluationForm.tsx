@@ -18,6 +18,7 @@ import { isSmartMatch } from '../utils/searchUtils';
 import { registerBackHandler } from '../utils/navigationHistory';
 import { isTeacherFromOutside, isStudentFromOutside, isSardHalaqaFromOutside } from '../utils/categoryUtils';
 import { IlmiyyaAttendanceForm } from './IlmiyyaAttendanceForm';
+import { compareStudentsByNumber } from '../utils/reportSortUtils';
 import { 
   surahNames, 
   quranPageMap, 
@@ -2164,11 +2165,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {students
                     .filter(s => {
-                      if (!isSmartMatch(s.name, sardSearch)) return false;
+                      if (!isSmartMatch(s.name, sardSearch) && !String(s.studentNumber ?? '').includes(sardSearch.trim())) return false;
                       if (sardEvalMode === 'group' && selectedSardGroupIds.includes(s.id)) return true;
                       return isStudentInSardView(s);
                     })
-                    .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
+                    .sort(compareStudentsByNumber)
                     .map(s => {
                       const isEvaluated = (sardEvaluations || []).some(
                         e => e.studentId === s.id && e.weekNumber === selectedWeek
@@ -2223,7 +2224,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                           }`}
                         >
                           <div className="flex flex-col items-start min-w-0">
-                            <span className={`truncate ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'text-white' : (isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
+                            <span className={`truncate flex items-center gap-1.5 ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'text-white' : (isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>
+                              {s.studentNumber !== undefined && (
+                                <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black shrink-0 ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'bg-white/25 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'}`}>
+                                  #{s.studentNumber}
+                                </span>
+                              )}
+                              <span className="truncate">{s.name}</span>
+                            </span>
                             {(isAmeer || isDeputyAmeer) && (
                               <span className={`text-[10px] font-bold leading-tight mt-0.5 ${(sardEvalMode === 'individual' ? selectedStudent === s.id : isGroupSelected) ? 'text-amber-200' : 'text-amber-700 dark:text-amber-400'}`}>
                                 {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
@@ -2369,8 +2377,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {students
-                    .filter(s => (isGuest || s.halaqaId === selectedHalaqa) && isSmartMatch(s.name, isGuest ? guestSearch : primarySearch) && (subject !== 'mutoon' || s.isAlAmeen))
-                    .sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))
+                    .filter(s => (isGuest || s.halaqaId === selectedHalaqa) && (isSmartMatch(s.name, isGuest ? guestSearch : primarySearch) || String(s.studentNumber ?? '').includes((isGuest ? guestSearch : primarySearch).trim())) && (subject !== 'mutoon' || s.isAlAmeen))
+                    .sort(compareStudentsByNumber)
                     .map(s => {
                     const evalRecord = evaluations.find(e => e.studentId === s.id && e.weekNumber === selectedWeek && (subject === 'mutoon' ? e.subject === 'mutoon' : e.subject !== 'mutoon') && !e.isTest);
                     const hifzRecord = subject === 'mutoon'
@@ -2414,7 +2422,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                         }`}
                       >
                         <div className="flex flex-col justify-center items-start w-full">
-                          <span className={`truncate w-full ${selectedStudent === s.id ? 'text-white' : (isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>{s.name}</span>
+                          <span className={`truncate w-full flex items-center gap-1.5 ${selectedStudent === s.id ? 'text-white' : (isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300 font-black' : ''}`}>
+                            {s.studentNumber !== undefined && (
+                              <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black shrink-0 ${selectedStudent === s.id ? 'bg-white/25 text-white' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'}`}>
+                                #{s.studentNumber}
+                              </span>
+                            )}
+                            <span className="truncate">{s.name}</span>
+                          </span>
                           {(isAmeer || isDeputyAmeer) && (
                             <span className={`text-[10px] font-bold leading-tight mt-0.5 ${selectedStudent === s.id ? 'text-amber-200' : 'text-amber-700 dark:text-amber-400'}`}>
                               {isAmeer ? '(أمير الحلقة)' : '(نائب الأمير)'}
@@ -2469,6 +2484,11 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               <div className="flex flex-col items-center justify-center">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg sm:text-xl">{(isAmeer || isDeputyAmeer) ? '👑' : '👤'}</span>
+                  {activeStudent.studentNumber !== undefined && (
+                    <span className="px-2 py-0.5 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                      #{activeStudent.studentNumber}
+                    </span>
+                  )}
                   <p className={`font-black text-lg sm:text-xl ${(isAmeer || isDeputyAmeer) ? 'text-amber-800 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
                     {activeStudent.name}
                   </p>

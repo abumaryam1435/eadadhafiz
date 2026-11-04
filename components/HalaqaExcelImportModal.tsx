@@ -11,6 +11,7 @@ export interface HalaqaImportPreviewItem {
   teacherIdStr?: string;
   studentName: string;
   studentIdStr?: string;
+  studentNumber?: number;
   status: 'valid' | 'conflict' | 'warning' | 'new';
   warningMessage?: string;
   existingTeacherName?: string;
@@ -26,7 +27,7 @@ interface HalaqaExcelImportModalProps {
   sardHalaqas: SardHalaqa[];
   students: Student[];
   onConfirmImport: (payload: {
-    items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; }[];
+    items: { halaqaName: string; teacherName: string; teacherIdStr?: string; studentName: string; studentIdStr?: string; studentNumber?: number; }[];
     resolveConflictMode: 'overwrite' | 'preserve';
   }) => void;
 }
@@ -110,7 +111,11 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
             ''
           ).trim();
           const rawTeacherId = String(row['رقم المعلم (ID)'] || row['رقم المعلم'] || row['id المعلم'] || '').trim();
-          const rawStudentId = String(row['رقم الطالب (ID)'] || row['رقم الطالب'] || row['id الطالب'] || '').trim();
+          const rawStudentId = String(row['رقم الطالب (ID)'] || row['id الطالب'] || '').trim();
+          const rawStudentNumVal = row['رقم الطالب'];
+          const parsedStudentNumber = rawStudentNumVal !== undefined && rawStudentNumVal !== '' && !isNaN(Number(rawStudentNumVal))
+            ? Number(rawStudentNumVal)
+            : undefined;
 
           if (!rawHalaqa && !rawStudent) {
             // تخطي الصفوف الفارغة بالكامل
@@ -188,7 +193,10 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
             id: `row-${idx}-${Date.now()}`,
             halaqaName: rawHalaqa,
             teacherName: rawTeacher,
+            teacherIdStr: rawTeacherId || undefined,
             studentName: rawStudent,
+            studentIdStr: rawStudentId || undefined,
+            studentNumber: parsedStudentNumber,
             status,
             warningMessage: warnings.join(' | '),
             existingTeacherName,
@@ -225,7 +233,10 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
       .map(r => ({
         halaqaName: r.halaqaName,
         teacherName: r.teacherName,
+        teacherIdStr: r.teacherIdStr,
         studentName: r.studentName,
+        studentIdStr: r.studentIdStr,
+        studentNumber: r.studentNumber,
       }));
 
     onConfirmImport({
@@ -424,6 +435,7 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
                     <th className="p-2.5">م</th>
                     <th className="p-2.5">اسم الحلقة</th>
                     <th className="p-2.5">اسم المعلم</th>
+                    <th className="p-2.5">رقم الطالب</th>
                     <th className="p-2.5">اسم الطالب</th>
                     <th className="p-2.5">الحالة والتنبيهات</th>
                   </tr>
@@ -446,6 +458,9 @@ export const HalaqaExcelImportModal: React.FC<HalaqaExcelImportModalProps> = ({
                       </td>
                       <td className="p-2.5 text-gray-700 dark:text-gray-300">
                         {row.teacherName || <span className="text-gray-400">بدون معلم</span>}
+                      </td>
+                      <td className="p-2.5 font-bold text-emerald-700 dark:text-emerald-300">
+                        {row.studentNumber ?? '—'}
                       </td>
                       <td className="p-2.5 text-gray-800 dark:text-gray-200 font-bold">
                         {row.studentName || <span className="text-gray-400">بدون طالب</span>}
