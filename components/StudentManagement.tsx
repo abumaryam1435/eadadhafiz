@@ -37,6 +37,7 @@ const StudentManagement: React.FC = () => {
     const isTestActive = context?.isTestActive || false;
     const showAmeerToTeachers = context?.showAmeerToTeachers ?? false;
     const setShowAmeerToTeachers = context?.setShowAmeerToTeachers || (() => {});
+    const reorderStudentNumbersByHalaqa = context?.reorderStudentNumbersByHalaqa;
     const currentUser = context?.currentUser;
 
     const [managementTab, setManagementTab] = useState<'main' | 'sard' | 'ilmiyya'>('main');
@@ -715,6 +716,27 @@ const StudentManagement: React.FC = () => {
                                     <span>📥</span>
                                     <span>استيراد ملف أكسل</span>
                                 </button>
+                                {reorderStudentNumbersByHalaqa && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setConfirmationModal({
+                                                isOpen: true,
+                                                title: 'إعادة ترقيم الطلاب حسب الحلقات',
+                                                message: 'هل تريد إعادة ترقيم جميع الطلاب بالتسلسل حسب ترتيب الحلقات (بحيث تبدأ الحلقة الأولى من 1 ثم الحلقة الثانية وهكذا)؟',
+                                                onConfirm: () => {
+                                                    reorderStudentNumbersByHalaqa();
+                                                    setConfirmationModal(prev => ({ ...prev, isOpen: false }));
+                                                }
+                                            });
+                                        }}
+                                        className="px-3 sm:px-3.5 py-2 text-xs font-bold bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 border border-teal-300 dark:border-teal-700 hover:bg-teal-200 rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+                                        title="إعادة ترقيم جميع الطلاب بالتسلسل بدءاً من الحلقة الأولى"
+                                    >
+                                        <span>🔢</span>
+                                        <span>ترقيم حسب الحلقات</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1285,28 +1307,41 @@ const StudentManagement: React.FC = () => {
                                                                                     }}
                                                                                     className="input-style flex-grow py-1 text-sm"
                                                                                 />
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        if (editingStudent) {
-                                                                                            updateStudent({ ...student, name: editingStudent.name.trim(), studentNumber: editingStudent.studentNumber });
-                                                                                            setEditingStudent(null);
-                                                                                        }
-                                                                                    }}
-                                                                                    className="px-2.5 py-1 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700"
-                                                                                >
-                                                                                    حفظ
-                                                                                </button>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="flex flex-col">
-                                                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                                                    {student.studentNumber !== undefined && (
-                                                                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shrink-0" title="رقم الطالب">
-                                                                                            #{student.studentNumber}
-                                                                                        </span>
-                                                                                    )}
-                                                                                    <span className={`font-bold text-sm ${(student.id === halaqa.ameerStudentId || student.id === halaqa.deputyAmeerStudentId) ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-700 dark:text-gray-200'}`}>{student.name}</span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            if (editingStudent) {
+                                                                                                updateStudent({ ...student, name: editingStudent.name.trim(), studentNumber: editingStudent.studentNumber });
+                                                                                                setEditingStudent(null);
+                                                                                                showToast('✅ تم حفظ تعديل بيانات الطالب بنجاح');
+                                                                                            }
+                                                                                        }}
+                                                                                        className="px-2.5 py-1 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 cursor-pointer"
+                                                                                    >
+                                                                                        حفظ
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setEditingStudent(null)}
+                                                                                        className="px-2 py-1 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold hover:bg-gray-300 cursor-pointer"
+                                                                                    >
+                                                                                        إلغاء
+                                                                                    </button>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="flex flex-col">
+                                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                        {student.studentNumber !== undefined && (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => setEditingStudent(student)}
+                                                                                                className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/60 dark:hover:bg-emerald-800/80 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 shrink-0 cursor-pointer transition-colors"
+                                                                                                title="رقم الطالب (انقر لتعديل الرقم)"
+                                                                                            >
+                                                                                                #{student.studentNumber}
+                                                                                            </button>
+                                                                                        )}
+                                                                                        <span className={`font-bold text-sm ${(student.id === halaqa.ameerStudentId || student.id === halaqa.deputyAmeerStudentId) ? 'text-amber-800 dark:text-amber-300 font-black' : 'text-gray-700 dark:text-gray-200'}`}>{student.name}</span>
                                                                                     {student.id === halaqa.ameerStudentId && (
                                                                                         <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700 inline-flex items-center">
                                                                                             أمير الحلقة

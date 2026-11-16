@@ -4,6 +4,7 @@ import { AppContext } from '../App';
 import { ReportsTable } from './ReportsTable';
 import { TestsReportTable } from './TestsReportTable';
 import { SardReportsTable } from './SardReportsTable';
+import { LevelUpgradesReportTable } from './LevelUpgradesReportTable';
 import DashboardStats from './DashboardStats';
 import StudentManagement from './StudentManagement';
 import { Settings } from './Settings'; 
@@ -12,6 +13,7 @@ import { CertificatesManager } from './CertificatesManager';
 import { CardsManager } from './CardsManager';
 import { SupervisorSuggestionsView } from './SupervisorSuggestionsView';
 import { DocumentsManager } from './DocumentsManager';
+import { getStudentLevelUpgrades } from '../utils/levelUpgradeUtils';
 import { 
   FileText, 
   GraduationCap, 
@@ -24,6 +26,7 @@ import {
   BookOpen,
   ScrollText,
   Sparkles,
+  TrendingUp,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -142,10 +145,25 @@ const NAV_ITEMS: NavItemConfig[] = [
 export const SupervisorDashboard: React.FC = () => {
   const context = useContext(AppContext);
   const [activeView, setActiveView] = useState<View>('reports');
-  const [reportsSubTab, setReportsSubTab] = useState<'quran' | 'mutoon' | 'sard'>('quran');
+  const [reportsSubTab, setReportsSubTab] = useState<'quran' | 'mutoon' | 'sard' | 'upgrades'>('quran');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navScrollRef = useRef<HTMLElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const req = context?.supervisorNavRequest;
+    if (!req) return;
+    setActiveView(req.view);
+    if (req.reportsSubTab) {
+      setReportsSubTab(req.reportsSubTab);
+    }
+    setTimeout(() => {
+      const targetBtn = navScrollRef.current?.querySelector<HTMLButtonElement>(`#nav-tab-${req.view}`);
+      if (targetBtn) {
+        targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 50);
+  }, [context?.supervisorNavRequest]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -161,7 +179,12 @@ export const SupervisorDashboard: React.FC = () => {
     return <div className="dark:text-gray-200">جاري تحميل البيانات...</div>;
   }
   
-  const { evaluations, students } = context;
+  const { evaluations, students, halaqas, users, supervisorReadNotifications = [] } = context;
+  const unreadUpgradesCount = React.useMemo(() => {
+    const upgrades = getStudentLevelUpgrades(students, evaluations, halaqas, users);
+    const readSet = new Set(supervisorReadNotifications);
+    return upgrades.filter(u => !readSet.has(u.upgradeKey)).length;
+  }, [students, evaluations, halaqas, users, supervisorReadNotifications]);
 
   const handleTabChange = (view: View, buttonElement?: HTMLButtonElement | null) => {
     setActiveView(view);
@@ -348,13 +371,13 @@ export const SupervisorDashboard: React.FC = () => {
           <DashboardStats evaluations={evaluations} students={students} />
         </div>
 
-        {/* Sub-tabs for Quran vs Mutoon vs Sard reports */}
+        {/* Sub-tabs for Quran vs Mutoon vs Sard vs Level Upgrades reports */}
         <div className="flex justify-center no-print my-2 px-1">
-          <div className="flex w-full sm:w-auto justify-center gap-1.5 sm:gap-2 p-1.5 bg-gray-100/90 dark:bg-gray-800/90 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
+          <div className="flex flex-wrap w-full sm:w-auto justify-center gap-1.5 sm:gap-2 p-1.5 bg-gray-100/90 dark:bg-gray-800/90 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
             <button
               type="button"
               onClick={() => setReportsSubTab('quran')}
-              className={`flex-1 sm:flex-initial px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
                 reportsSubTab === 'quran'
                   ? 'bg-emerald-700 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
@@ -370,7 +393,7 @@ export const SupervisorDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setReportsSubTab('mutoon')}
-              className={`flex-1 sm:flex-initial px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
                 reportsSubTab === 'mutoon'
                   ? 'bg-emerald-700 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
@@ -386,7 +409,7 @@ export const SupervisorDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setReportsSubTab('sard')}
-              className={`flex-1 sm:flex-initial px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
+              className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
                 reportsSubTab === 'sard'
                   ? 'bg-emerald-700 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
@@ -399,6 +422,29 @@ export const SupervisorDashboard: React.FC = () => {
               </span>
               <span>تقارير السرد</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setReportsSubTab('upgrades')}
+              className={`flex-1 sm:flex-initial px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors duration-150 flex items-center justify-center gap-2 ${
+                reportsSubTab === 'upgrades'
+                  ? 'bg-emerald-700 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
+              }`}
+            >
+              <span className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                reportsSubTab === 'upgrades' ? 'bg-white/20 text-white' : 'bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400'
+              }`}>
+                <TrendingUp className="w-3.5 h-3.5" />
+              </span>
+              <span>ترقيات المستوى</span>
+              {unreadUpgradesCount > 0 && (
+                <span className={`px-1.5 py-0.5 text-[10px] font-black rounded-full ${
+                  reportsSubTab === 'upgrades' ? 'bg-yellow-400 text-green-950' : 'bg-amber-500 text-white'
+                }`}>
+                  {unreadUpgradesCount > 99 ? '+99' : unreadUpgradesCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -410,6 +456,9 @@ export const SupervisorDashboard: React.FC = () => {
         </div>
         <div className={reportsSubTab === 'sard' ? 'block' : 'hidden'}>
           <SardReportsTable key="reports-table-sard" />
+        </div>
+        <div className={reportsSubTab === 'upgrades' ? 'block' : 'hidden'}>
+          <LevelUpgradesReportTable key="reports-table-upgrades" />
         </div>
       </div>
 

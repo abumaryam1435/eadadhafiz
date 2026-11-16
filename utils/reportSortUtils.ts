@@ -347,7 +347,7 @@ export function compareReportRows<T extends Record<string, any>>(
   }
 
   // 4. Level (المستوى): Logical numerical rank!
-  if (key === 'studentLevel' || key === 'level') {
+  if (key === 'studentLevel' || key === 'level' || key === 'previousLevel' || key === 'newLevel' || key === 'currentStudentLevel') {
     const rankA = getLevelNumericRank(a[key] || '');
     const rankB = getLevelNumericRank(b[key] || '');
 

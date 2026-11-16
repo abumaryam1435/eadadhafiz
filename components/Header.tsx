@@ -4,6 +4,7 @@ import { User, UserRole } from '../types';
 import Logo from './Logo';
 import { AppContext } from '../App';
 import { SuggestionsModal } from './SuggestionsModal';
+import { SupervisorNotificationsBell } from './SupervisorNotificationsBell';
 
 interface HeaderProps {
   user: User;
@@ -82,6 +83,8 @@ const Header: React.FC<HeaderProps> = ({ user, onShowHelp, onInitiateLogoutCheck
                 <span className="hidden sm:inline">الاقتراحات</span>
               </button>
             )}
+
+            {isSupervisor && <SupervisorNotificationsBell />}
 
             <div className="flex flex-col text-right px-1.5 sm:px-3 border-r-2 border-white/20 min-w-0 max-w-[110px] sm:max-w-none justify-center">
               <div 

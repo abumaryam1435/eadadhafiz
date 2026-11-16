@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../App';
 import { Suggestion, UserRole } from '../types';
 
@@ -30,6 +30,14 @@ export const SupervisorSuggestionsView: React.FC<Props> = ({ isTeacher = false }
   const [activeTab, setActiveTab] = useState<'suggestions' | 'behaviors'>(isTeacher ? 'behaviors' : 'suggestions');
   const [behaviorSearchTerm, setBehaviorSearchTerm] = useState('');
   const [behaviorReviewedFilter, setBehaviorReviewedFilter] = useState<'all' | 'reviewed' | 'unreviewed'>('all');
+
+  useEffect(() => {
+    if (isTeacher) return;
+    const req = context?.supervisorNavRequest;
+    if (req?.view === 'suggestions' && req.suggestionsSubTab) {
+      setActiveTab(req.suggestionsSubTab);
+    }
+  }, [context?.supervisorNavRequest, isTeacher]);
 
   const teachers = users ? users.filter(u => u.role === UserRole.TEACHER) : [];
 

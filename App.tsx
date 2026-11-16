@@ -57,6 +57,13 @@ export interface TeacherSessionState {
   selectedWeek: number | null;
 }
 
+export interface SupervisorNavRequest {
+  view: 'reports' | 'testReports' | 'management' | 'documents' | 'suggestions' | 'certificates' | 'cards' | 'settings' | 'overview';
+  reportsSubTab?: 'quran' | 'mutoon' | 'sard' | 'upgrades';
+  suggestionsSubTab?: 'suggestions' | 'behaviors';
+  nonce: number;
+}
+
 interface AppContextType {
   users: User[];
   students: Student[];
@@ -90,6 +97,7 @@ interface AppContextType {
   updateStudent: (student: Student) => void;
   deleteStudent: (studentId: number) => void;
   resetAllStudentsLevelToAuto: () => void;
+  reorderStudentNumbersByHalaqa?: () => void;
   assignStudentToSardHalaqa: (studentId: number, sardHalaqaId?: number) => void;
   assignStudentToIlmiyyaHalaqa: (studentId: number, ilmiyyaHalaqaId?: number) => void;
   addHalaqa: (halaqa: Omit<Halaqa, 'id'>) => number;
@@ -196,6 +204,11 @@ interface AppContextType {
   setTeacherSessionState?: React.Dispatch<React.SetStateAction<TeacherSessionState>>;
   parentReportsEnabled?: boolean;
   setParentReportsEnabled?: (enabled: boolean) => void;
+  supervisorNavRequest?: SupervisorNavRequest | null;
+  navigateSupervisor?: (req: Omit<SupervisorNavRequest, 'nonce'>) => void;
+  supervisorReadNotifications?: string[];
+  markNotificationsRead?: (keys: string | string[]) => void;
+  markNotificationUnread?: (key: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
@@ -230,26 +243,91 @@ const generateId = () => {
   return _lastId;
 };
 
-const assignMissingStudentNumbers = (students: Student[]): { updated: Student[]; changed: Student[] } => {
+const HALAQA_STUDENT_NUMBER_MIGRATION_KEY = 'halaqaStudentNumByHalaqaAlpha_v2';
+
+const renumberStudentsByHalaqaOrder = (students: Student[], halaqas: Halaqa[]): { updated: Student[]; changed: Student[] } => {
   if (!Array.isArray(students) || students.length === 0) {
     return { updated: students || [], changed: [] };
   }
+  const sortedHalaqas = [...(halaqas || [])].sort((a, b) => {
+    const catA = (a.category || 'ibri') === 'ibri' ? 0 : 1;
+    const catB = (b.category || 'ibri') === 'ibri' ? 0 : 1;
+    if (catA !== catB) return catA - catB;
+    return String(a.name || '').localeCompare(String(b.name || ''), 'ar', { numeric: true });
+  });
+
+  const halaqaIdSet = new Set(sortedHalaqas.map(h => h.id));
+
+  const sortWithinGroup = (a: Student, b: Student) => {
+    const nameA = String(a.name || '').trim();
+    const nameB = String(b.name || '').trim();
+    const cmp = nameA.localeCompare(nameB, 'ar', { sensitivity: 'base' });
+    if (cmp !== 0) return cmp;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  };
+
+  let nextNum = 1;
+  const assignedMap = new Map<number, number>();
+
+  for (const h of sortedHalaqas) {
+    const group = students.filter(s => s.halaqaId === h.id).sort(sortWithinGroup);
+    for (const s of group) {
+      assignedMap.set(s.id, nextNum++);
+    }
+  }
+
+  const unassigned = students.filter(s => !s.halaqaId || !halaqaIdSet.has(s.halaqaId)).sort(sortWithinGroup);
+  for (const s of unassigned) {
+    assignedMap.set(s.id, nextNum++);
+  }
+
+  const changed: Student[] = [];
+  const updated = students.map(st => {
+    const targetNum = assignedMap.get(st.id) ?? st.studentNumber ?? 1;
+    if (st.studentNumber !== targetNum) {
+      const updatedSt = { ...st, studentNumber: targetNum };
+      changed.push(updatedSt);
+      return updatedSt;
+    }
+    return st;
+  });
+
+  return { updated, changed };
+};
+
+const assignMissingStudentNumbers = (students: Student[], halaqas?: Halaqa[]): { updated: Student[]; changed: Student[] } => {
+  if (!Array.isArray(students) || students.length === 0) {
+    return { updated: students || [], changed: [] };
+  }
+
+  // If no student has a number yet and halaqas are available, assign sequentially by halaqa order
+  const anyHasNumber = students.some(st => {
+    const num = Number(st.studentNumber);
+    return !isNaN(num) && num > 0 && Number.isInteger(num);
+  });
+  if (!anyHasNumber && Array.isArray(halaqas) && halaqas.length > 0) {
+    return renumberStudentsByHalaqaOrder(students, halaqas);
+  }
+
   const usedNumbers = new Set<number>();
   let maxNumber = 0;
 
-  // Sort by id ascending so earlier students keep their number if there's any collision
-  const sortedById = [...students].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
   const validStudentIds = new Map<number, number>();
-
-  for (const st of sortedById) {
+  for (const st of students) {
     const num = Number(st.studentNumber);
-    if (!isNaN(num) && num > 0 && Number.isInteger(num) && !usedNumbers.has(num)) {
+    if (!isNaN(num) && num > 0 && Number.isInteger(num)) {
       usedNumbers.add(num);
       validStudentIds.set(st.id, num);
       if (num > maxNumber) maxNumber = num;
     }
   }
 
+  // If all students already have valid numbers, preserve them as-is (respecting any supervisor edits)
+  if (validStudentIds.size === students.length) {
+    return { updated: students, changed: [] };
+  }
+
+  const sortedById = [...students].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
   const changed: Student[] = [];
   const assignedMap = new Map<number, number>(validStudentIds);
 
@@ -350,7 +428,7 @@ const App: React.FC = () => {
       manualStudentLevel: undefined,
       manualLevel: undefined,
       studentLevel: undefined,
-    }))).updated,
+    })), initialBackupData?.halaqas).updated,
     evaluations: initialBackupData?.evaluations || [],
     sardEvaluations: initialBackupData?.sardEvaluations || [],
     ilmiyyaAttendances: initialBackupData?.ilmiyyaAttendances || [],
@@ -472,6 +550,17 @@ const App: React.FC = () => {
   const [unevaluatedSardStudents, setUnevaluatedSardStudents] = useState<string[]>([]);
   const [parentReportsEnabledState, setParentReportsEnabledState] = useState<boolean>(() => initialBackupData?.parentReportsEnabled ?? true);
   const [parentPortalPhone, setParentPortalPhone] = useState<string | null>(() => getParentPhoneFromUrl());
+  const [supervisorNavRequest, setSupervisorNavRequest] = useState<SupervisorNavRequest | null>(null);
+  const [supervisorReadNotifications, setSupervisorReadNotifications] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('supervisorReadNotifications_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      }
+    } catch (_) {}
+    return [];
+  });
 
   useEffect(() => {
     document.title = 'إعداد حافظ';
@@ -550,7 +639,7 @@ const App: React.FC = () => {
         halaqas: loadedConfig?.halaqas || prev.halaqas || [],
         sardHalaqas: loadedConfig?.sardHalaqas || prev.sardHalaqas || [],
         ilmiyyaHalaqas: loadedConfig?.ilmiyyaHalaqas || prev.ilmiyyaHalaqas || [],
-        students: assignMissingStudentNumbers(loadedConfig?.students || prev.students || []).updated,
+        students: assignMissingStudentNumbers(loadedConfig?.students || prev.students || [], loadedConfig?.halaqas || prev.halaqas).updated,
         evaluations: loadedConfig?.evaluations || prev.evaluations || [],
         sardEvaluations: loadedConfig?.sardEvaluations || prev.sardEvaluations || [],
         ilmiyyaAttendances: loadedConfig?.ilmiyyaAttendances || prev.ilmiyyaAttendances || [],
@@ -685,6 +774,11 @@ const App: React.FC = () => {
             if(val.certificateConfig !== undefined) setCertificateConfigState(val.certificateConfig);
             if(val.cardConfig !== undefined) setCardConfigState(val.cardConfig);
             if(val.parentReportsEnabled !== undefined) setParentReportsEnabledState(val.parentReportsEnabled);
+            if(Array.isArray(val.supervisorReadNotifications)) {
+              const cleaned = val.supervisorReadNotifications.map(String);
+              setSupervisorReadNotifications(cleaned);
+              try { localStorage.setItem('supervisorReadNotifications_v1', JSON.stringify(cleaned)); } catch (_) {}
+            }
           }
           setIsLoadingFirebase(false);
           clearTimeout(timeoutId);
@@ -1354,11 +1448,34 @@ const App: React.FC = () => {
     });
   }, [isLoading, isLoadingFirebase, data.students, data.evaluations, data.sardEvaluations, data.maghribAttendances]);
 
-  // ضمان امتلاك كل طالب لرقم طالب ثابت وفريد ومزامنته مع قاعدة البيانات
+  // ضمان امتلاك كل طالب لرقم طالب ثابت وفريد ومزامنته مع قاعدة البيانات، وترحيل الترتيب حسب الحلقات لمرة واحدة
   useEffect(() => {
     if (isLoading || isLoadingFirebase) return;
     if (!data.students || data.students.length === 0) return;
-    const { updated, changed } = assignMissingStudentNumbers(data.students);
+
+    const alreadyMigratedLocal = typeof window !== 'undefined' && localStorage.getItem(HALAQA_STUDENT_NUMBER_MIGRATION_KEY) === 'true';
+    if (!alreadyMigratedLocal && data.halaqas && data.halaqas.length > 0) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(HALAQA_STUDENT_NUMBER_MIGRATION_KEY, 'true');
+      }
+      const { updated, changed } = renumberStudentsByHalaqaOrder(data.students, data.halaqas);
+      if (changed.length > 0) {
+        setData(prev => ({ ...prev, students: updated }));
+        const db = getDb();
+        changed.forEach(st => {
+          if (db && navigator.onLine) {
+            db.ref(`data/students/${st.id}`).set(sanitizeForFirebase(st)).catch(() => {
+              queueForSync(`data/students/${st.id}`, st);
+            });
+          } else {
+            queueForSync(`data/students/${st.id}`, st);
+          }
+        });
+        return;
+      }
+    }
+
+    const { updated, changed } = assignMissingStudentNumbers(data.students, data.halaqas);
     if (changed.length > 0) {
       setData(prev => ({ ...prev, students: updated }));
       const db = getDb();
@@ -1372,7 +1489,7 @@ const App: React.FC = () => {
         }
       });
     }
-  }, [isLoading, isLoadingFirebase, data.students]);
+  }, [isLoading, isLoadingFirebase, data.students, data.halaqas]);
 
   const addEvaluation = (ev: any) => {
     if (!ev.isTest) {
@@ -1578,6 +1695,22 @@ const App: React.FC = () => {
     }));
     showToast(`✅ تم إعادة ضبط مستويات جميع الطلاب لتكون تلقائية بحسب الحفظ (${updatedStudents.length} طالب)`, 'success');
   };
+
+  const reorderStudentNumbersByHalaqa = useCallback(() => {
+    const { updated } = renumberStudentsByHalaqaOrder(data.students || [], data.halaqas || []);
+    const now = Date.now();
+    const timestamped = updated.map(s => ({ ...s, updatedAt: now }));
+    const toObj = (arr: any[]) => arr.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});
+    writeData('data/students', toObj(timestamped));
+    setData(prev => ({
+      ...prev,
+      students: timestamped,
+    }));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(HALAQA_STUDENT_NUMBER_MIGRATION_KEY, 'true');
+    }
+    showToast(`✅ تم ترقيم جميع الطلاب تسلسلياً حسب ترتيب الحلقات (${timestamped.length} طالب)`, 'success');
+  }, [data.students, data.halaqas, showToast]);
   
   const assignStudentToSardHalaqa = (studentId: number, sardHalaqaId?: number) => {
     const s = (data.students || []).find(x => x.id === studentId);
@@ -1985,7 +2118,7 @@ const App: React.FC = () => {
   };
 
   const handleImportFullBackup = (d: FullBackupData) => {
-      const normalizedStudents = assignMissingStudentNumbers(d.students || []).updated;
+      const normalizedStudents = assignMissingStudentNumbers(d.students || [], d.halaqas).updated;
       const db = getDb();
       if (db) {
           const toObj = (arr: any[]) => arr.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});
@@ -2062,6 +2195,38 @@ const App: React.FC = () => {
     setParentReportsEnabledState(enabled);
     writeData('config/parentReportsEnabled', enabled);
   }, [writeData]);
+  const navigateSupervisor = useCallback((req: Omit<SupervisorNavRequest, 'nonce'>) => {
+    setSupervisorNavRequest({ ...req, nonce: Date.now() });
+  }, []);
+  const markNotificationsRead = useCallback((keys: string | string[]) => {
+    const arr = Array.isArray(keys) ? keys : [keys];
+    if (arr.length === 0) return;
+    setSupervisorReadNotifications(prev => {
+      const nextSet = new Set(prev);
+      let changed = false;
+      arr.forEach(k => {
+        if (k && !nextSet.has(k)) {
+          nextSet.add(k);
+          changed = true;
+        }
+      });
+      if (!changed) return prev;
+      const nextArr = Array.from(nextSet);
+      try { localStorage.setItem('supervisorReadNotifications_v1', JSON.stringify(nextArr)); } catch (_) {}
+      writeData('config/supervisorReadNotifications', nextArr);
+      return nextArr;
+    });
+  }, [writeData]);
+  const markNotificationUnread = useCallback((key: string) => {
+    if (!key) return;
+    setSupervisorReadNotifications(prev => {
+      if (!prev.includes(key)) return prev;
+      const nextArr = prev.filter(k => k !== key);
+      try { localStorage.setItem('supervisorReadNotifications_v1', JSON.stringify(nextArr)); } catch (_) {}
+      writeData('config/supervisorReadNotifications', nextArr);
+      return nextArr;
+    });
+  }, [writeData]);
   const toggleDarkMode = useCallback(() => setDarkMode(prev => !prev), []);
   const setColorMap = useCallback((map: Record<string, string>) => { setColorMapState(map); localStorage.setItem('testReportColorMap', JSON.stringify(map)); }, []);
   const setSaveColors = useCallback((save: boolean) => { setSaveColorsState(save); localStorage.setItem('testReportSaveColors', JSON.stringify(save)); }, []);
@@ -2134,7 +2299,7 @@ const App: React.FC = () => {
     users: data.users || [], students: data.students || [], halaqas: data.halaqas || [], sardHalaqas: data.sardHalaqas || [], ilmiyyaHalaqas: data.ilmiyyaHalaqas || [], evaluations: data.evaluations || [], sardEvaluations: data.sardEvaluations || [], ilmiyyaAttendances: data.ilmiyyaAttendances || [], maghribAttendances: data.maghribAttendances || [], suggestions: data.suggestions || [], studentBehaviors: data.studentBehaviors || [], matns: data.matns || [], newStudentTests: data.newStudentTests || [],
     addEvaluation, updateEvaluation, deleteEvaluation,
     addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations,
-    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa, assignStudentToIlmiyyaHalaqa,
+    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, reorderStudentNumbersByHalaqa, assignStudentToSardHalaqa, assignStudentToIlmiyyaHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa,
     addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
     addIlmiyyaHalaqa, updateIlmiyyaHalaqa, deleteIlmiyyaHalaqa, assignTeachersToIlmiyyaHalaqa, saveIlmiyyaAttendances, deleteIlmiyyaAttendance,
@@ -2180,9 +2345,14 @@ const App: React.FC = () => {
     teacherSessionState,
     setTeacherSessionState,
     parentReportsEnabled: parentReportsEnabledState,
-    setParentReportsEnabled
+    setParentReportsEnabled,
+    supervisorNavRequest,
+    navigateSupervisor,
+    supervisorReadNotifications,
+    markNotificationsRead,
+    markNotificationUnread
   }), [
-    data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, assignStudentToSardHalaqa,
+    data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, reorderStudentNumbersByHalaqa, assignStudentToSardHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
     addIlmiyyaHalaqa, updateIlmiyyaHalaqa, deleteIlmiyyaHalaqa, assignTeachersToIlmiyyaHalaqa, saveIlmiyyaAttendances, deleteIlmiyyaAttendance, assignStudentToIlmiyyaHalaqa,
     addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
@@ -2203,7 +2373,9 @@ const App: React.FC = () => {
     testsSummaryFilteredData, setTestsSummaryFilteredData,
     syncSettingsToCloud, resetCloudSettings,
     teacherSessionState, setTeacherSessionState,
-    parentReportsEnabledState, setParentReportsEnabled
+    parentReportsEnabledState, setParentReportsEnabled,
+    supervisorNavRequest, navigateSupervisor,
+    supervisorReadNotifications, markNotificationsRead, markNotificationUnread
   ]);
 
   if (parentPortalPhone) {
