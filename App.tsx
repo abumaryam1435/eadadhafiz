@@ -8,6 +8,7 @@ import TeacherDashboard from './components/TeacherDashboard';
 import Header from './components/Header';
 import { HelpModal } from './components/HelpModal';
 import UnevaluatedStudentsWarningModal from './components/UnevaluatedStudentsWarningModal';
+import PendingSyncLogoutModal from './components/PendingSyncLogoutModal';
 import MobileInstallModal from './components/MobileInstallModal';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import { initializeFirebase, getDb, HARDCODED_FIREBASE_CONFIG } from './utils/firebase';
@@ -504,37 +505,166 @@ const App: React.FC = () => {
       return [];
     }
   });
+  const [pendingSyncLogoutModalOpen, setPendingSyncLogoutModalOpen] = useState(false);
+  const isSyncingRef = useRef(false);
 
-  const processSyncQueue = useCallback(async () => {
-    if (navigator.onLine && firebaseConnectionStatus === 'connected') {
-        const queueStr = localStorage.getItem('halaqaSyncQueue');
-        if (queueStr) {
-            try {
-                const queue = JSON.parse(queueStr);
-                if (queue.length > 0) {
-                    const db = getDb();
-                    if (db) {
-                        for (const item of queue) {
-                            await db.ref(item.path).set(sanitizeForFirebase(item.value));
-                        }
-                        localStorage.removeItem('halaqaSyncQueue');
-                        setSyncQueue([]);
-                        showToast('✅ تم مزامنة البيانات المخزنة محلياً', 'success');
-                    }
-                }
-            } catch (e) { console.error("Sync error:", e); }
-        }
+  const readSyncQueueFromStorage = useCallback((): any[] => {
+    try {
+      const queueStr = localStorage.getItem('halaqaSyncQueue');
+      const parsed = queueStr ? JSON.parse(queueStr) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
     }
-  }, [firebaseConnectionStatus, showToast]);
+  }, []);
 
+  const persistSyncQueue = useCallback((queue: any[]) => {
+    try {
+      if (queue.length === 0) {
+        localStorage.removeItem('halaqaSyncQueue');
+      } else {
+        localStorage.setItem('halaqaSyncQueue', JSON.stringify(queue));
+      }
+    } catch (e) {
+      console.error('Failed to persist sync queue:', e);
+    }
+    setSyncQueue(queue);
+  }, []);
+
+  const removeQueueItemById = useCallback((queueId: string) => {
+    const current = readSyncQueueFromStorage();
+    const next = current.filter(item => item.queueId !== queueId);
+    if (next.length !== current.length) {
+      persistSyncQueue(next);
+    }
+  }, [readSyncQueueFromStorage, persistSyncQueue]);
+
+  const processSyncQueue = useCallback(async (): Promise<boolean> => {
+    if (isSyncingRef.current) return false;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+
+    const initialQueue = readSyncQueueFromStorage();
+    if (initialQueue.length === 0) {
+      setSyncQueue([]);
+      return true;
+    }
+
+    isSyncingRef.current = true;
+    try {
+      let db = getDb();
+      if (!db && firebaseConfigState && Object.keys(firebaseConfigState).length > 0) {
+        try {
+          const instance = await initializeFirebase(firebaseConfigState);
+          db = instance.db;
+        } catch (initErr) {
+          console.error('Firebase re-init during sync failed:', initErr);
+          return false;
+        }
+      }
+      if (!db) return false;
+
+      try {
+        db.goOnline();
+      } catch (_) {}
+
+      // Keep the latest write per path in chronological order to avoid redundant overwrites
+      const latestByPath = new Map<string, any>();
+      for (const item of initialQueue) {
+        if (item && item.path) {
+          latestByPath.set(item.path, item);
+        }
+      }
+      const dedupedItems = Array.from(latestByPath.values());
+      const failedItems: any[] = [];
+      let uploadedCount = 0;
+
+      for (const item of dedupedItems) {
+        try {
+          await db.ref(item.path).set(sanitizeForFirebase(item.value));
+          uploadedCount++;
+        } catch (itemErr) {
+          console.error(`Sync error for path ${item.path}:`, itemErr);
+          failedItems.push(item);
+        }
+      }
+
+      // Preserve any new items queued while this sync batch was running
+      const processedIds = new Set(initialQueue.map(i => i.queueId).filter(Boolean));
+      const latestStorageQueue = readSyncQueueFromStorage();
+      const newlyAddedWhileSyncing = latestStorageQueue.filter(
+        i => i.queueId && !processedIds.has(i.queueId)
+      );
+
+      const finalQueue = [...failedItems, ...newlyAddedWhileSyncing];
+      persistSyncQueue(finalQueue);
+
+      if (uploadedCount > 0 && failedItems.length === 0) {
+        showToast(`✅ تم مزامنة (${uploadedCount}) سجل محفوظ محلياً بنجاح`, 'success');
+      } else if (uploadedCount > 0 && failedItems.length > 0) {
+        showToast(`📡 تم مزامنة (${uploadedCount}) سجل وبقي (${failedItems.length}) قيد الانتظار`, 'info');
+      }
+
+      return failedItems.length === 0;
+    } catch (e) {
+      console.error('Sync error:', e);
+      return false;
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [firebaseConfigState, readSyncQueueFromStorage, persistSyncQueue, showToast]);
+
+  const processSyncQueueRef = useRef(processSyncQueue);
+  useEffect(() => {
+    processSyncQueueRef.current = processSyncQueue;
+  }, [processSyncQueue]);
+
+  // مزامنة تلقائية فور اتصال Firebase أو عند فتح التطبيق بوجود سجلات محفوظة محلياً
+  useEffect(() => {
+    if (firebaseConnectionStatus === 'connected' && syncQueue.length > 0) {
+      processSyncQueue();
+    }
+  }, [firebaseConnectionStatus, syncQueue.length, processSyncQueue]);
+
+  // مزامنة تلقائية عند عودة الإنترنت أو العودة لتبويب التطبيق، وإعادة المحاولة دورياً إذا بقيت سجلات معلقة
   useEffect(() => {
     const handleOnline = () => {
-        setFirebaseConnectionStatus('connecting');
-        processSyncQueue();
+      const db = getDb();
+      if (db) {
+        try { db.goOnline(); } catch (_) {}
+      }
+      processSyncQueueRef.current();
     };
+    const handleOffline = () => {
+      setFirebaseConnectionStatus('disconnected');
+    };
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        const queued = readSyncQueueFromStorage();
+        if (queued.length > 0) {
+          processSyncQueueRef.current();
+        }
+      }
+    };
+
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [processSyncQueue]);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    const intervalId = window.setInterval(() => {
+      if (navigator.onLine && readSyncQueueFromStorage().length > 0) {
+        processSyncQueueRef.current();
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.clearInterval(intervalId);
+    };
+  }, [readSyncQueueFromStorage]);
   const [isDistributable, setIsDistributable] = useState(() => !!initialBackupData?.isDistributable);
   const [isPublishedConnected, setIsPublishedConnected] = useState(() => !!initialBackupData?.isPublishedConnected);
 
@@ -810,7 +940,32 @@ const App: React.FC = () => {
 
                 setData(prev => {
                     const filteredItems = items.filter(item => !pendingDeletions.has(item.id));
-                    return { ...prev, [table]: filteredItems };
+                    // Merge any locally queued offline writes for this table so they don't disappear before sync finishes
+                    const queuedForTable = readSyncQueueFromStorage().filter(
+                      q => typeof q?.path === 'string' && q.path.startsWith(`${firebasePath}/`)
+                    );
+                    if (queuedForTable.length === 0) {
+                      return { ...prev, [table]: filteredItems };
+                    }
+                    let merged = [...filteredItems];
+                    for (const qItem of queuedForTable) {
+                      const idPart = qItem.path.slice(firebasePath.length + 1);
+                      const qId = parseInt(idPart, 10);
+                      if (qItem.value === null) {
+                        if (!isNaN(qId)) {
+                          merged = merged.filter(it => Number(it.id) !== qId);
+                        }
+                      } else if (qItem.value && typeof qItem.value === 'object') {
+                        const targetId = !isNaN(qId) ? qId : qItem.value.id;
+                        const existsIdx = merged.findIndex(it => Number(it.id) === Number(targetId));
+                        if (existsIdx >= 0) {
+                          merged[existsIdx] = { ...qItem.value, id: targetId };
+                        } else {
+                          merged.push({ ...qItem.value, id: targetId });
+                        }
+                      }
+                    }
+                    return { ...prev, [table]: merged };
                 });
             }, (err: any) => console.error(`Sync error on ${String(table)}:`, err));
         };
@@ -829,7 +984,17 @@ const App: React.FC = () => {
         syncTable('matns', 'data/matns');
         syncTable('newStudentTests', 'data/newStudentTests');
 
+        db.ref('.info/connected').on('value', (snap: any) => {
+          if (snap.val() === true) {
+            setFirebaseConnectionStatus('connected');
+            processSyncQueueRef.current();
+          } else if (!navigator.onLine) {
+            setFirebaseConnectionStatus('disconnected');
+          }
+        });
+
         setFirebaseConnectionStatus('connected');
+        processSyncQueueRef.current();
       }).catch(err => {
           console.error("Firebase Sync Error:", err);
           setFirebaseConnectionStatus('error');
@@ -841,6 +1006,7 @@ const App: React.FC = () => {
           clearTimeout(timeoutId);
           const db = getDb();
           if (db) { 
+            db.ref('.info/connected').off();
             db.ref('data/users').off();
             db.ref('data/halaqas').off();
             db.ref('data/sardHalaqas').off();
@@ -857,18 +1023,21 @@ const App: React.FC = () => {
             db.ref('config').off(); 
           }
       };
-  }, [firebaseConfigState, pendingDeletions, showToast]);
+  }, [firebaseConfigState, pendingDeletions, showToast, readSyncQueueFromStorage]);
 
   const writeData = (path: string, value: any) => {
     const db = getDb();
+    // Write-ahead local persistence: save to localStorage before network send so closing the tab mid-request never loses data
+    const queueId = queueForSync(path, value, !db || !navigator.onLine);
+
     if (db && navigator.onLine) {
         const sanitizedValue = sanitizeForFirebase(value);
-        db.ref(path).set(sanitizedValue).catch((err: any) => {
-            console.error("Write error, queuing:", err);
-            queueForSync(path, value);
+        db.ref(path).set(sanitizedValue).then(() => {
+            removeQueueItemById(queueId);
+        }).catch((err: any) => {
+            console.error("Write error, kept in local sync queue:", err);
+            showToast('📡 تعذر الرفع حالياً، تم الحفظ محلياً وستتم المزامنة تلقائياً', 'info');
         });
-    } else {
-        queueForSync(path, value);
     }
 
     const parts = path.split('/');
@@ -914,15 +1083,15 @@ const App: React.FC = () => {
     }
   };
 
-  const queueForSync = (path: string, value: any) => {
-    const queueStr = localStorage.getItem('halaqaSyncQueue');
-    const queue = queueStr ? JSON.parse(queueStr) : [];
-    queue.push({ path, value, timestamp: Date.now() });
-    localStorage.setItem('halaqaSyncQueue', JSON.stringify(queue));
-    setSyncQueue(queue);
-    if (!navigator.onLine) {
-        showToast('📡 تم الحفظ محلياً (سيتم الرفع عند توفر الإنترنت)', 'info');
+  const queueForSync = (path: string, value: any, notifyOffline = true): string => {
+    const queue = readSyncQueueFromStorage();
+    const queueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    queue.push({ queueId, path, value, timestamp: Date.now() });
+    persistSyncQueue(queue);
+    if (notifyOffline && !navigator.onLine) {
+        showToast('📡 تم الحفظ محلياً (سيتم الرفع تلقائياً عند توفر الإنترنت)', 'info');
     }
+    return queueId;
   };
 
   // دالة مساعدة لمعرفة هل التقييم يحتوي على إنجاز فعلي (صفحات أو أبيات أو مراجعة)
@@ -1998,6 +2167,7 @@ const App: React.FC = () => {
   }, [data.newStudentTests, writeData, showToast]);
 
   const handleLogout = () => { 
+      setPendingSyncLogoutModalOpen(false);
       setCurrentUser(null); 
       localStorage.removeItem(CURRENT_USER_KEY);
       localStorage.removeItem(SESSION_TIMESTAMP_KEY); // مسح وقت الجلسة
@@ -2012,7 +2182,8 @@ const App: React.FC = () => {
       });
   };
 
-  const initiateLogoutCheck = () => {
+  const proceedAfterSyncCheck = () => {
+    setPendingSyncLogoutModalOpen(false);
     if (currentUser?.role === UserRole.TEACHER) {
       const { activeView, step, selectedWeek } = teacherSessionState;
 
@@ -2108,6 +2279,16 @@ const App: React.FC = () => {
     } else {
       handleLogout();
     }
+  };
+
+  const initiateLogoutCheck = () => {
+    const pendingItems = readSyncQueueFromStorage();
+    if (pendingItems.length > 0) {
+      setSyncQueue(pendingItems);
+      setPendingSyncLogoutModalOpen(true);
+      return;
+    }
+    proceedAfterSyncCheck();
   };
   
   const handleLogin = (user: User) => { 
@@ -2441,6 +2622,14 @@ const App: React.FC = () => {
               weekNumber={unevaluatedCheckedWeek} 
               onConfirmLogout={handleLogout} 
               onCancel={() => setUnevaluatedStudentsModalOpen(false)} 
+            />
+          )}
+          {pendingSyncLogoutModalOpen && (
+            <PendingSyncLogoutModal
+              pendingCount={syncQueue.length}
+              onRetrySync={processSyncQueue}
+              onConfirmLogout={proceedAfterSyncCheck}
+              onCancel={() => setPendingSyncLogoutModalOpen(false)}
             />
           )}
       </div>
