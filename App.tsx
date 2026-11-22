@@ -930,7 +930,7 @@ const App: React.FC = () => {
     if (!ev) return false;
     if (Number(ev.pages) > 0) return true;
     if (ev.newMemorizedPages && Array.isArray(ev.newMemorizedPages) && ev.newMemorizedPages.length > 0) return true;
-    if (ev.evaluationType === EvaluationType.REVIEW && (ev.testTotalScore !== undefined || (ev.surahs && ev.surahs.length > 0))) return true;
+    if ((ev.evaluationType === EvaluationType.REVIEW || ev.evaluationType === EvaluationType.SARD) && (ev.testTotalScore !== undefined || (ev.surahs && ev.surahs.length > 0))) return true;
     if (ev.subject === 'mutoon' && ev.evaluationType === EvaluationType.MEMORIZATION && ev.performance && ev.notes !== 'مسجل غائب من إدارة الحضور (برنامج العصر)' && !String(ev.notes || '').includes('مسجل غائب')) return true;
     return false;
   };

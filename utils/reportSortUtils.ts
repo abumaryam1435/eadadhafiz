@@ -27,12 +27,17 @@ export function getPerformanceRank(perfStr: any): number {
   if (!perfStr) return 999;
   const s = String(perfStr).trim();
   if (!s || s === '—' || s === 'undefined') return 999;
+  if (s.includes('شرف') || s.includes('مع الشرف')) return 0;
   if (s === 'excellent' || s === 'ممتاز') return 1;
   if (s === 'one_error' || s.includes('خطأ واحد')) return 2;
   if (s === 'two_errors' || s.includes('خطآن') || s.includes('خطئين')) return 3;
+  if (s.includes('جيد جدا') || s.includes('جيد جداً')) return 3.5;
   if (s === '3 أخطاء' || s === 'three_errors' || s.includes('3')) return 4;
+  if (s === 'جيد') return 4.5;
   if (s === '4 أخطاء' || s === 'four_errors' || s.includes('4')) return 5;
+  if (s === 'مقبول') return 5.5;
   if (s === '5 أخطاء' || s === 'five_errors' || s.includes('5')) return 6;
+  if (s === 'ضعيف') return 6.5;
   if (s === 'more_than_five_errors' || s.includes('أكثر من') || s.includes('اكثر من')) return 7;
   return 900;
 }
@@ -77,8 +82,9 @@ export function getEvaluationTypeRank(typeStr: any): number {
   const s = String(typeStr).trim();
   if (!s || s === '—') return 999;
   if (s === 'memorization' || s === 'حفظ') return 1;
-  if (s === 'review' || s === 'مراجعة') return 2;
-  if (s === 'did_not_memorize' || s === 'لم يحفظ') return 3;
+  if (s === 'review' || s === 'مراجعة' || s === 'مقاطع متفرقة') return 2;
+  if (s === 'sard' || s === 'سرد') return 3;
+  if (s === 'did_not_memorize' || s === 'لم يحفظ' || s === 'غير مستعد') return 4;
   return 900;
 }
 

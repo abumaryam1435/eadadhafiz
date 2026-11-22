@@ -574,7 +574,13 @@ export const ParentPortal: React.FC<ParentPortalProps> = ({ parentPhone }) => {
                             <div className="bg-white dark:bg-slate-900/80 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800">
                               <span className="text-gray-500 block text-[11px]">نوع التقييم:</span>
                               <span className="font-bold text-gray-800 dark:text-gray-200">
-                                {ev.evaluationType === EvaluationType.MEMORIZATION ? 'حفظ جديد' : ev.evaluationType === EvaluationType.REVIEW ? 'مراجعة' : 'غير مستعد'}
+                                {ev.evaluationType === EvaluationType.MEMORIZATION
+                                  ? 'حفظ جديد'
+                                  : ev.evaluationType === EvaluationType.REVIEW
+                                    ? 'مقاطع متفرقة'
+                                    : ev.evaluationType === EvaluationType.SARD
+                                      ? 'سرد'
+                                      : 'غير مستعد'}
                               </span>
                             </div>
                             <div className="bg-white dark:bg-slate-900/80 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800">

@@ -4951,6 +4951,8 @@ export function analyzeStudentQuranHistory(
       e.weekNumber < currentWeek &&
       (!currentEvalId || e.id !== currentEvalId) &&
       e.subject !== 'mutoon' &&
+      e.evaluationType !== EvaluationType.REVIEW &&
+      e.evaluationType !== EvaluationType.SARD &&
       ((e.newMemorizedPages && e.newMemorizedPages.length > 0) || (e.surahs && e.surahs.length > 0))
     )
     .sort((a, b) => a.weekNumber - b.weekNumber);

@@ -25,6 +25,7 @@ export enum AbsenceReason {
 export enum EvaluationType {
   MEMORIZATION = "memorization",
   REVIEW = "review",
+  SARD = "sard",
   DID_NOT_MEMORIZE = "did_not_memorize",
 }
 

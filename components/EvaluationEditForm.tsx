@@ -27,6 +27,7 @@ import { StudentProgressInfo } from './StudentProgressInfo';
 import { getCompletedJuzs } from '../utils/pageUtils';
 import { preloadMushafPages } from '../utils/mushafPreload';
 import { isReviewAllowedForStudent } from '../utils/reviewPermissions';
+import { calculateSardTotalErrors, calculateSardGrade, getSardGradeBadgeClass } from '../utils/sardUtils';
 
 interface EvaluationEditFormProps {
   initialEvaluation: Evaluation;
@@ -80,7 +81,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     );
   }, [initialEvaluation, student, halaqa, currentUser?.id, context?.reviewFeatureConfig, context?.halaqas, context?.students]);
 
-  const canShowReviewOption = isReviewAllowed || initialEvaluation.evaluationType === EvaluationType.REVIEW;
+  const canShowReviewOption = isReviewAllowed || initialEvaluation.evaluationType === EvaluationType.REVIEW || initialEvaluation.evaluationType === EvaluationType.SARD;
 
   const studentQuranHistory = useMemo(() => {
     return analyzeStudentQuranHistory(
@@ -512,7 +513,9 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     const fTashkeel = Number(evalTashkeel) || 0;
     const fTajweed = Number(evalTajweed) || 0;
     const isReview = (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.REVIEW || finalEvalType === EvaluationType.REVIEW);
+    const isSard = (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.SARD || finalEvalType === EvaluationType.SARD);
     const reviewScore = isReview ? Math.max(0, 100 - (fFath * 1 + fTashkeel * 1 + fTajweed * 0.5)) : undefined;
+    const sardGradeVal = isSard ? calculateSardGrade(calculateSardTotalErrors(fFath, fTashkeel, fTajweed)) : undefined;
 
     const tFath = Number(testFath) || 0;
     const tTashkeel = Number(testTashkeel) || 0;
@@ -523,13 +526,13 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
       attendance,
       absenceReason: attendance === AttendanceStatus.ABSENT ? absenceReason : null,
       evaluationType: (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && !initialEvaluation.isTest ? finalEvalType : null,
-      pages: isReview ? (selectionState.allActivePages.length || null) : finalPages,
-      newMemorizedPages: ((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.MEMORIZATION || isReview) && initialEvaluation.subject !== 'mutoon') ? selectionState.allActivePages : undefined,
-      fromAyah: finalFromAyah,
-      toAyah: finalToAyah,
-      surahs: ((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.MEMORIZATION || isReview)) ? selectedSurahs : initialEvaluation.surahs,
-      performance: isReview ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? finalPerformance : null),
-      periodicReview: isReview ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? (periodicReview || null) : null),
+      pages: (isReview || isSard) ? (selectionState.allActivePages.length || initialEvaluation.pages || null) : finalPages,
+      newMemorizedPages: ((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.MEMORIZATION || isReview || isSard) && initialEvaluation.subject !== 'mutoon') ? selectionState.allActivePages : undefined,
+      fromAyah: (isReview || isSard) ? null : finalFromAyah,
+      toAyah: (isReview || isSard) ? null : finalToAyah,
+      surahs: ((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.MEMORIZATION || isReview || isSard)) ? (selectedSurahs.length > 0 ? selectedSurahs : initialEvaluation.surahs) : initialEvaluation.surahs,
+      performance: isSard ? sardGradeVal : (isReview ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? finalPerformance : null)),
+      periodicReview: (isReview || isSard) ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? (periodicReview || null) : null),
       notes: notes || null,
       updatedAt: Date.now(),
       evalFathErrors: !initialEvaluation.isTest ? fFath : undefined,
@@ -732,14 +735,21 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
             {initialEvaluation.subject !== "mutoon" && (
             <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-gray-500 flex items-center gap-1.5 uppercase">نوع الإنجاز</label>
-                <div className={`grid ${canShowReviewOption ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                <div className={`grid ${canShowReviewOption ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'} gap-2`}>
                     <button type="button" onClick={() => setEvaluationType(EvaluationType.MEMORIZATION)} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.MEMORIZATION ? "bg-green-50 border-green-600 text-green-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>حفظ جديد</button>
                     {canShowReviewOption && (
-                      <button type="button" onClick={() => {
-                          setEvaluationType(EvaluationType.REVIEW);
-                          setPerformance(undefined);
-                          setPeriodicReview(undefined);
-                      }} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.REVIEW ? "bg-blue-50 border-blue-600 text-blue-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>مراجعة</button>
+                      <>
+                        <button type="button" onClick={() => {
+                            setEvaluationType(EvaluationType.REVIEW);
+                            setPerformance(undefined);
+                            setPeriodicReview(undefined);
+                        }} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.REVIEW ? "bg-blue-50 border-blue-600 text-blue-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>مقاطع متفرقة</button>
+                        <button type="button" onClick={() => {
+                            setEvaluationType(EvaluationType.SARD);
+                            setPerformance(undefined);
+                            setPeriodicReview(undefined);
+                        }} className={`py-2 rounded-lg text-[10px] font-black border transition-all ${evaluationType === EvaluationType.SARD ? "bg-emerald-50 border-emerald-600 text-emerald-900" : "bg-gray-50 border-transparent dark:bg-gray-800"}`}>سرد</button>
+                      </>
                     )}
                     <button type="button" onClick={() => {
                         setEvaluationType(EvaluationType.DID_NOT_MEMORIZE);
@@ -753,7 +763,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
             </div>
             )}
 
-            {(evaluationType === EvaluationType.MEMORIZATION || evaluationType === EvaluationType.REVIEW || initialEvaluation.subject === "mutoon") && (
+            {(evaluationType === EvaluationType.MEMORIZATION || evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD || initialEvaluation.subject === "mutoon") && (
                 <div className="space-y-2.5 p-3 bg-gray-50/50 dark:bg-slate-800/30 rounded-2xl border border-gray-100 dark:border-slate-800 animate-in slide-in-from-top-1 duration-500">
                     {initialEvaluation.subject === 'mutoon' ? (
                         <div className="space-y-4">
@@ -1052,18 +1062,18 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             )}
 
                             <label className="text-xs font-black text-gray-700 dark:text-gray-300 block text-center mb-1">
-                              {evaluationType === EvaluationType.REVIEW ? 'تحديد نطاق المراجعة بالأجزاء أو الصفحات أو السور' : 'تحديد الحفظ الجديد بالصفحات أو السور'}
+                              {evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD ? 'تحديد نطاق المراجعة / السرد بالأجزاء أو الصفحات أو السور' : 'تحديد الحفظ الجديد بالصفحات أو السور'}
                             </label>
 
                             <div>
                               <label className="text-[11px] font-black text-gray-700 dark:text-gray-300 block text-center mb-2">
-                                  {evaluationType === EvaluationType.REVIEW ? 'اختر الجزء لتحديده بالكامل أو عرض وتحديد صفحاته وسوره للمراجعة:' : 'اختر الجزء لعرض وتحديد صفحاته أو سوره:'}
+                                  {evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD ? 'اختر الجزء لتحديده بالكامل أو عرض وتحديد صفحاته وسوره:' : 'اختر الجزء لعرض وتحديد صفحاته أو سوره:'}
                                 </label>
                                 <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5 p-2 bg-gray-50/90 dark:bg-gray-800/60 rounded-2xl border border-gray-200/80 dark:border-gray-700">
                               {Array.from({ length: 30 }, (_, i) => i + 1).map(juz => {
                                 const isCompleted = completedJuzsSet.has(juz);
                                 const isSelected = selectedJuzForPages === juz;
-                                const isReviewMode = evaluationType === EvaluationType.REVIEW;
+                                const isReviewMode = evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD;
                                 const isOldJuz = studentQuranHistory.oldFullJuzs?.has(juz);
                                 const isNewJuz = studentQuranHistory.newEvalsFullJuzs?.has(juz);
                                 const pagesInJuz = juzPagesMap[juz] || [];
@@ -1162,7 +1172,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                 {quranSelectionTab === 'pages' && (
                                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                                     {juzPagesMap[selectedJuzForPages]?.map(page => {
-                                      const isReviewMode = evaluationType === EvaluationType.REVIEW;
+                                      const isReviewMode = evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD;
                                       const hist = getPageHistory(page);
                                        const isUnmemFull = hist === 'UNMEM_FULL';
                                        const isUnmemPartial = hist === 'UNMEM_PARTIAL';
@@ -1244,7 +1254,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                     ) : (
                                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
                                         {juzSurahsMap[selectedJuzForPages].map(sId => {
-                                          const isReviewMode = evaluationType === EvaluationType.REVIEW;
+                                          const isReviewMode = evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD;
                                           const hist = getSurahHistory(sId);
                                            const isUnmemFull = hist === 'UNMEM_FULL';
                                            const isUnmemPartial = hist === 'UNMEM_PARTIAL';
@@ -1318,12 +1328,12 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                             </div>
 
                             <div className="text-center text-[10px] font-bold mt-1 text-green-700 dark:text-green-400">
-                              {evaluationType === EvaluationType.REVIEW ? (
+                              {evaluationType === EvaluationType.REVIEW || evaluationType === EvaluationType.SARD ? (
                                 selectionState.allActivePages.length > 0 ? (
                                   <>
-                                    تم تحديد ({selectionState.allActivePages.length}) صفحة للمراجعة
+                                    تم تحديد ({selectionState.allActivePages.length}) صفحة
                                   </>
-                                ) : (selectedSurahs.length > 0 ? `تم تحديد (${selectedSurahs.length}) سور للمراجعة` : 'لم يتم تحديد صفحات أو سور للمراجعة بعد')
+                                ) : (selectedSurahs.length > 0 ? `تم تحديد (${selectedSurahs.length}) محتوى` : 'لم يتم تحديد صفحات أو سور بعد')
                               ) : (
                                 selectionState.allActivePages.length > 0 ? (
                                   <>
@@ -1364,7 +1374,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                     {initialEvaluation.subject !== 'mutoon' && (
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1.5 border-b border-gray-100 dark:border-gray-800 pb-1">
-                            {evaluationType === EvaluationType.REVIEW ? 'أخطاء المراجعة والدرجة' : 'سجل الأخطاء'}
+                            {evaluationType === EvaluationType.REVIEW ? 'أخطاء المراجعة والدرجة' : evaluationType === EvaluationType.SARD ? 'أخطاء السرد والتقدير' : 'سجل الأخطاء'}
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             {/* الفتح */}
@@ -1464,6 +1474,25 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                           </span>
                         </div>
                       </div>
+                    ) : evaluationType === EvaluationType.SARD ? (
+                      (() => {
+                        const totErrs = calculateSardTotalErrors(Number(evalFath) || 0, Number(evalTashkeel) || 0, Number(evalTajweed) || 0);
+                        const sGrade = calculateSardGrade(totErrs);
+                        return (
+                          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-1.5">
+                            <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 font-bold px-1">
+                              <span>إجمالي الأخطاء الموزونة: <strong className="text-gray-900 dark:text-gray-100 text-sm">{toArabicDigits(totErrs)}</strong></span>
+                              <span>معيار السرد</span>
+                            </div>
+                            <div className="flex justify-between items-center font-black text-emerald-900 dark:text-emerald-200 text-sm pt-1">
+                              <span>تقدير السرد:</span>
+                              <span className={`px-3 py-1 rounded-xl text-xs font-black ${getSardGradeBadgeClass(sGrade)}`}>
+                                {sGrade}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
                       <>
                         <div className="space-y-1">
@@ -1574,13 +1603,28 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                     )}
                     {draftEvaluation.surahs && draftEvaluation.surahs.length > 0 && (
                       <p className="flex justify-between items-center">
-                        <strong>السور المراجعة:</strong> 
+                        <strong>السور / الأجزاء المراجعة:</strong> 
                         <span className="text-left flex-1 mr-4 font-bold text-gray-800 dark:text-gray-200 break-words">{draftEvaluation.surahs.join('، ')}</span>
                       </p>
                     )}
                     <p className="flex justify-between text-gray-600 dark:text-gray-400"><strong>أخطاء الفتح (-1):</strong> <span>{draftEvaluation.evalFathErrors || 0}</span></p>
                     <p className="flex justify-between text-gray-600 dark:text-gray-400"><strong>أخطاء التشكيل (-1):</strong> <span>{draftEvaluation.evalTashkeelErrors || 0}</span></p>
                     <p className="flex justify-between text-gray-600 dark:text-gray-400"><strong>أخطاء التجويد (-0.5):</strong> <span>{draftEvaluation.evalTajweedErrors || 0}</span></p>
+                  </div>
+                )}
+                {draftEvaluation.evaluationType === EvaluationType.SARD && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 space-y-2">
+                    <p className="flex justify-between"><strong>عدد الصفحات:</strong> <span>{draftEvaluation.pages ?? draftEvaluation.newMemorizedPages?.length ?? '—'}</span></p>
+                    {draftEvaluation.surahs && draftEvaluation.surahs.length > 0 && (
+                      <p className="flex justify-between items-center">
+                        <strong>محتوى السرد:</strong> 
+                        <span className="text-left flex-1 mr-4 font-bold text-emerald-800 dark:text-emerald-300 break-words">{draftEvaluation.surahs.join('، ')}</span>
+                      </p>
+                    )}
+                    <p className="flex justify-between text-gray-600 dark:text-gray-400"><strong>أخطاء الفتح:</strong> <span>{draftEvaluation.evalFathErrors || 0}</span></p>
+                    <p className="flex justify-between text-gray-600 dark:text-gray-400"><strong>أخطاء التشكيل:</strong> <span>{draftEvaluation.evalTashkeelErrors || 0}</span></p>
+                    <p className="flex justify-between text-gray-600 dark:text-gray-400"><strong>أخطاء التجويد:</strong> <span>{draftEvaluation.evalTajweedErrors || 0}</span></p>
+                    <p className="flex justify-between"><strong>التقدير:</strong> <span className="font-black text-emerald-700 dark:text-emerald-300">{draftEvaluation.performance ? (translationMap[draftEvaluation.performance] || draftEvaluation.performance) : '—'}</span></p>
                   </div>
                 )}
               </>

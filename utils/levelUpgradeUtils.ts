@@ -128,7 +128,13 @@ export function getStudentLevelUpgrades(
 
   const evalsByStudent = new Map<number, Evaluation[]>();
   evaluations.forEach(e => {
-    if (!e || e.isTest || e.subject === 'mutoon') return;
+    if (
+      !e ||
+      e.isTest ||
+      e.subject === 'mutoon' ||
+      e.evaluationType === 'review' ||
+      e.evaluationType === 'sard'
+    ) return;
     if (!Array.isArray(e.newMemorizedPages) || e.newMemorizedPages.length === 0) return;
     const sid = Number(e.studentId);
     if (!evalsByStudent.has(sid)) evalsByStudent.set(sid, []);

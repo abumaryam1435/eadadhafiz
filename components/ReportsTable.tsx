@@ -421,7 +421,9 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
   ];
   const performanceOptions = Object.values(PerformanceLevel).map(level => ({ id: level, name: translationMap[level] }));
   const periodicReviewOptions = Object.values(PeriodicReviewStatus).map(status => ({ id: status, name: translationMap[status] }));
-  const evaluationTypeOptions = Object.values(EvaluationType).map(type => ({ id: type, name: translationMap[type] }));
+  const evaluationTypeOptions = Object.values(EvaluationType)
+    .filter(type => subjectFilter !== 'mutoon' || type !== EvaluationType.SARD)
+    .map(type => ({ id: type, name: translationMap[type] }));
   const alAmeenOptions = [
     { id: 'نعم', name: 'نعم' },
     { id: 'لا', name: 'لا' }

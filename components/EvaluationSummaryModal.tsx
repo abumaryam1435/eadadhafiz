@@ -151,7 +151,38 @@ const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
                           />
                         )}
 
-                        <SummaryRow label="مستوى الأداء" value={translationMap[evaluation.performance!] || '—'} colorClass="text-purple-600" />
+                        <SummaryRow label="مستوى الأداء" value={translationMap[evaluation.performance!] || evaluation.performance || '—'} colorClass="text-purple-600" />
+                      </>
+                    )}
+
+                    {!evaluation.isTest && (evaluation.evaluationType === EvaluationType.REVIEW || evaluation.evaluationType === EvaluationType.SARD) && (
+                      <>
+                        <SummaryRow 
+                          label="عدد الصفحات" 
+                          value={evaluation.pages !== null && evaluation.pages !== undefined ? toArabicDigits(evaluation.pages) : (evaluation.newMemorizedPages?.length ? toArabicDigits(evaluation.newMemorizedPages.length) : '—')} 
+                        />
+                        {evaluation.surahs && evaluation.surahs.length > 0 && (
+                          <div className="flex items-center justify-between py-1 border-b border-gray-50 dark:border-gray-800/50">
+                              <span className="text-[10px] font-bold text-gray-500 shrink-0">{evaluation.evaluationType === EvaluationType.SARD ? 'محتوى السرد:' : 'الأجزاء / السور:'}</span>
+                              <div className="flex flex-wrap gap-1 justify-end max-w-[160px]">
+                                  {evaluation.surahs.map(s => (
+                                      <span key={s} className="text-[9px] font-black bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/50">{s}</span>
+                                  ))}
+                              </div>
+                          </div>
+                        )}
+                        {((evaluation.evalFathErrors || 0) > 0 || (evaluation.evalTashkeelErrors || 0) > 0 || (evaluation.evalTajweedErrors || 0) > 0) && (
+                          <SummaryRow 
+                            label="الأخطاء" 
+                            value={`فتح: ${toArabicDigits(evaluation.evalFathErrors || 0)} | تشكيل: ${toArabicDigits(evaluation.evalTashkeelErrors || 0)} | تجويد: ${toArabicDigits(evaluation.evalTajweedErrors || 0)}`} 
+                          />
+                        )}
+                        {evaluation.evaluationType === EvaluationType.REVIEW && evaluation.testTotalScore !== undefined && (
+                          <SummaryRow label="درجة المراجعة" value={`${toArabicDigits(evaluation.testTotalScore)} / ١٠٠`} colorClass="text-indigo-600" />
+                        )}
+                        {evaluation.performance && (
+                          <SummaryRow label="التقدير / الأداء" value={translationMap[evaluation.performance] || evaluation.performance} colorClass="text-emerald-700 dark:text-emerald-300" />
+                        )}
                       </>
                     )}
 
@@ -164,7 +195,7 @@ const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
                       </>
                     )}
 
-                    {!evaluation.isTest && (
+                    {!evaluation.isTest && evaluation.evaluationType === EvaluationType.MEMORIZATION && (
                       <SummaryRow label="المراجعة الدورية" value={translationMap[evaluation.periodicReview!] || '—'} colorClass={evaluation.periodicReview === 'committed' ? "text-teal-600" : ""} />
                     )}
                   </>

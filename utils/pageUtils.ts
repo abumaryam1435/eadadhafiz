@@ -194,7 +194,12 @@ export function getMemorizedPagesData(student: Student, evaluations: Evaluation[
 
   const newSet = new Set<number>();
   evaluations.forEach(e => {
-    if (e.studentId === student.id && e.newMemorizedPages) {
+    if (
+      e.studentId === student.id &&
+      e.newMemorizedPages &&
+      e.evaluationType !== EvaluationType.REVIEW &&
+      e.evaluationType !== EvaluationType.SARD
+    ) {
       e.newMemorizedPages.forEach(p => {
          if (!oldSet.has(p)) {
              newSet.add(p);

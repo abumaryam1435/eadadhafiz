@@ -324,6 +324,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const [attendance, setAttendance] = useState<AttendanceStatus | undefined>();
   const [absenceReason, setAbsenceReason] = useState<AbsenceReason | undefined>();
   const [evalType, setEvalType] = useState<EvaluationType | undefined>();
+  const [reviewSubMode, setReviewSubMode] = useState<'passages' | 'sard'>('passages');
+  const [sardSelectionErrorMsg, setSardSelectionErrorMsg] = useState<string | null>(null);
   const [reviewSelectedJuzs, setReviewSelectedJuzs] = useState<number[]>([]);
   const [reviewSuggestedPassages, setReviewSuggestedPassages] = useState<SuggestedTestPassage[]>([]);
   const [activeReviewPassageForMushaf, setActiveReviewPassageForMushaf] = useState<SuggestedTestPassage | null>(null);
@@ -649,8 +651,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   }, [activeStudent?.id, teacherId, context?.reviewFeatureConfig, context?.halaqas, context?.students]);
 
   useEffect(() => {
-    if (!isReviewAllowed && evalType === EvaluationType.REVIEW) {
+    if (!isReviewAllowed && (evalType === EvaluationType.REVIEW || evalType === EvaluationType.SARD)) {
       setEvalType(EvaluationType.MEMORIZATION);
+      setReviewSubMode('passages');
     }
   }, [isReviewAllowed, evalType]);
 
@@ -768,7 +771,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
 
   // الأجزاء المكتملة في محفوظ الطالب (أو الطالب الأقل حفظاً في السرد الجماعي)
   const studentCompletedJuzs = useMemo(() => {
-    if (sardEvalMode === 'group') {
+    const isGroupSard = subject === 'sard' && sardEvalMode === 'group';
+    if (isGroupSard) {
       if (leastMemorizedStudentInfo) {
         return leastMemorizedStudentInfo.completedJuzs;
       }
@@ -777,11 +781,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     }
     if (!studentPagesData) return [];
     return getCompletedJuzs(studentPagesData.totalSet);
-  }, [studentPagesData, groupPagesData, sardEvalMode, leastMemorizedStudentInfo]);
+  }, [subject, studentPagesData, groupPagesData, sardEvalMode, leastMemorizedStudentInfo]);
 
   // السور المكتملة في محفوظ الطالب (أو المشتركة في السرد الجماعي)
   const studentCompletedSurahs = useMemo(() => {
-    const dataSet = sardEvalMode === 'group' ? groupPagesData?.totalSet : studentPagesData?.totalSet;
+    const isGroupSard = subject === 'sard' && sardEvalMode === 'group';
+    const dataSet = isGroupSard ? groupPagesData?.totalSet : studentPagesData?.totalSet;
     if (!dataSet) return [];
 
     const list: { id: number; name: string; pagesCount: number; pages: number[] }[] = [];
@@ -797,7 +802,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       }
     }
     return list;
-  }, [studentPagesData, groupPagesData, sardEvalMode]);
+  }, [subject, studentPagesData, groupPagesData, sardEvalMode]);
 
   // تصفية السور المحفوظة حسب البحث
   const filteredSardSurahs = useMemo(() => {
@@ -881,7 +886,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       }
 
       const unmemorized: number[] = [];
-      const dataSet = sardEvalMode === 'group' ? groupPagesData?.totalSet : studentPagesData?.totalSet;
+      const isGroupSard = subject === 'sard' && sardEvalMode === 'group';
+      const dataSet = isGroupSard ? groupPagesData?.totalSet : studentPagesData?.totalSet;
       for (let p = start; p <= end; p++) {
         allUniquePagesSet.add(p);
         if (!dataSet || !dataSet.has(p)) {
@@ -940,7 +946,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       summaryMessage,
       allUniquePages: Array.from(allUniquePagesSet).sort((a, b) => a - b),
     };
-  }, [sardPageRanges, studentPagesData, groupPagesData, sardEvalMode]);
+  }, [subject, sardPageRanges, studentPagesData, groupPagesData, sardEvalMode]);
 
   // حساب كافة الصفحات المحددة للسرد لتصفحها في المصحف
   const sardActivePages = useMemo(() => {
@@ -1082,6 +1088,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     setSelectedSardGroupIds([]);
     setSardGroupErrors({});
     setSardGroupNotes({});
+    setReviewSubMode('passages');
+    setSardSelectionErrorMsg(null);
     setReviewSelectedJuzs([]);
     setReviewSuggestedPassages([]);
     setActiveReviewPassageForMushaf(null);
@@ -1576,6 +1584,19 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
     const reviewSelectedPagesList = reviewSelectedJuzs.flatMap(j => juzPagesMap[j] || []);
     const range = ayahRange ? ayahRange.split('-').map(s => parseInt(s.trim())) : [];
 
+    const isReviewSard = evalType === EvaluationType.SARD;
+    const reviewSardSurahs: string[] = isReviewSard
+      ? sardSelectionMode === 'juz'
+        ? selectedSardJuzList.map(j => `الجزء ${toArabicDigits(j)}`)
+        : sardSelectionMode === 'surahs'
+          ? selectedSardSurahIds.map(id => surahNames[id]).filter(Boolean)
+          : sardPageRanges
+              .filter(r => r.fromPage !== '' && r.toPage !== '')
+              .map(r => `ص ${formatRtlRange(`${r.fromPage} - ${r.toPage}`)}`)
+      : [];
+    const reviewSardTotalErrors = calculateSardTotalErrors(evalFath, evalTashkeel, evalTajweed);
+    const reviewSardGrade = calculateSardGrade(reviewSardTotalErrors);
+
     const data: any = {
       studentId: selectedStudent, 
       halaqaId: selectedHalaqa, 
@@ -1585,24 +1606,30 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       attendance: attendance!, 
       absenceReason: absenceReason || null, 
       evaluationType: evalType || null, 
-      pages: evalType === EvaluationType.REVIEW 
-        ? (reviewSelectedPagesList.length > 0 ? countQuranPages(reviewSelectedPagesList) : countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) 
-        : (selectionState.allActivePages.length > 0 ? selectionState.newPagesCount : null),
-      fromAyah: range[0] || null, 
-      toAyah: range[1] || range[0] || null, 
-      surahs: evalType === EvaluationType.REVIEW && reviewSelectedJuzs.length > 0 
-        ? reviewSelectedJuzs.map(j => `الجزء ${toArabicDigits(j)}`) 
-        : (surahs || null), 
-      performance: perf || null, 
-      newMemorizedPages: evalType === EvaluationType.REVIEW 
-        ? (reviewSelectedPagesList.length > 0 ? reviewSelectedPagesList : Array.from(new Set([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]))) 
-        : (selectionState.allActivePages.length > 0 ? selectionState.allActivePages : undefined),
+      pages: isReviewSard
+        ? calculatedSardPages
+        : evalType === EvaluationType.REVIEW 
+          ? (reviewSelectedPagesList.length > 0 ? countQuranPages(reviewSelectedPagesList) : countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) 
+          : (selectionState.allActivePages.length > 0 ? selectionState.newPagesCount : null),
+      fromAyah: isReviewSard || evalType === EvaluationType.REVIEW ? null : (range[0] || null), 
+      toAyah: isReviewSard || evalType === EvaluationType.REVIEW ? null : (range[1] || range[0] || null), 
+      surahs: isReviewSard
+        ? reviewSardSurahs
+        : evalType === EvaluationType.REVIEW && reviewSelectedJuzs.length > 0 
+          ? reviewSelectedJuzs.map(j => `الجزء ${toArabicDigits(j)}`) 
+          : (surahs || null), 
+      performance: isReviewSard ? reviewSardGrade : (perf || null), 
+      newMemorizedPages: isReviewSard
+        ? (sardActivePages.length > 0 ? sardActivePages : undefined)
+        : evalType === EvaluationType.REVIEW 
+          ? (reviewSelectedPagesList.length > 0 ? reviewSelectedPagesList : Array.from(new Set([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages]))) 
+          : (selectionState.allActivePages.length > 0 ? selectionState.allActivePages : undefined),
       evalFathErrors: evalFath,
       evalTashkeelErrors: evalTashkeel,
       evalTajweedErrors: evalTajweed,
       testTotalScore: evalType === EvaluationType.REVIEW ? reviewScore : undefined,
       testMaxScore: evalType === EvaluationType.REVIEW ? 100 : undefined,
-      periodicReview: pReview || null, 
+      periodicReview: isReviewSard || evalType === EvaluationType.REVIEW ? null : (pReview || null), 
       notes: notes || null,
       evaluationDate: today,
       };
@@ -3034,7 +3061,12 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 <button 
                   type="button" 
                   onClick={() => { 
+                    setReviewSubMode('passages');
                     setEvalType(EvaluationType.REVIEW); 
+                    if (sardSelectionMode === 'activity') {
+                      setSardSelectionMode('juz');
+                    }
+                    setSardSelectionErrorMsg(null);
                     setEvalFath(0);
                     setEvalTashkeel(0);
                     setEvalTajweed(0);
@@ -3043,7 +3075,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     setCurrentStep('reviewJuzSelection'); 
                   }} 
                   className={`py-5 sm:py-6 px-2 rounded-2xl font-black text-sm sm:text-base border-2 transition-all flex flex-col items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95 touch-manipulation ${
-                    evalType === EvaluationType.REVIEW 
+                    evalType === EvaluationType.REVIEW || evalType === EvaluationType.SARD
                       ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102' 
                       : 'bg-blue-50/90 hover:bg-blue-100 text-blue-950 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800'
                   }`}
@@ -3082,75 +3114,561 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         )}
 
         {currentStep === 'reviewJuzSelection' && (
-          <div className="space-y-4 animate-fade-in max-w-xl mx-auto">
-            <div className="bg-blue-50/90 dark:bg-blue-950/50 p-3.5 sm:p-4 rounded-2xl border-2 border-blue-200 dark:border-blue-800 text-right shadow-xs">
-              <h3 className="font-black text-base sm:text-lg text-blue-950 dark:text-blue-100 flex items-center gap-2">
-                <span className="text-xl">🔄</span>
-                <span>تحديد أجزاء المراجعة (1 إلى 30)</span>
-              </h3>
+          <div className="space-y-4 animate-fade-in max-w-2xl mx-auto">
+            {/* تبويبا المراجعة: مقاطع مقترحة | سرد */}
+            <div className="grid grid-cols-2 gap-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewSubMode('passages');
+                  setEvalType(EvaluationType.REVIEW);
+                  setSardSelectionErrorMsg(null);
+                  setHighlightSardSelectionError(false);
+                }}
+                className={`py-2.5 px-3 rounded-xl font-black text-sm sm:text-base transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                  reviewSubMode === 'passages'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <span>🔄</span>
+                <span>مقاطع مقترحة</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewSubMode('sard');
+                  setEvalType(EvaluationType.SARD);
+                  if (sardSelectionMode === 'activity') {
+                    setSardSelectionMode('juz');
+                  }
+                  setSardSelectionErrorMsg(null);
+                  setHighlightSardSelectionError(false);
+                }}
+                className={`py-2.5 px-3 rounded-xl font-black text-sm sm:text-base transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                  reviewSubMode === 'sard'
+                    ? 'bg-emerald-700 text-white shadow-sm'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-white/70 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <span>📖</span>
+                <span>سرد</span>
+              </button>
             </div>
 
-            <div className="flex items-center justify-between gap-2 px-1">
-              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                الأجزاء المحددة: <strong className="text-blue-600 dark:text-blue-400 font-black text-sm">{toArabicDigits(reviewSelectedJuzs.length)}</strong> من ٣٠
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setReviewSelectedJuzs(Array.from({ length: 30 }, (_, i) => i + 1))}
-                  className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                >
-                  تحديد الكل
-                </button>
-                <span className="text-gray-300 dark:text-gray-600">|</span>
-                <button
-                  type="button"
-                  onClick={() => setReviewSelectedJuzs([])}
-                  className="text-xs font-black text-gray-500 dark:text-gray-400 hover:underline cursor-pointer"
-                >
-                  إلغاء التحديد
-                </button>
-              </div>
-            </div>
+            {reviewSubMode === 'passages' ? (
+              <>
+                <div className="bg-blue-50/90 dark:bg-blue-950/50 p-3.5 sm:p-4 rounded-2xl border-2 border-blue-200 dark:border-blue-800 text-right shadow-xs">
+                  <h3 className="font-black text-base sm:text-lg text-blue-950 dark:text-blue-100 flex items-center gap-2">
+                    <span className="text-xl">🔄</span>
+                    <span>تحديد أجزاء المراجعة (1 إلى 30)</span>
+                  </h3>
+                </div>
 
-            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5 p-2 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850/30">
-              {Array.from({ length: 30 }, (_, i) => i + 1).map(juzNum => {
-                const isSelected = reviewSelectedJuzs.includes(juzNum);
-                return (
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                    الأجزاء المحددة: <strong className="text-blue-600 dark:text-blue-400 font-black text-sm">{toArabicDigits(reviewSelectedJuzs.length)}</strong> من ٣٠
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReviewSelectedJuzs(Array.from({ length: 30 }, (_, i) => i + 1))}
+                      className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      تحديد الكل
+                    </button>
+                    <span className="text-gray-300 dark:text-gray-600">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setReviewSelectedJuzs([])}
+                      className="text-xs font-black text-gray-500 dark:text-gray-400 hover:underline cursor-pointer"
+                    >
+                      إلغاء التحديد
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-1.5 p-2 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850/30">
+                  {Array.from({ length: 30 }, (_, i) => i + 1).map(juzNum => {
+                    const isSelected = reviewSelectedJuzs.includes(juzNum);
+                    return (
+                      <button
+                        key={juzNum}
+                        type="button"
+                        onClick={() => {
+                          setReviewSelectedJuzs(prev =>
+                            prev.includes(juzNum)
+                              ? prev.filter(j => j !== juzNum)
+                              : [...prev, juzNum].sort((a, b) => a - b)
+                          );
+                        }}
+                        className={`py-2 px-1 rounded-xl text-xs font-black border-2 transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer select-none active:scale-95 touch-manipulation ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102'
+                            : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+                        }`}
+                      >
+                        <span className="text-[9px] opacity-80">جزء</span>
+                        <span className="text-sm sm:text-base leading-none">{toArabicDigits(juzNum)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <FormNav
+                  back={() => setCurrentStep('selectEvaluationType')}
+                  next={reviewSelectedJuzs.length > 0 ? () => {
+                    setEvalType(EvaluationType.REVIEW);
+                    const generated = generateReviewPassagesForJuzs(reviewSelectedJuzs);
+                    setReviewSuggestedPassages(generated);
+                    setReviewCompletedPassages([]);
+                    setReviewPassageChanges(0);
+                    preloadMushafPages(generated.flatMap(p => p.pages));
+                    setCurrentStep('selectPerformanceLevel');
+                  } : undefined}
+                />
+              </>
+            ) : (
+              <>
+                {/* شريط مصحف السرد */}
+                <div className="flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-3 sm:p-3.5 rounded-2xl shadow-sm border border-emerald-700/60">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">📖</span>
+                    <div>
+                      <span className="text-xs sm:text-sm font-black block">مصحف السرد</span>
+                      <span className="text-[10px] sm:text-[11px] text-emerald-100/90 font-bold block">
+                        تصفح صفحات المصحف المحددة أثناء السرد
+                      </span>
+                    </div>
+                  </div>
                   <button
-                    key={juzNum}
                     type="button"
-                    onClick={() => {
-                      setReviewSelectedJuzs(prev =>
-                        prev.includes(juzNum)
-                          ? prev.filter(j => j !== juzNum)
-                          : [...prev, juzNum].sort((a, b) => a - b)
-                      );
-                    }}
-                    className={`py-2 px-1 rounded-xl text-xs font-black border-2 transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer select-none active:scale-95 touch-manipulation ${
-                      isSelected
-                        ? 'bg-blue-600 border-blue-700 text-white shadow-md scale-102'
-                        : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
-                    }`}
+                    onClick={() => setIsMushafModalOpen(true)}
+                    disabled={sardActivePages.length === 0}
+                    className="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-white hover:bg-emerald-50 text-emerald-900 text-xs sm:text-sm font-black rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    title="فتح صفحات المصحف للسرد"
                   >
-                    <span className="text-[9px] opacity-80">جزء</span>
-                    <span className="text-sm sm:text-base leading-none">{toArabicDigits(juzNum)}</span>
+                    <span>فتح المصحف</span>
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                      {toArabicDigits(sardActivePages.length)} ص
+                    </span>
                   </button>
-                );
-              })}
-            </div>
+                </div>
 
-            <FormNav
-              back={() => setCurrentStep('selectEvaluationType')}
-              next={reviewSelectedJuzs.length > 0 ? () => {
-                const generated = generateReviewPassagesForJuzs(reviewSelectedJuzs);
-                setReviewSuggestedPassages(generated);
-                setReviewCompletedPassages([]);
-                setReviewPassageChanges(0);
-                preloadMushafPages(generated.flatMap(p => p.pages));
-                setCurrentStep('selectPerformanceLevel');
-              } : undefined}
-            />
+                {/* عرض بيانات محفوظ الطالب */}
+                {activeStudent && <StudentProgressInfo student={activeStudent} subject="quran" />}
+
+                {/* تحديد محتوى السرد بالأجزاء أو السور أو الصفحات */}
+                <div className="space-y-3.5 bg-emerald-50/70 dark:bg-emerald-950/40 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800/80 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-black text-sm text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
+                      <span>📖</span> تحديد محتوى السرد:
+                    </span>
+                    <div className="flex flex-wrap gap-1 bg-white/90 dark:bg-gray-800 p-1 rounded-xl border border-emerald-200 dark:border-emerald-900 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => { setSardSelectionMode('juz'); setSardSelectionErrorMsg(null); }}
+                        className={`px-2.5 sm:px-3 py-1 rounded-lg font-black transition-all ${
+                          sardSelectionMode === 'juz'
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-emerald-700'
+                        }`}
+                      >
+                        بالأجزاء ({showAllQuranJuzs ? '30' : studentCompletedJuzs.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSardSelectionMode('surahs'); setSardSelectionErrorMsg(null); }}
+                        className={`px-2.5 sm:px-3 py-1 rounded-lg font-black transition-all ${
+                          sardSelectionMode === 'surahs'
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-emerald-700'
+                        }`}
+                      >
+                        بالسور ({studentCompletedSurahs.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSardSelectionMode('pages'); setSardSelectionErrorMsg(null); }}
+                        className={`px-2.5 sm:px-3 py-1 rounded-lg font-black transition-all ${
+                          sardSelectionMode === 'pages'
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-emerald-700'
+                        }`}
+                      >
+                        بالصفحات
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 1. التحديد بالأجزاء */}
+                  {sardSelectionMode === 'juz' && (
+                    <div className="space-y-2.5">
+                      <div className="flex flex-wrap justify-between items-center text-xs px-1 gap-2">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowAllQuranJuzs(prev => !prev)}
+                            className={`text-xs font-black px-3 py-1.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs border ${
+                              showAllQuranJuzs
+                                ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700'
+                                : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {showAllQuranJuzs ? (
+                              <>
+                                <span>🎯</span>
+                                <span>إظهار الأجزاء المحفوظة فقط</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>📖</span>
+                                <span>إظهار جميع أجزاء المصحف (30 جزء)</span>
+                              </>
+                            )}
+                          </button>
+
+                          {!showAllQuranJuzs ? (
+                            studentCompletedJuzs.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={selectAllSardJuzs}
+                                className="font-bold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
+                              >
+                                <span>⚡</span>
+                                <span>
+                                  {selectedSardJuzList.length === studentCompletedJuzs.length
+                                    ? 'إلغاء تحديد الكل'
+                                    : `تحديد كل الأجزاء المحفوظة (${toArabicDigits(studentCompletedJuzs.length)})`}
+                                </span>
+                              </button>
+                            )
+                          ) : (
+                            <>
+                              {studentCompletedJuzs.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={selectAllSardJuzs}
+                                  className="font-bold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
+                                >
+                                  <span>⭐</span>
+                                  <span>تحديد المحفوظ ({toArabicDigits(studentCompletedJuzs.length)})</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={selectAllQuranJuzs}
+                                className="font-bold text-indigo-700 dark:text-indigo-300 hover:underline flex items-center gap-1"
+                              >
+                                <span>📖</span>
+                                <span>تحديد كامل المصحف (30)</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {selectedSardJuzList.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearAllSardJuzs}
+                            className="font-bold text-red-600 dark:text-red-400 hover:underline"
+                          >
+                            مسح التحديد
+                          </button>
+                        )}
+                      </div>
+
+                      {showAllQuranJuzs || studentCompletedJuzs.length > 0 ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-56 overflow-y-auto p-1.5 custom-scrollbar bg-gray-50/50 dark:bg-gray-900/30 rounded-2xl border border-gray-200/70 dark:border-gray-700/70">
+                          {(showAllQuranJuzs ? Array.from({ length: 30 }, (_, i) => i + 1) : studentCompletedJuzs).map(juz => {
+                            const isSelected = selectedSardJuzList.includes(juz);
+                            const isMemorized = studentCompletedJuzs.includes(juz);
+                            return (
+                              <button
+                                key={juz}
+                                type="button"
+                                onClick={() => toggleSardJuz(juz)}
+                                className={`py-2 px-1 rounded-xl text-xs font-black transition-all text-center relative flex flex-col items-center justify-center min-h-[48px] select-none ${
+                                  isSelected
+                                    ? 'bg-emerald-700 text-white shadow-md ring-2 ring-emerald-500 scale-[1.02]'
+                                    : isMemorized && showAllQuranJuzs
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 border-2 border-emerald-400 dark:border-emerald-600 hover:border-emerald-500 shadow-2xs font-black'
+                                      : isMemorized
+                                        ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:border-emerald-400'
+                                        : 'bg-white/70 dark:bg-gray-800/70 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-gray-400 opacity-75 hover:opacity-100'
+                                }`}
+                              >
+                                <span className="leading-none">جـ {toArabicDigits(juz)}</span>
+                                {showAllQuranJuzs && (
+                                  <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-1 leading-none ${
+                                    isSelected
+                                      ? 'bg-emerald-900/80 text-emerald-100'
+                                      : isMemorized
+                                        ? 'bg-emerald-200/90 text-emerald-950 dark:bg-emerald-800 dark:text-emerald-100'
+                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                  }`}>
+                                    {isMemorized ? '⭐ محفوظ' : 'غير مكتمل'}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-bold text-center space-y-2.5">
+                          <p>لم يكتمل جزء كامل في محفوظ الطالب حتى الآن.</p>
+                          <button
+                            type="button"
+                            onClick={() => setShowAllQuranJuzs(true)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-black text-xs transition-all shadow-xs"
+                          >
+                            <span>📖 إظهار جميع أجزاء المصحف (30 جزء) للتحديد الحر</span>
+                          </button>
+                        </div>
+                      )}
+                      <div className="text-center text-xs font-black text-emerald-900 dark:text-emerald-200 bg-white dark:bg-gray-800/90 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-xs">
+                        تم تحديد ({toArabicDigits(selectedSardJuzList.length)}) أجزاء = ({toArabicDigits(calculatedSardPages)}) صفحة
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. التحديد بالسور */}
+                  {sardSelectionMode === 'surahs' && (
+                    <div className="space-y-2.5">
+                      {studentCompletedSurahs.length > 0 ? (
+                        <>
+                          <div className="flex flex-col sm:flex-row gap-2 justify-between sm:items-center text-xs">
+                            <div className="relative flex items-center w-full sm:w-48">
+                              <input
+                                type="text"
+                                placeholder="🔍 ابحث عن سورة محفوظة..."
+                                value={sardSurahSearch}
+                                onChange={e => setSardSurahSearch(e.target.value)}
+                                className="input-style py-1 pl-7 pr-2.5 text-xs w-full font-bold"
+                              />
+                              {sardSurahSearch && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSardSurahSearch('')}
+                                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                  title="مسح البحث"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex gap-3 justify-end items-center px-1">
+                              <button
+                                type="button"
+                                onClick={selectAllSardSurahs}
+                                className="font-bold text-emerald-700 dark:text-emerald-300 hover:underline"
+                              >
+                                {selectedSardSurahIds.length === studentCompletedSurahs.length ? 'إلغاء تحديد الكل' : `تحديد كل السور (${studentCompletedSurahs.length})`}
+                              </button>
+                              {selectedSardSurahIds.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={clearAllSardSurahs}
+                                  className="font-bold text-red-600 dark:text-red-400 hover:underline"
+                                >
+                                  مسح
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                            {filteredSardSurahs.map(s => {
+                              const isSelected = selectedSardSurahIds.includes(s.id);
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => toggleSardSurah(s.id)}
+                                  className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+                                    isSelected
+                                      ? 'bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-500 scale-[1.01]'
+                                      : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:border-emerald-400'
+                                  }`}
+                                >
+                                  <span className="truncate">{s.name}</span>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${isSelected ? 'bg-emerald-800 text-emerald-100' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                                    {toArabicDigits(s.pagesCount)} ص
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-bold text-center">
+                          لم تكتمل سورة كاملة في محفوظ الطالب حتى الآن، يمكنك استخدام التحديد بنطاق الصفحات.
+                        </div>
+                      )}
+                      <div className="text-center text-xs font-black text-emerald-900 dark:text-emerald-200 bg-white dark:bg-gray-800/90 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-xs">
+                        تم تحديد ({toArabicDigits(selectedSardSurahIds.length)}) سورة = ({toArabicDigits(calculatedSardPages)}) صفحة
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. التحديد بنطاق الصفحات */}
+                  {sardSelectionMode === 'pages' && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center px-1">
+                        <span className="text-xs font-black text-gray-700 dark:text-gray-300">
+                          نطاقات صفحات السرد:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={addSardPageRange}
+                          className="text-xs font-black text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                        >
+                          <span>➕ إضافة نطاق إضافي</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {sardPageRanges.map((range, idx) => {
+                          const itemAnalysis = sardMultiRangeAnalysis.rangeAnalyses[idx];
+                          return (
+                            <div 
+                              key={idx} 
+                              className="p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs space-y-2"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                                  النطاق ({toArabicDigits(idx + 1)})
+                                </span>
+                                {sardPageRanges.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSardPageRange(idx)}
+                                    className="text-rose-600 dark:text-rose-400 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                                    title="حذف هذا النطاق"
+                                  >
+                                    <span>🗑️ حذف النطاق</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2.5">
+                                <div>
+                                  <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+                                    من صفحة (البداية):
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="604"
+                                    placeholder="مثلاً: 1"
+                                    value={safeNumberVal(range.fromPage, '')}
+                                    onChange={e => {
+                                      const v = parseSafeNumber(e.target.value, NaN);
+                                      updateSardPageRange(idx, 'fromPage', isNaN(v) ? '' : v);
+                                    }}
+                                    className="input-style text-center font-black text-base py-1.5"
+                                    onFocus={handleInputFocus}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+                                    إلى صفحة (النهاية):
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="604"
+                                    placeholder="مثلاً: 20"
+                                    value={safeNumberVal(range.toPage, '')}
+                                    onChange={e => {
+                                      const v = parseSafeNumber(e.target.value, NaN);
+                                      updateSardPageRange(idx, 'toPage', isNaN(v) ? '' : v);
+                                    }}
+                                    className="input-style text-center font-black text-base py-1.5"
+                                    onFocus={handleInputFocus}
+                                  />
+                                </div>
+                              </div>
+
+                              {range.fromPage !== '' && range.toPage !== '' && itemAnalysis && (
+                                <div className={`p-2 rounded-xl text-[11px] font-bold ${
+                                  itemAnalysis.isValid
+                                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                }`}>
+                                  {itemAnalysis.isValid ? '✅ ' : '⚠️ '}
+                                  {itemAnalysis.message}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {sardPageRanges.some(r => r.fromPage !== '' || r.toPage !== '') && (
+                        <div className={`p-3 rounded-2xl text-xs font-bold leading-relaxed ${
+                          sardMultiRangeAnalysis.isValid
+                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700'
+                            : 'bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-200 border border-rose-300 dark:border-rose-700'
+                        }`}>
+                          {sardMultiRangeAnalysis.isValid ? '✅ ' : '⚠️ '}
+                          {sardMultiRangeAnalysis.summaryMessage}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={addSardPageRange}
+                          className="flex-1 py-2 px-3 border-2 border-dashed border-emerald-400 dark:border-emerald-600 rounded-xl text-xs font-black text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <span>➕ إضافة نطاق آخر</span>
+                        </button>
+                      </div>
+
+                      <div className="text-center text-xs font-black text-emerald-900 dark:text-emerald-200 bg-white dark:bg-gray-800/90 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-xs">
+                        إجمالي صفحات السرد: ({toArabicDigits(calculatedSardPages)}) صفحة
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {(highlightSardSelectionError || sardSelectionErrorMsg) && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/50 border-2 border-red-400 rounded-xl text-center text-xs sm:text-sm font-black text-red-700 dark:text-red-300">
+                    {sardSelectionErrorMsg || '⚠️ يرجى تحديد محتوى السرد للمتابعة إلى التقييم'}
+                  </div>
+                )}
+
+                <FormNav
+                  back={() => setCurrentStep('selectEvaluationType')}
+                  next={() => {
+                    if (sardSelectionMode === 'pages') {
+                      if (sardPageRanges.every(r => r.fromPage === '' && r.toPage === '')) {
+                        setSardSelectionErrorMsg('⚠️ يرجى إدخال نطاق صفحات واحد على الأقل للمتابعة');
+                        setHighlightSardSelectionError(true);
+                        setTimeout(() => setHighlightSardSelectionError(false), 2500);
+                        return;
+                      }
+                      if (!sardMultiRangeAnalysis.isValid) {
+                        setSardSelectionErrorMsg(sardMultiRangeAnalysis.summaryMessage || '⚠️ نطاقات الصفحات غير صالحة أو تحتوي على صفحات غير محفوظة');
+                        setHighlightSardSelectionError(true);
+                        return;
+                      }
+                    } else if (calculatedSardPages <= 0) {
+                      setSardSelectionErrorMsg('⚠️ يرجى تحديد محتوى السرد للمتابعة إلى التقييم');
+                      setHighlightSardSelectionError(true);
+                      setTimeout(() => setHighlightSardSelectionError(false), 2500);
+                      return;
+                    }
+                    setSardSelectionErrorMsg(null);
+                    setEvalType(EvaluationType.SARD);
+                    if (sardActivePages.length > 0) {
+                      preloadMushafPages(sardActivePages.slice(0, 10));
+                    }
+                    setCurrentStep('selectPerformanceLevel');
+                  }}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -4515,9 +5033,64 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 </div>
               )}
 
+              {evalType === EvaluationType.SARD && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-3 rounded-2xl shadow-sm border border-emerald-700/60">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">📖</span>
+                      <div>
+                        <span className="text-xs sm:text-sm font-black block">مصحف السرد</span>
+                        <span className="text-[10px] sm:text-[11px] text-emerald-100/90 font-bold block">
+                          عرض صفحات المصحف المحددة أثناء السرد
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsMushafModalOpen(true)}
+                      disabled={sardActivePages.length === 0}
+                      className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-900 text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    >
+                      <span>فتح المصحف</span>
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                        {toArabicDigits(sardActivePages.length)} ص
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="bg-emerald-50 dark:bg-emerald-950/50 p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between gap-3 shadow-xs">
+                    <div className="space-y-1 overflow-hidden text-right">
+                      <div className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                        <span>📖</span>
+                        <span>المحتوى المحدد للسرد:</span>
+                      </div>
+                      <div className="text-xs sm:text-sm font-black text-gray-800 dark:text-gray-100 truncate">
+                        {sardSelectionMode === 'juz' && (selectedSardJuzList.length > 0 ? `الأجزاء (${selectedSardJuzList.slice().sort((a,b)=>a-b).map(toArabicDigits).join('، ')})` : 'لم يتم اختيار أجزاء')}
+                        {sardSelectionMode === 'surahs' && (selectedSardSurahIds.length > 0 ? selectedSardSurahIds.map(id => surahNames[id] || `سورة ${id}`).join('، ') : 'لم يتم اختيار سور')}
+                        {sardSelectionMode === 'pages' && (sardPageRanges.filter(r => r.fromPage !== '' && r.toPage !== '').map(r => `ص ${toArabicDigits(r.fromPage)}-${toArabicDigits(r.toPage)}`).join(' | ') || 'لم يتم تحديد صفحات')}
+                      </div>
+                      <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        إجمالي الصفحات: {toArabicDigits(calculatedSardPages)} صفحة
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep('reviewJuzSelection')}
+                      className="px-2.5 py-1.5 bg-white dark:bg-gray-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-300 dark:border-emerald-700 transition-all shrink-0"
+                    >
+                      تعديل المحتوى ✏️
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="text-center">
                 <p className="font-bold text-lg text-gray-800 dark:text-gray-200">
-                  {evalType === EvaluationType.REVIEW ? 'أخطاء المراجعة والدرجة النهائية:' : 'أخطاء التسميع:'}
+                  {evalType === EvaluationType.REVIEW
+                    ? 'أخطاء المراجعة والدرجة النهائية:'
+                    : evalType === EvaluationType.SARD
+                      ? 'أخطاء السرد والتقدير:'
+                      : 'أخطاء التسميع:'}
                 </p>
                 {evalType === EvaluationType.REVIEW && reviewSelectedJuzs.length > 0 && (
                   <div className="mt-2 flex justify-center items-center gap-2 text-xs font-bold bg-blue-50 dark:bg-blue-950/40 p-2 rounded-xl border border-blue-200 dark:border-blue-800/60 max-w-sm mx-auto text-blue-950 dark:text-blue-100">
@@ -4666,6 +5239,37 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     </div>
                   );
                 })()
+              ) : evalType === EvaluationType.SARD ? (
+                (() => {
+                  const reviewSardTotalErrs = calculateSardTotalErrors(evalFath, evalTashkeel, evalTajweed);
+                  const reviewSardGradeVal = calculateSardGrade(reviewSardTotalErrs);
+                  return (
+                    <div className="mt-4 space-y-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+                      <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400 font-bold px-1">
+                        <span>إجمالي الأخطاء الموزونة: <strong className="text-gray-900 dark:text-gray-100 text-sm">{toArabicDigits(reviewSardTotalErrs)}</strong></span>
+                        <span>معيار السرد</span>
+                      </div>
+                      <p className="font-bold text-sm text-center text-gray-700 dark:text-gray-300">التقدير (مُحسَب تلقائياً بناءً على الأخطاء):</p>
+                      <div className="flex justify-center items-center gap-2.5">
+                        <div className={`py-2 px-6 rounded-2xl font-black text-base sm:text-lg text-center shadow-sm border-2 ${getSardGradeBadgeClass(reviewSardGradeVal)}`}>
+                          {reviewSardGradeVal}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsMushafModalOpen(true)}
+                          disabled={sardActivePages.length === 0}
+                          className="py-2 px-3 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-black rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 border border-emerald-600/80 shrink-0"
+                          title="فتح صفحات المصحف للسرد"
+                        >
+                          <span>📖 المصحف</span>
+                          <span className="bg-emerald-900/70 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                            {toArabicDigits(sardActivePages.length)} ص
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 (() => {
                   const totalErrors = evalFath + evalTashkeel + (evalTajweed * 0.5);
@@ -4698,8 +5302,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                 })()
               )}
 
-              <FormNav back={() => setCurrentStep(subject === 'sard' ? 'sardContentSelection' : (evalType === EvaluationType.REVIEW ? 'reviewJuzSelection' : 'memorizationDetails'))} next={() => {
-                  if (evalType === EvaluationType.REVIEW) {
+              <FormNav back={() => setCurrentStep(subject === 'sard' ? 'sardContentSelection' : (evalType === EvaluationType.REVIEW || evalType === EvaluationType.SARD ? 'reviewJuzSelection' : 'memorizationDetails'))} next={() => {
+                  if (evalType === EvaluationType.REVIEW || evalType === EvaluationType.SARD) {
                     setCurrentStep('notesStep');
                   } else {
                     setCurrentStep('periodicReviewStatus');
@@ -4770,7 +5374,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
               if (attendance === AttendanceStatus.UNPREPARED) return setCurrentStep('selectAttendance');
               if (subject === 'mutoon') return setCurrentStep('mutoonEvaluation');
               if (subject === 'sard') return setCurrentStep(sardSelectionMode === 'activity' ? 'sardContentSelection' : 'sardErrorsStep');
-              if (evalType === EvaluationType.REVIEW) return setCurrentStep('selectPerformanceLevel');
+              if (evalType === EvaluationType.REVIEW || evalType === EvaluationType.SARD) return setCurrentStep('selectPerformanceLevel');
               if (evalType === EvaluationType.DID_NOT_MEMORIZE) return setCurrentStep('selectEvaluationType');
               return setCurrentStep('periodicReviewStatus');
             }} next={() => setCurrentStep('summaryAndConfirm')} />
@@ -4920,34 +5524,62 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                     ) : (
                       <>
                         <p className="flex justify-between"><strong>نوع الإنجاز:</strong> <span>{translationMap[evalType!]}</span></p>
+                        {evalType === EvaluationType.SARD && (
+                          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2.5 text-sm">
+                            <p className="flex justify-between items-center">
+                              <strong>المحتوى المسرد:</strong>
+                              <span className="font-bold text-left max-w-[65%] break-words text-emerald-800 dark:text-emerald-300">
+                                {sardSelectionMode === 'juz'
+                                  ? `الأجزاء (${selectedSardJuzList.map(toArabicDigits).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`
+                                  : sardSelectionMode === 'surahs'
+                                  ? `السور (${selectedSardSurahIds.map(id => surahNames[id]).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`
+                                  : `النطاقات (${sardPageRanges.filter(r => r.fromPage !== '' && r.toPage !== '').map(r => `ص ${toArabicDigits(r.fromPage)} إلى ص ${toArabicDigits(r.toPage)}`).join('، ') || '—'}) [${toArabicDigits(calculatedSardPages)} صفحة]`}
+                              </span>
+                            </p>
+                            <p className="flex justify-between">
+                              <strong>تفصيل الأخطاء:</strong>
+                              <span className="text-gray-700 dark:text-gray-300">
+                                الفتح: {toArabicDigits(evalFath)} | التشكيل: {toArabicDigits(evalTashkeel)} | التجويد: {toArabicDigits(evalTajweed)} (الإجمالي: {toArabicDigits(calculateSardTotalErrors(evalFath, evalTashkeel, evalTajweed))})
+                              </span>
+                            </p>
+                            <p className="flex justify-between items-center">
+                              <strong>التقدير المستحق:</strong>
+                              <span className={`px-3 py-1 rounded-xl text-xs font-black ${getSardGradeBadgeClass(calculateSardGrade(calculateSardTotalErrors(evalFath, evalTashkeel, evalTajweed)))}`}>
+                                {calculateSardGrade(calculateSardTotalErrors(evalFath, evalTashkeel, evalTajweed))}
+                              </span>
+                            </p>
+                          </div>
+                        )}
                         {(evalType === EvaluationType.MEMORIZATION || evalType === EvaluationType.REVIEW) && (
                           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600 space-y-2.5 text-sm">
-                            <p className="flex justify-between"><strong>عدد الصفحات:</strong> <span>{evalType === EvaluationType.REVIEW ? toArabicDigits(countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) : (selectionState.allActivePages.length > 0 ? toArabicDigits(selectionState.newPagesCount) : (pages !== '' && pages !== null && pages !== undefined ? toArabicDigits(pages) : '—'))}</span></p>
+                            <p className="flex justify-between"><strong>عدد الصفحات:</strong> <span>{evalType === EvaluationType.REVIEW ? toArabicDigits(reviewSelectedJuzs.length > 0 ? countQuranPages(reviewSelectedJuzs.flatMap(j => juzPagesMap[j] || [])) : countQuranPages([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])) : (selectionState.allActivePages.length > 0 ? toArabicDigits(selectionState.newPagesCount) : (pages !== '' && pages !== null && pages !== undefined ? toArabicDigits(pages) : '—'))}</span></p>
                             
-                            <p className="flex justify-between">
-                              <strong>أرقام الصفحات:</strong> 
-                              <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                                {evalType === EvaluationType.REVIEW 
-                                  ? (studentQuranHistory.oldFullPages.size + studentQuranHistory.newEvalsFullPages.size > 0 
-                                      ? Array.from(new Set([...studentQuranHistory.oldFullPages, ...studentQuranHistory.newEvalsFullPages])).map(toArabicDigits).join('، ')
-                                      : '—')
-                                  : (selectionState.newlyCountedPages.length > 0 
-                                      ? selectionState.newlyCountedPages.map(toArabicDigits).join('، ')
-                                      : '—')}
-                              </span>
-                            </p>
+                            {evalType === EvaluationType.MEMORIZATION && (
+                              <p className="flex justify-between">
+                                <strong>أرقام الصفحات:</strong> 
+                                <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                                  {selectionState.newlyCountedPages.length > 0 
+                                    ? selectionState.newlyCountedPages.map(toArabicDigits).join('، ')
+                                    : '—'}
+                                </span>
+                              </p>
+                            )}
                             <p className="flex justify-between items-center">
-                              <strong>السور:</strong> 
+                              <strong>{evalType === EvaluationType.REVIEW ? 'الأجزاء المحددة:' : 'السور:'}</strong> 
                               <span className="text-left flex-1 mr-4 font-bold text-gray-800 dark:text-gray-200 break-words" title={evalType === EvaluationType.REVIEW ? '—' : surahs.join('، ')}>
-                                {evalType === EvaluationType.REVIEW ? 'محفوظات الطالب' : (surahs.length > 0 ? surahs.join('، ') : '—')}
+                                {evalType === EvaluationType.REVIEW
+                                  ? (reviewSelectedJuzs.length > 0 ? reviewSelectedJuzs.map(j => `الجزء ${toArabicDigits(j)}`).join('، ') : 'محفوظات الطالب')
+                                  : (surahs.length > 0 ? surahs.join('، ') : '—')}
                               </span>
                             </p>
-                            <p className="flex justify-between items-center">
-                              <strong>الآيات:</strong> 
-                              <span className="font-semibold text-gray-700 dark:text-gray-300">
-                                {evalType === EvaluationType.REVIEW ? 'محفوظات الطالب' : (ayahRange ? ayahRange : (surahs.length > 0 ? 'كاملة' : '—'))}
-                              </span>
-                            </p>
+                            {evalType === EvaluationType.MEMORIZATION && (
+                              <p className="flex justify-between items-center">
+                                <strong>الآيات:</strong> 
+                                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                  {ayahRange ? ayahRange : (surahs.length > 0 ? 'كاملة' : '—')}
+                                </span>
+                              </p>
+                            )}
                             {(evalFath > 0 || evalTashkeel > 0 || evalTajweed > 0) && (
                               <p className="flex justify-between">
                                 <strong>أخطاء التسميع:</strong>
@@ -4957,8 +5589,14 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
                               </p>
                             )}
 
-                            <p className="flex justify-between"><strong>الأداء:</strong> <span>{perf ? translationMap[perf] : '—'}</span></p>
-                            <p className="flex justify-between"><strong>المراجعة الدورية:</strong> <span>{pReview ? translationMap[pReview] : '—'}</span></p>
+                            {evalType === EvaluationType.REVIEW ? (
+                              <p className="flex justify-between"><strong>درجة المراجعة:</strong> <span className="font-black text-indigo-700 dark:text-indigo-300">{toArabicDigits(reviewScore)} / ١٠٠</span></p>
+                            ) : (
+                              <>
+                                <p className="flex justify-between"><strong>الأداء:</strong> <span>{perf ? translationMap[perf] : '—'}</span></p>
+                                <p className="flex justify-between"><strong>المراجعة الدورية:</strong> <span>{pReview ? translationMap[pReview] : '—'}</span></p>
+                              </>
+                            )}
                           </div>
                         )}
                         {evalType === EvaluationType.DID_NOT_MEMORIZE && (
@@ -5055,9 +5693,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
       <MushafReaderModal
         isOpen={isMushafModalOpen}
         onClose={() => setIsMushafModalOpen(false)}
-        newPages={subject === 'sard' ? sardActivePages : (evalType === EvaluationType.REVIEW ? Array.from(studentQuranHistory.newEvalsFullPages) : selectionState.allActivePages)}
-        previousWeekPages={subject === 'sard' ? undefined : (evalType === EvaluationType.REVIEW ? studentQuranHistory.oldFullPages : studentQuranHistory.prevWeekFullPages)}
-        previousWeekPartialPages={subject === 'sard' ? undefined : (evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory.prevWeekPartialPages)}
+        newPages={subject === 'sard' || evalType === EvaluationType.SARD ? sardActivePages : (evalType === EvaluationType.REVIEW ? Array.from(studentQuranHistory.newEvalsFullPages) : selectionState.allActivePages)}
+        previousWeekPages={subject === 'sard' || evalType === EvaluationType.SARD ? undefined : (evalType === EvaluationType.REVIEW ? studentQuranHistory.oldFullPages : studentQuranHistory.prevWeekFullPages)}
+        previousWeekPartialPages={subject === 'sard' || evalType === EvaluationType.SARD ? undefined : (evalType === EvaluationType.REVIEW ? undefined : studentQuranHistory.prevWeekPartialPages)}
         studentName={activeStudent?.name}
         evalFath={Number(subject === 'sard' ? sardFathErrors : evalFath) || 0}
         setEvalFath={subject === 'sard' ? setSardFathErrors : setEvalFath}
@@ -5065,8 +5703,8 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
         setEvalTashkeel={subject === 'sard' ? setSardTashkeelErrors : setEvalTashkeel}
         evalTajweed={Number(subject === 'sard' ? sardTajweedErrors : evalTajweed) || 0}
         setEvalTajweed={subject === 'sard' ? setSardTajweedErrors : setEvalTajweed}
-        isSardMode={subject === 'sard'}
-        sardGroupMode={sardEvalMode === 'group'}
+        isSardMode={subject === 'sard' || evalType === EvaluationType.SARD}
+        sardGroupMode={subject === 'sard' && sardEvalMode === 'group'}
         sardGroupStudents={students.filter(s => selectedSardGroupIds.includes(s.id)).sort((a, b) => a.name.localeCompare(b.name, 'ar', { numeric: true }))}
         sardGroupErrors={sardGroupErrors}
         setSardGroupErrors={setSardGroupErrors}
