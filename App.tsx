@@ -500,7 +500,18 @@ const App: React.FC = () => {
   const [syncQueue, setSyncQueue] = useState<any[]>(() => {
     try {
       const queueStr = localStorage.getItem('halaqaSyncQueue');
-      return queueStr ? JSON.parse(queueStr) : [];
+      const parsed = queueStr ? JSON.parse(queueStr) : [];
+      if (!Array.isArray(parsed)) return [];
+      // Any record left in localStorage from a previous session was never confirmed uploaded — mark it ready to sync
+      const normalized = parsed.map(item =>
+        item && typeof item === 'object'
+          ? { ...item, inFlight: false, wasOffline: item.silent ? false : true }
+          : item
+      );
+      if (normalized.length > 0) {
+        localStorage.setItem('halaqaSyncQueue', JSON.stringify(normalized));
+      }
+      return normalized;
     } catch (e) {
       return [];
     }
@@ -539,6 +550,21 @@ const App: React.FC = () => {
     }
   }, [readSyncQueueFromStorage, persistSyncQueue]);
 
+  const markQueueItemOffline = useCallback((queueId: string) => {
+    const current = readSyncQueueFromStorage();
+    let changed = false;
+    const next = current.map(item => {
+      if (item.queueId === queueId) {
+        changed = true;
+        return { ...item, inFlight: false, wasOffline: !item.silent };
+      }
+      return item;
+    });
+    if (changed) {
+      persistSyncQueue(next);
+    }
+  }, [readSyncQueueFromStorage, persistSyncQueue]);
+
   const processSyncQueue = useCallback(async (): Promise<boolean> => {
     if (isSyncingRef.current) return false;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
@@ -546,6 +572,15 @@ const App: React.FC = () => {
     const initialQueue = readSyncQueueFromStorage();
     if (initialQueue.length === 0) {
       setSyncQueue([]);
+      return true;
+    }
+
+    // Skip fresh in-flight online writes so normal saves don't race with offline queue recovery
+    const now = Date.now();
+    const eligibleItems = initialQueue.filter(
+      item => item && (!item.inFlight || now - (item.timestamp || 0) > 12000)
+    );
+    if (eligibleItems.length === 0) {
       return true;
     }
 
@@ -569,39 +604,47 @@ const App: React.FC = () => {
 
       // Keep the latest write per path in chronological order to avoid redundant overwrites
       const latestByPath = new Map<string, any>();
-      for (const item of initialQueue) {
+      for (const item of eligibleItems) {
         if (item && item.path) {
-          latestByPath.set(item.path, item);
+          const existing = latestByPath.get(item.path);
+          latestByPath.set(item.path, {
+            ...item,
+            wasOffline: Boolean(item.wasOffline || existing?.wasOffline),
+            silent: Boolean(item.silent && (existing ? existing.silent : true)),
+          });
         }
       }
       const dedupedItems = Array.from(latestByPath.values());
       const failedItems: any[] = [];
-      let uploadedCount = 0;
+      let notifiableUploadedCount = 0;
 
       for (const item of dedupedItems) {
         try {
           await db.ref(item.path).set(sanitizeForFirebase(item.value));
-          uploadedCount++;
+          if (!item.silent && item.wasOffline !== false) {
+            notifiableUploadedCount++;
+          }
         } catch (itemErr) {
           console.error(`Sync error for path ${item.path}:`, itemErr);
-          failedItems.push(item);
+          failedItems.push({ ...item, inFlight: false, wasOffline: !item.silent });
         }
       }
 
-      // Preserve any new items queued while this sync batch was running
-      const processedIds = new Set(initialQueue.map(i => i.queueId).filter(Boolean));
+      // Preserve any still-in-flight items and any new items queued while this sync batch was running
+      const processedIds = new Set(eligibleItems.map(i => i.queueId).filter(Boolean));
       const latestStorageQueue = readSyncQueueFromStorage();
-      const newlyAddedWhileSyncing = latestStorageQueue.filter(
+      const untouchedItems = latestStorageQueue.filter(
         i => i.queueId && !processedIds.has(i.queueId)
       );
 
-      const finalQueue = [...failedItems, ...newlyAddedWhileSyncing];
+      const finalQueue = [...failedItems, ...untouchedItems];
       persistSyncQueue(finalQueue);
 
-      if (uploadedCount > 0 && failedItems.length === 0) {
-        showToast(`✅ تم مزامنة (${uploadedCount}) سجل محفوظ محلياً بنجاح`, 'success');
-      } else if (uploadedCount > 0 && failedItems.length > 0) {
-        showToast(`📡 تم مزامنة (${uploadedCount}) سجل وبقي (${failedItems.length}) قيد الانتظار`, 'info');
+      const notifiableFailedCount = failedItems.filter(i => !i.silent).length;
+      if (notifiableUploadedCount > 0 && notifiableFailedCount === 0) {
+        showToast(`✅ تم مزامنة (${notifiableUploadedCount}) سجل محفوظ محلياً بنجاح`, 'success');
+      } else if (notifiableUploadedCount > 0 && notifiableFailedCount > 0) {
+        showToast(`📡 تم مزامنة (${notifiableUploadedCount}) سجل وبقي (${notifiableFailedCount}) قيد الانتظار`, 'info');
       }
 
       return failedItems.length === 0;
@@ -618,12 +661,16 @@ const App: React.FC = () => {
     processSyncQueueRef.current = processSyncQueue;
   }, [processSyncQueue]);
 
-  // مزامنة تلقائية فور اتصال Firebase أو عند فتح التطبيق بوجود سجلات محفوظة محلياً
+  // مزامنة تلقائية عند اتصال Firebase فقط (وليس أثناء كل حفظ عادي مع وجود الإنترنت)
   useEffect(() => {
-    if (firebaseConnectionStatus === 'connected' && syncQueue.length > 0) {
-      processSyncQueue();
+    if (firebaseConnectionStatus === 'connected') {
+      const queued = readSyncQueueFromStorage();
+      const hasReadyItems = queued.some(item => !item.inFlight || Date.now() - (item.timestamp || 0) > 12000);
+      if (hasReadyItems) {
+        processSyncQueueRef.current();
+      }
     }
-  }, [firebaseConnectionStatus, syncQueue.length, processSyncQueue]);
+  }, [firebaseConnectionStatus, readSyncQueueFromStorage]);
 
   // مزامنة تلقائية عند عودة الإنترنت أو العودة لتبويب التطبيق، وإعادة المحاولة دورياً إذا بقيت سجلات معلقة
   useEffect(() => {
@@ -640,7 +687,7 @@ const App: React.FC = () => {
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible' && navigator.onLine) {
         const queued = readSyncQueueFromStorage();
-        if (queued.length > 0) {
+        if (queued.some(item => !item.inFlight || Date.now() - (item.timestamp || 0) > 12000)) {
           processSyncQueueRef.current();
         }
       }
@@ -652,8 +699,11 @@ const App: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibilityOrFocus);
 
     const intervalId = window.setInterval(() => {
-      if (navigator.onLine && readSyncQueueFromStorage().length > 0) {
-        processSyncQueueRef.current();
+      if (navigator.onLine) {
+        const queued = readSyncQueueFromStorage();
+        if (queued.some(item => !item.inFlight || Date.now() - (item.timestamp || 0) > 12000)) {
+          processSyncQueueRef.current();
+        }
       }
     }, 15000);
 
@@ -1027,16 +1077,26 @@ const App: React.FC = () => {
 
   const writeData = (path: string, value: any) => {
     const db = getDb();
+    const isSilent = path === 'config/lastUsedWeek';
+    const isOnlineNow = Boolean(db && navigator.onLine);
     // Write-ahead local persistence: save to localStorage before network send so closing the tab mid-request never loses data
-    const queueId = queueForSync(path, value, !db || !navigator.onLine);
+    const queueId = queueForSync(path, value, {
+      notifyOffline: !isOnlineNow && !isSilent,
+      inFlight: isOnlineNow,
+      wasOffline: !isOnlineNow && !isSilent,
+      silent: isSilent,
+    });
 
-    if (db && navigator.onLine) {
+    if (isOnlineNow && db) {
         const sanitizedValue = sanitizeForFirebase(value);
         db.ref(path).set(sanitizedValue).then(() => {
             removeQueueItemById(queueId);
         }).catch((err: any) => {
             console.error("Write error, kept in local sync queue:", err);
-            showToast('📡 تعذر الرفع حالياً، تم الحفظ محلياً وستتم المزامنة تلقائياً', 'info');
+            markQueueItemOffline(queueId);
+            if (!isSilent) {
+              showToast('📡 تعذر الرفع حالياً، تم الحفظ محلياً وستتم المزامنة تلقائياً', 'info');
+            }
         });
     }
 
@@ -1083,12 +1143,27 @@ const App: React.FC = () => {
     }
   };
 
-  const queueForSync = (path: string, value: any, notifyOffline = true): string => {
+  const queueForSync = (
+    path: string,
+    value: any,
+    options: boolean | { notifyOffline?: boolean; inFlight?: boolean; wasOffline?: boolean; silent?: boolean } = true
+  ): string => {
+    const opts = typeof options === 'boolean'
+      ? { notifyOffline: options, inFlight: false, wasOffline: true, silent: false }
+      : { notifyOffline: true, inFlight: false, wasOffline: true, silent: false, ...options };
     const queue = readSyncQueueFromStorage();
     const queueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    queue.push({ queueId, path, value, timestamp: Date.now() });
+    queue.push({
+      queueId,
+      path,
+      value,
+      timestamp: Date.now(),
+      inFlight: Boolean(opts.inFlight),
+      wasOffline: Boolean(opts.wasOffline),
+      silent: Boolean(opts.silent),
+    });
     persistSyncQueue(queue);
-    if (notifyOffline && !navigator.onLine) {
+    if (opts.notifyOffline && !navigator.onLine) {
         showToast('📡 تم الحفظ محلياً (سيتم الرفع تلقائياً عند توفر الإنترنت)', 'info');
     }
     return queueId;
@@ -1703,8 +1778,47 @@ const App: React.FC = () => {
     syncEvaluationToMaghribAttendance(newEv);
   };
   const updateEvaluation = (ev: any) => {
-    writeData(`data/evaluations/${ev.id}`, { ...ev, updatedAt: Date.now() });
-    syncEvaluationToMaghribAttendance(ev);
+    const updatedEv = { ...ev, updatedAt: Date.now() };
+    writeData(`data/evaluations/${ev.id}`, updatedEv);
+    syncEvaluationToMaghribAttendance(updatedEv);
+
+    // عند تعديل تقييم متون (مثل تغيير عدد الأبيات من 15 إلى 5)، نُعيد احتساب نطاق الأبيات للأسابيع اللاحقة لنفس الطالب والمتن
+    if (updatedEv.subject === 'mutoon' && !updatedEv.isTest && updatedEv.surahs?.[0]) {
+      const matnName = updatedEv.surahs[0];
+      const sameMatnEvals = (data.evaluations || [])
+        .map(e => (e.id === updatedEv.id ? updatedEv : e))
+        .filter(
+          e =>
+            e.studentId === updatedEv.studentId &&
+            e.subject === 'mutoon' &&
+            !e.isTest &&
+            e.evaluationType === EvaluationType.MEMORIZATION &&
+            e.surahs?.includes(matnName) &&
+            Number(e.pages) > 0
+        )
+        .sort((a, b) => Number(a.weekNumber) - Number(b.weekNumber) || Number(a.id) - Number(b.id));
+
+      let runningTotal = 0;
+      for (const item of sameMatnEvals) {
+        const count = Number(item.pages) || 0;
+        const expectedFrom = runningTotal + 1;
+        const expectedTo = runningTotal + count;
+        runningTotal += count;
+
+        if (
+          item.id !== updatedEv.id &&
+          Number(item.weekNumber) >= Number(updatedEv.weekNumber) &&
+          (Number(item.fromAyah) !== expectedFrom || Number(item.toAyah) !== expectedTo)
+        ) {
+          writeData(`data/evaluations/${item.id}`, {
+            ...item,
+            fromAyah: expectedFrom,
+            toAyah: expectedTo,
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
   };
   const deleteEvaluation = (id: number) => {
     const ev = (data.evaluations || []).find(e => e.id === id);
@@ -2282,9 +2396,9 @@ const App: React.FC = () => {
   };
 
   const initiateLogoutCheck = () => {
-    const pendingItems = readSyncQueueFromStorage();
+    const pendingItems = readSyncQueueFromStorage().filter(item => !item.silent);
     if (pendingItems.length > 0) {
-      setSyncQueue(pendingItems);
+      setSyncQueue(readSyncQueueFromStorage());
       setPendingSyncLogoutModalOpen(true);
       return;
     }
@@ -2358,7 +2472,12 @@ const App: React.FC = () => {
   const setMaghribPassword = useCallback((p: string) => { setMaghribPasswordState(p); writeData('config/maghribPassword', p); }, []);
   const setTeacherIbriPassword = useCallback((p: string) => { setTeacherIbriPasswordState(p); writeData('config/teacherIbriPassword', p); }, []);
   const setTeacherOutsidePassword = useCallback((p: string) => { setTeacherOutsidePasswordState(p); writeData('config/teacherOutsidePassword', p); }, []);
-  const setLastUsedWeek = useCallback((w: number | null) => { setLastUsedWeekState(w); writeData('config/lastUsedWeek', w); }, []);
+  const setLastUsedWeek = useCallback((w: number | null) => {
+    setLastUsedWeekState(w);
+    if (w !== null) {
+      writeData('config/lastUsedWeek', w);
+    }
+  }, []);
   const setIsTestActive = useCallback((a: boolean) => { setIsTestActiveState(a); writeData('config/isTestActive', a); }, []);
   const setTestScore = useCallback((s: number) => { const safe = isNaN(s) ? 100 : s; setTestScoreState(safe); writeData('config/testScore', safe); }, [writeData]);
   const setTestName = useCallback((s: string) => { setTestNameState(s); writeData('config/testName', s); }, [writeData]);
@@ -2626,7 +2745,7 @@ const App: React.FC = () => {
           )}
           {pendingSyncLogoutModalOpen && (
             <PendingSyncLogoutModal
-              pendingCount={syncQueue.length}
+              pendingCount={syncQueue.filter(item => !item.silent).length}
               onRetrySync={processSyncQueue}
               onConfirmLogout={proceedAfterSyncCheck}
               onCancel={() => setPendingSyncLogoutModalOpen(false)}

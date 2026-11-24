@@ -339,6 +339,20 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     }
     return list;
   }, [matns, selectedSurahs]);
+
+  // عند تعديل تقييم متن محدد مسبقاً نعرض بطاقة ذلك المتن فقط لمنع التعديل الخاطئ على متن آخر
+  const editableMatns = useMemo(() => {
+    const initialMatnName = initialEvaluation.surahs?.[0];
+    if (
+      initialEvaluation.subject === 'mutoon' &&
+      initialEvaluation.attendance !== AttendanceStatus.ABSENT &&
+      initialMatnName
+    ) {
+      const matched = activeMatns.filter(m => m.name === initialMatnName);
+      if (matched.length > 0) return matched;
+    }
+    return activeMatns;
+  }, [activeMatns, initialEvaluation.subject, initialEvaluation.attendance, initialEvaluation.surahs]);
   
   const surahSearchInputRef = useRef<HTMLInputElement>(null); 
   const [error, setError] = useState<string | null>(null);
@@ -438,21 +452,6 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
         if (initialEvaluation.subject === 'mutoon') {
             if (pages === '') return setError('الرجاء إدخال عدد الأبيات.');
             if (selectedSurahs.length === 0) return setError('الرجاء اختيار متن واحد على الأقل.');
-            const pendingMatns = matns.filter(m => {
-                const p = (context?.evaluations || []).filter(e => e.studentId === student.id && e.subject === 'mutoon' && e.evaluationType === 'memorization' && e.surahs?.includes(m.name) && e.id !== initialEvaluation.id).reduce((sum, e) => sum + (e.pages || 0), 0);
-                if (p >= m.linesCount) return false;
-                
-                const evaluatedThisWeek = (context?.evaluations || []).some(e => e.studentId === student.id && e.subject === 'mutoon' && e.weekNumber === initialEvaluation.weekNumber && e.surahs?.includes(m.name) && e.id !== initialEvaluation.id);
-                if (evaluatedThisWeek) return false;
-                
-                if (m.name === selectedSurahs[0]) return false;
-                
-                return true;
-            });
-            if (pendingMatns.length > 0) {
-               setPendingMatnsAlert(pendingMatns.map(m => m.name));
-               return;
-            }
         } else {
             if (evaluationType === EvaluationType.MEMORIZATION) {
                 if (selectionState.allActivePages.length === 0) return setError('الرجاء تحديد الصفحات المحفوظة.');
@@ -500,9 +499,18 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
 
     if (initialEvaluation.subject === 'mutoon' && (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE)) {
         if (pages !== 'review' && pages !== 'not_ready' && pages !== '') {
-            const p = (context?.evaluations || []).filter(ev => ev.studentId === student.id && ev.subject === 'mutoon' && ev.evaluationType === 'memorization' && ev.id !== initialEvaluation.id && ev.surahs?.includes(selectedSurahs[0])).reduce((sum, ev) => sum + (ev.pages || 0), 0);
-            finalFromAyah = p + 1;
-            finalToAyah = p + Number(pages);
+            const priorMemorized = (context?.evaluations || [])
+                .filter(ev =>
+                    ev.studentId === student.id &&
+                    ev.subject === 'mutoon' &&
+                    ev.evaluationType === EvaluationType.MEMORIZATION &&
+                    ev.id !== initialEvaluation.id &&
+                    Number(ev.weekNumber) < Number(initialEvaluation.weekNumber) &&
+                    ev.surahs?.includes(selectedSurahs[0])
+                )
+                .reduce((sum, ev) => sum + (Number(ev.pages) || 0), 0);
+            finalFromAyah = priorMemorized + 1;
+            finalToAyah = priorMemorized + Number(pages);
         } else {
             finalFromAyah = null;
             finalToAyah = null;
@@ -512,9 +520,11 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
     const fFath = Number(evalFath) || 0;
     const fTashkeel = Number(evalTashkeel) || 0;
     const fTajweed = Number(evalTajweed) || 0;
-    const isReview = (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.REVIEW || finalEvalType === EvaluationType.REVIEW);
-    const isSard = (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.SARD || finalEvalType === EvaluationType.SARD);
-    const reviewScore = isReview ? Math.max(0, 100 - (fFath * 1 + fTashkeel * 1 + fTajweed * 0.5)) : undefined;
+    const effectiveEvalType = initialEvaluation.subject === 'mutoon' ? finalEvalType : evaluationType;
+    const isPresentOrLate = attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE;
+    const isReview = isPresentOrLate && effectiveEvalType === EvaluationType.REVIEW;
+    const isSard = isPresentOrLate && effectiveEvalType === EvaluationType.SARD;
+    const reviewScore = (isReview && initialEvaluation.subject !== 'mutoon') ? Math.max(0, 100 - (fFath * 1 + fTashkeel * 1 + fTajweed * 0.5)) : undefined;
     const sardGradeVal = isSard ? calculateSardGrade(calculateSardTotalErrors(fFath, fTashkeel, fTajweed)) : undefined;
 
     const tFath = Number(testFath) || 0;
@@ -525,14 +535,18 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
       ...initialEvaluation,
       attendance,
       absenceReason: attendance === AttendanceStatus.ABSENT ? absenceReason : null,
-      evaluationType: (attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && !initialEvaluation.isTest ? finalEvalType : null,
-      pages: (isReview || isSard) ? (selectionState.allActivePages.length || initialEvaluation.pages || null) : finalPages,
-      newMemorizedPages: ((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.MEMORIZATION || isReview || isSard) && initialEvaluation.subject !== 'mutoon') ? selectionState.allActivePages : undefined,
+      evaluationType: isPresentOrLate && !initialEvaluation.isTest ? finalEvalType : null,
+      pages: initialEvaluation.subject === 'mutoon'
+        ? (isPresentOrLate ? finalPages : 0)
+        : ((isReview || isSard) ? (selectionState.allActivePages.length || initialEvaluation.pages || null) : finalPages),
+      newMemorizedPages: (isPresentOrLate && (effectiveEvalType === EvaluationType.MEMORIZATION || isReview || isSard) && initialEvaluation.subject !== 'mutoon') ? selectionState.allActivePages : undefined,
       fromAyah: (isReview || isSard) ? null : finalFromAyah,
       toAyah: (isReview || isSard) ? null : finalToAyah,
-      surahs: ((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && (evaluationType === EvaluationType.MEMORIZATION || isReview || isSard)) ? (selectedSurahs.length > 0 ? selectedSurahs : initialEvaluation.surahs) : initialEvaluation.surahs,
-      performance: isSard ? sardGradeVal : (isReview ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? finalPerformance : null)),
-      periodicReview: (isReview || isSard) ? null : (((attendance === AttendanceStatus.PRESENT || attendance === AttendanceStatus.LATE) && evaluationType === EvaluationType.MEMORIZATION) ? (periodicReview || null) : null),
+      surahs: (isPresentOrLate && (effectiveEvalType === EvaluationType.MEMORIZATION || isReview || isSard)) ? (selectedSurahs.length > 0 ? selectedSurahs : initialEvaluation.surahs) : initialEvaluation.surahs,
+      performance: initialEvaluation.subject === 'mutoon'
+        ? (isPresentOrLate ? finalPerformance : null)
+        : (isSard ? sardGradeVal : (isReview ? null : ((isPresentOrLate && effectiveEvalType === EvaluationType.MEMORIZATION) ? finalPerformance : null))),
+      periodicReview: (isReview || isSard || initialEvaluation.subject === 'mutoon') ? null : ((isPresentOrLate && effectiveEvalType === EvaluationType.MEMORIZATION) ? (periodicReview || null) : null),
       notes: notes || null,
       updatedAt: Date.now(),
       evalFathErrors: !initialEvaluation.isTest ? fFath : undefined,
@@ -541,8 +555,8 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
       testFathErrors: initialEvaluation.isTest ? tFath : undefined,
       testTashkeelErrors: initialEvaluation.isTest ? tTashkeel : undefined,
       testTajweedErrors: initialEvaluation.isTest ? tTajweed : undefined,
-      testTotalScore: initialEvaluation.isTest ? Math.max(0, (Number(initialEvaluation.testMaxScore) || 0) - (tFath + tTashkeel + tTajweed * 0.5)) : (isReview ? reviewScore : undefined),
-      testMaxScore: initialEvaluation.isTest ? initialEvaluation.testMaxScore : (isReview ? 100 : undefined),
+      testTotalScore: initialEvaluation.isTest ? Math.max(0, (Number(initialEvaluation.testMaxScore) || 0) - (tFath + tTashkeel + tTajweed * 0.5)) : ((isReview && initialEvaluation.subject !== 'mutoon') ? reviewScore : undefined),
+      testMaxScore: initialEvaluation.isTest ? initialEvaluation.testMaxScore : ((isReview && initialEvaluation.subject !== 'mutoon') ? 100 : undefined),
     };
     
     setDraftEvaluation(updated);
@@ -767,7 +781,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                 <div className="space-y-2.5 p-3 bg-gray-50/50 dark:bg-slate-800/30 rounded-2xl border border-gray-100 dark:border-slate-800 animate-in slide-in-from-top-1 duration-500">
                     {initialEvaluation.subject === 'mutoon' ? (
                         <div className="space-y-4">
-                            {activeMatns.map((m, index) => {
+                            {editableMatns.map((m, index) => {
                                 const theme = MATN_CARD_THEMES[index % MATN_CARD_THEMES.length];
                                 const prevMemorized = (context?.evaluations || [])
                                     .filter(ev => 
@@ -775,9 +789,10 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                         ev.subject === 'mutoon' && 
                                         ev.evaluationType === EvaluationType.MEMORIZATION && 
                                         ev.id !== initialEvaluation.id && 
+                                        Number(ev.weekNumber) < Number(initialEvaluation.weekNumber) &&
                                         ev.surahs?.includes(m.name)
                                     )
-                                    .reduce((sum, ev) => sum + (ev.pages || 0), 0);
+                                    .reduce((sum, ev) => sum + (Number(ev.pages) || 0), 0);
 
                                 const isCompleted = prevMemorized >= m.linesCount;
                                 const remaining = Math.max(0, m.linesCount - prevMemorized);
@@ -793,6 +808,9 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                         curr += 5;
                                     }
                                     options.push(remaining);
+                                }
+                                if (isSelectedMatn && typeof mPages === 'number' && mPages > 0 && !options.includes(mPages)) {
+                                    options.push(mPages);
                                 }
                                 const uniqueOptions = [...new Set(options)].sort((a, b) => a - b);
 
@@ -826,7 +844,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
 
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border shadow-2xs ${theme.statBadge}`}>
-                                                    المحفوظ: {toArabicDigits(prevMemorized)} / {toArabicDigits(m.linesCount)} بيت
+                                                    المحفوظ قبل هذا الأسبوع: {toArabicDigits(prevMemorized)} / {toArabicDigits(m.linesCount)} بيت
                                                 </span>
                                                 {isCompleted && (
                                                     <span className="text-xs font-black px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-700">
@@ -853,6 +871,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                                                       setEvalFath(0);
                                                                   } else {
                                                                       setSelectedSurahs([m.name]);
+                                                                      setEvaluationType(EvaluationType.REVIEW);
                                                                       setPages('review');
                                                                       setEvalFath(0);
                                                                   }
@@ -874,6 +893,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                                                     setEvalFath(0);
                                                                 } else {
                                                                     setSelectedSurahs([m.name]);
+                                                                    setEvaluationType(EvaluationType.MEMORIZATION);
                                                                     setPages('not_ready');
                                                                     setEvalFath(0);
                                                                 }
@@ -903,7 +923,7 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                             ) : (
                                                 <div>
                                                     <label className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 block">
-                                                        عدد الأبيات المحفوظة:
+                                                        عدد الأبيات المحفوظة (مضاعفات ٥):
                                                     </label>
                                                     <select
                                                         value={isSelectedMatn && mPages !== '' && mPages !== null && mPages !== undefined && !Number.isNaN(mPages) ? mPages : ''}
@@ -911,12 +931,14 @@ const EvaluationEditForm: React.FC<EvaluationEditFormProps> = ({
                                                             const val = e.target.value;
                                                             setSelectedSurahs([m.name]);
                                                             if (val === 'not_ready') {
+                                                                setEvaluationType(EvaluationType.MEMORIZATION);
                                                                 setPages('not_ready');
                                                                 setEvalFath(0);
                                                             } else if (val === '') {
                                                                 setPages('');
                                                                 setEvalFath(0);
                                                             } else {
+                                                                setEvaluationType(EvaluationType.MEMORIZATION);
                                                                 setPages(Number(val));
                                                             }
                                                         }}

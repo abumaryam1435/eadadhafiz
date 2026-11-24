@@ -12,6 +12,8 @@ interface EvaluationSummaryModalProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  siblingEvaluations?: Evaluation[];
+  onSelectEvaluation?: (ev: Evaluation) => void;
 }
 
 const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
@@ -21,6 +23,8 @@ const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
   onClose,
   onEdit,
   onDelete,
+  siblingEvaluations,
+  onSelectEvaluation,
 }) => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const context = useContext(AppContext);
@@ -107,6 +111,32 @@ const EvaluationSummaryModal: React.FC<EvaluationSummaryModalProps> = ({
                    <span className="text-[10px] text-gray-400 font-bold">الحلقة: {halaqa?.name || '---'}</span>
                 </div>
             </div>
+
+            {siblingEvaluations && siblingEvaluations.length > 1 && onSelectEvaluation && (
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 text-center">اختر المتن لعرضه أو تعديله:</p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {siblingEvaluations.map(ev => {
+                    const isActive = ev.id === evaluation.id;
+                    const label = ev.surahs?.[0] || 'متن';
+                    return (
+                      <button
+                        key={ev.id}
+                        type="button"
+                        onClick={() => onSelectEvaluation(ev)}
+                        className={`px-2.5 py-1.5 rounded-xl text-[11px] font-black border transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                            : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {label} {ev.pages ? `(${toArabicDigits(ev.pages)})` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* قسم التفاصيل */}
             <div className="bg-white/60 dark:bg-slate-800/40 rounded-2xl p-3 shadow-sm border border-white/80 dark:border-slate-700/50 space-y-1">

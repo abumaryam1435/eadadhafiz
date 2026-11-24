@@ -114,6 +114,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   const addSardEvaluation = context?.addSardEvaluation;
   const updateSardEvaluation = context?.updateSardEvaluation;
   const deleteSardEvaluation = context?.deleteSardEvaluation;
+  const lastUsedWeek = context?.lastUsedWeek;
   const setLastUsedWeek = context?.setLastUsedWeek;
   const isTestActive = context?.isTestActive;
   const testScore = context?.testScore;
@@ -709,8 +710,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
   }, [isSurahOpen]);
 
   useEffect(() => {
-    setLastUsedWeek(selectedWeek);
-  }, [selectedWeek, setLastUsedWeek]);
+    if (selectedWeek !== null && selectedWeek !== lastUsedWeek) {
+      setLastUsedWeek?.(selectedWeek);
+    }
+  }, [selectedWeek, lastUsedWeek, setLastUsedWeek]);
 
   // حسابات محفوظ الطالب للسرد (القديم والجديد)
   const studentPagesData = useMemo(() => {
@@ -1668,6 +1671,18 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           evaluation={currentEval} 
           student={activeStudent} 
           halaqa={halaqas.find(h => h.id === currentEval.halaqaId)} 
+          siblingEvaluations={
+            subject === 'mutoon' && selectedWeek !== null
+              ? evaluations.filter(
+                  e =>
+                    e.studentId === activeStudent.id &&
+                    e.subject === 'mutoon' &&
+                    Number(e.weekNumber) === Number(selectedWeek) &&
+                    !e.isTest
+                )
+              : undefined
+          }
+          onSelectEvaluation={(ev) => setCurrentEval(ev)}
           onClose={() => { 
             setSelectedStudent(null); 
             setUiMode('new'); 
@@ -1680,12 +1695,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
           }} 
           onEdit={() => setUiMode('edit')} 
           onDelete={() => { 
-            if (subject === 'mutoon') {
-               const allMutoonForWeek = evaluations.filter(e => e.studentId === activeStudent?.id && e.subject === 'mutoon' && e.weekNumber === selectedWeek);
-               allMutoonForWeek.forEach(e => deleteEvaluation(e.id));
-            } else {
-               deleteEvaluation(currentEval.id); 
-            }
+            deleteEvaluation(currentEval.id);
             onFormSubmit('delete'); 
             setUiMode('new'); 
             setSelectedStudent(null); 
@@ -1728,12 +1738,7 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({ teacherId, onFor
             resetFormFields();
           }} 
           onDelete={() => { 
-            if (subject === 'mutoon') {
-               const allMutoonForWeek = evaluations.filter(e => e.studentId === activeStudent?.id && e.subject === 'mutoon' && e.weekNumber === selectedWeek);
-               allMutoonForWeek.forEach(e => deleteEvaluation(e.id));
-            } else {
-               deleteEvaluation(currentEval.id); 
-            }
+            deleteEvaluation(currentEval.id);
             onFormSubmit('delete'); 
             setUiMode('new');
             setSelectedStudent(null); 

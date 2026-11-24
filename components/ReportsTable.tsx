@@ -759,6 +759,30 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
                   }
               }
 
+              // عند التعديل السريع لعدد أبيات المتون نعيد احتساب نطاق الأبيات بناءً على المحفوظ قبل هذا الأسبوع
+              if (original.subject === 'mutoon' && cleanDraft.pages !== undefined) {
+                  const matnName = original.surahs?.[0];
+                  const targetWeek = Number(cleanDraft.weekNumber ?? original.weekNumber);
+                  if (Number(cleanDraft.pages) > 0 && matnName) {
+                      const priorMemorized = evaluations
+                          .filter(ev =>
+                              ev.studentId === original.studentId &&
+                              ev.subject === 'mutoon' &&
+                              ev.evaluationType === EvaluationType.MEMORIZATION &&
+                              ev.id !== original.id &&
+                              Number(ev.weekNumber) < targetWeek &&
+                              ev.surahs?.includes(matnName)
+                          )
+                          .reduce((sum, ev) => sum + (Number(ev.pages) || 0), 0);
+                      cleanDraft.fromAyah = priorMemorized + 1;
+                      cleanDraft.toAyah = priorMemorized + Number(cleanDraft.pages);
+                      cleanDraft.evaluationType = EvaluationType.MEMORIZATION;
+                  } else if (Number(cleanDraft.pages) === 0) {
+                      cleanDraft.fromAyah = null as any;
+                      cleanDraft.toAyah = null as any;
+                  }
+              }
+
               updateEvaluation({ ...original, ...cleanDraft, updatedAt: Date.now() });
               savedCount++;
           });
@@ -1255,18 +1279,63 @@ export const ReportsTable: React.FC<ReportsTableProps> = ({ subjectFilter = 'qur
                     } else if (isEditable && h.key === 'pages') {
                       const rawVal = draft.pages !== undefined ? draft.pages : item.pages;
                       const safeVal = rawVal === null || rawVal === undefined || isNaN(rawVal) ? '' : rawVal;
-                      cellContent = (
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          value={safeVal}
-                          onFocus={(e) => e.target.select()}
-                          onClick={(e) => e.currentTarget.select()}
-                          onChange={(e) => handleDraftUpdate(item.id, 'pages', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                          className="w-16 p-1.5 text-xs sm:text-sm text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 selection:bg-amber-300 selection:text-amber-950"
-                        />
-                      );
+                      if (subjectFilter === 'mutoon' || item.subject === 'mutoon') {
+                        const matnName = item.surahs?.[0];
+                        const matnObj = (context?.matns || []).find(m => m.name === matnName);
+                        const matnTotalLines = matnObj?.linesCount || 100;
+                        const targetWeek = Number(draft.weekNumber ?? item.weekNumber);
+                        const priorMemorized = evaluations
+                          .filter(ev =>
+                            ev.studentId === item.studentId &&
+                            ev.subject === 'mutoon' &&
+                            ev.evaluationType === EvaluationType.MEMORIZATION &&
+                            ev.id !== item.id &&
+                            Number(ev.weekNumber) < targetWeek &&
+                            (matnName ? ev.surahs?.includes(matnName) : true)
+                          )
+                          .reduce((sum, ev) => sum + (Number(ev.pages) || 0), 0);
+                        const remaining = Math.max(0, matnTotalLines - priorMemorized);
+                        const mutoonOpts: number[] = [];
+                        if (remaining > 0) {
+                          let curr = 5;
+                          while (curr < remaining) {
+                            mutoonOpts.push(curr);
+                            curr += 5;
+                          }
+                          mutoonOpts.push(remaining);
+                        }
+                        if (typeof safeVal === 'number' && safeVal > 0 && !mutoonOpts.includes(safeVal)) {
+                          mutoonOpts.push(safeVal);
+                        }
+                        const uniqueMutoonOpts = [...new Set(mutoonOpts)].sort((a, b) => a - b);
+                        cellContent = (
+                          <select
+                            value={safeVal}
+                            onChange={(e) => handleDraftUpdate(item.id, 'pages', e.target.value === '' ? '' : Number(e.target.value))}
+                            className="p-1.5 text-xs sm:text-sm border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                          >
+                            <option value="0">٠ (غير مستعد)</option>
+                            {uniqueMutoonOpts.map(opt => (
+                              <option key={opt} value={opt}>
+                                {toArabicDigits(opt)}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      } else {
+                        cellContent = (
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={safeVal}
+                            onFocus={(e) => e.target.select()}
+                            onClick={(e) => e.currentTarget.select()}
+                            onChange={(e) => handleDraftUpdate(item.id, 'pages', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                            className="w-16 p-1.5 text-xs sm:text-sm text-center border-2 border-amber-400 bg-amber-50 dark:bg-gray-700 dark:border-amber-500 rounded-lg font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 selection:bg-amber-300 selection:text-amber-950"
+                          />
+                        );
+                      }
                     } else if (isEditable && h.key === 'notes') {
                       const currentVal = draft.notes !== undefined ? draft.notes : (item.notes || '');
                       cellContent = (
