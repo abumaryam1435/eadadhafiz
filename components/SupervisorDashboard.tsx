@@ -13,6 +13,7 @@ import { CertificatesManager } from './CertificatesManager';
 import { CardsManager } from './CardsManager';
 import { SupervisorSuggestionsView } from './SupervisorSuggestionsView';
 import { DocumentsManager } from './DocumentsManager';
+import { SevenCastlesPlansTab } from './SevenCastlesPlansTab';
 import { getStudentLevelUpgrades } from '../utils/levelUpgradeUtils';
 import { 
   FileText, 
@@ -33,10 +34,11 @@ import {
   Menu,
   Check,
   Compass,
-  FolderOpen
+  FolderOpen,
+  Castle
 } from 'lucide-react';
 
-type View = 'reports' | 'testReports' | 'management' | 'documents' | 'suggestions' | 'certificates' | 'cards' | 'settings' | 'overview';
+type View = 'reports' | 'testReports' | 'management' | 'sevenCastles' | 'documents' | 'suggestions' | 'certificates' | 'cards' | 'settings' | 'overview';
 
 interface NavItemConfig {
   id: View;
@@ -78,6 +80,16 @@ const NAV_ITEMS: NavItemConfig[] = [
     iconColor: 'text-blue-700 dark:text-blue-400',
     activeIconColor: 'text-white',
     iconBgLight: 'bg-blue-100/90 dark:bg-blue-950/60',
+    activeIconBgLight: 'bg-white/20'
+  },
+  { 
+    id: 'sevenCastles', 
+    label: 'خطط القلاع السبع', 
+    shortLabel: 'القلاع السبع', 
+    icon: Castle,
+    iconColor: 'text-amber-700 dark:text-amber-400',
+    activeIconColor: 'text-white',
+    iconBgLight: 'bg-amber-100/90 dark:bg-amber-950/60',
     activeIconBgLight: 'bg-white/20'
   },
   { 
@@ -470,6 +482,11 @@ export const SupervisorDashboard: React.FC = () => {
       {/* 3. إدارة الطلاب والحلقات */}
       <div className={activeView === 'management' ? 'block' : 'hidden'}>
         <StudentManagement />
+      </div>
+
+      {/* 3.5. خطط القلاع السبع */}
+      <div className={activeView === 'sevenCastles' ? 'block' : 'hidden'}>
+        {activeView === 'sevenCastles' && <SevenCastlesPlansTab />}
       </div>
 
       {/* 4. أرشيف المستندات والملفات */}

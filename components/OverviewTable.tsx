@@ -214,6 +214,8 @@ export const OverviewTable: React.FC = () => {
   const deleteStudent = context?.deleteStudent || (() => {});
   const updateStudent = context?.updateStudent || (() => {});
   const resetAllStudentsLevelToAuto = context?.resetAllStudentsLevelToAuto;
+  const consolidateMemorizedPagesForNewTerm = context?.consolidateMemorizedPagesForNewTerm;
+  const currentUser = context?.currentUser;
   const showToast = context?.showToast || (() => {});
   const hijriAdjustments = context?.hijriAdjustments;
 
@@ -222,7 +224,27 @@ export const OverviewTable: React.FC = () => {
   const [isWordModalOpen, setIsWordModalOpen] = useState(false);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [showResetLevelsModal, setShowResetLevelsModal] = useState(false);
+  const [showRolloverModal, setShowRolloverModal] = useState(false);
+  const [isRollingOver, setIsRollingOver] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const studentsWithNewMemCount = useMemo(() => {
+    return students.filter((s) => getMemorizedPagesData(s, evaluations).newSet.size > 0).length;
+  }, [students, evaluations]);
+
+  const handleConfirmRollover = () => {
+    if (isRollingOver || !consolidateMemorizedPagesForNewTerm) return;
+    setIsRollingOver(true);
+    try {
+      consolidateMemorizedPagesForNewTerm();
+      setShowRolloverModal(false);
+    } catch (err) {
+      console.error("Rollover error:", err);
+      showToast("❌ حدث خطأ أثناء ترحيل المحفوظ، لم تكتمل العملية.", "error");
+    } finally {
+      setIsRollingOver(false);
+    }
+  };
 
   const handleResetAllLevels = () => {
     if (resetAllStudentsLevelToAuto) {
@@ -850,6 +872,72 @@ export const OverviewTable: React.FC = () => {
         </Modal>
       )}
 
+      {showRolloverModal && (
+        <Modal
+          title="تأكيد ترحيل المحفوظ للبدء بفصل جديد"
+          onClose={() => !isRollingOver && setShowRolloverModal(false)}
+          hideDefaultCloseButton={true}
+        >
+          <div className="text-right p-1 space-y-4">
+            <div className="flex items-center justify-center">
+              <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex items-center justify-center border border-amber-200 dark:border-amber-700 shadow-xs">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <p className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
+                هل أنت متأكد من ترحيل كامل محفوظ الطلاب إلى «الحفظ القديم»؟
+              </p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium leading-relaxed">
+                يُستخدم هذا الإجراء عند نهاية الفصل وبداية فصل جديد لحفظ إنجاز الطلاب وإفراغ حقل الحفظ الجديد للبدء من جديد.
+              </p>
+            </div>
+
+            <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 space-y-2 text-xs sm:text-sm text-amber-950 dark:text-amber-100 font-bold">
+              <p className="flex items-start gap-2">
+                <span className="shrink-0">💾</span>
+                <span>سيتم تلقائياً إصدار وتنزيل <b>نسخة احتياطية شاملة (.xlsx)</b> لجميع بيانات التطبيق قبل تنفيذ التعديل.</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="shrink-0">📖</span>
+                <span>سيتم استبدال حقل <b>«الحفظ القديم»</b> لكل طالب بكامل محفوظه (القديم + الجديد = حقل <b>«أرقام صفحات الحفظ»</b>).</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="shrink-0">✨</span>
+                <span>سيصبح حقل <b>«الحفظ الجديد»</b> فارغاً لجميع الطلاب للبدء بفصل جديد مع الاحتفاظ بكامل صفحات الحفظ والمستويات.</span>
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200">
+              <span>إجمالي الطلاب: <strong className="text-green-700 dark:text-green-400">{students.length}</strong> طالب</span>
+              <span>طلاب لديهم حفظ جديد سيُرحَّل: <strong className="text-amber-700 dark:text-amber-400">{studentsWithNewMemCount}</strong> طالب</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-3 border-t dark:border-gray-700">
+              <button
+                type="button"
+                disabled={isRollingOver}
+                onClick={handleConfirmRollover}
+                className="flex-1 py-3 px-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-xl font-black text-sm shadow-md active:scale-95 transition-all cursor-pointer"
+              >
+                {isRollingOver ? "جارٍ الترحيل والنسخ الاحتياطي..." : "نعم، إصدار نسخة احتياطية والترحيل"}
+              </button>
+              <button
+                type="button"
+                disabled={isRollingOver}
+                onClick={() => setShowRolloverModal(false)}
+                className="flex-1 py-3 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-xl font-bold text-sm transition-all cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {editingStudent && (
         <Modal
           title="تعديل بيانات الطالب"
@@ -1281,6 +1369,19 @@ export const OverviewTable: React.FC = () => {
               </svg>
               <span>العودة للتلقائي</span>
             </button>
+            {currentUser?.role === UserRole.SUPERVISOR && (
+              <button
+                type="button"
+                onClick={() => setShowRolloverModal(true)}
+                title="نقل إجمالي محفوظ الطلاب (القديم + الجديد) إلى الحفظ القديم وإفراغ الحفظ الجديد للبدء بفصل جديد مع إصدار نسخة احتياطية تلقائية"
+                className="px-2.5 sm:px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/70 rounded-xl shadow-xs active:scale-95 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.3">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                <span>ترحيل المحفوظ لفصل جديد</span>
+              </button>
+            )}
             <div ref={columnPickerRef} className="relative inline-block text-right shrink-0">
               <button
                 type="button"

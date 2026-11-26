@@ -19,7 +19,10 @@ import { initSwipeNavigation } from './utils/navigationHistory';
 import { PwaUpdater } from './PwaUpdater';
 import { findSimilarHalaqa } from './utils/searchUtils';
 import { ParentPortal } from './components/ParentPortal';
+import { StudentSevenCastlesRouteView, getStudentTasksRouteFromUrl, StudentTasksRouteInfo } from './components/StudentSevenCastlesRouteView';
 import { normalizeParentPhone } from './utils/parentReportUtils';
+import { getMemorizedPagesData } from './utils/pageUtils';
+import { exportFullBackup } from './utils/fullBackup';
 
 export const getParentPhoneFromUrl = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -59,7 +62,7 @@ export interface TeacherSessionState {
 }
 
 export interface SupervisorNavRequest {
-  view: 'reports' | 'testReports' | 'management' | 'documents' | 'suggestions' | 'certificates' | 'cards' | 'settings' | 'overview';
+  view: 'reports' | 'testReports' | 'management' | 'sevenCastles' | 'documents' | 'suggestions' | 'certificates' | 'cards' | 'settings' | 'overview';
   reportsSubTab?: 'quran' | 'mutoon' | 'sard' | 'upgrades';
   suggestionsSubTab?: 'suggestions' | 'behaviors';
   nonce: number;
@@ -98,6 +101,7 @@ interface AppContextType {
   updateStudent: (student: Student) => void;
   deleteStudent: (studentId: number) => void;
   resetAllStudentsLevelToAuto: () => void;
+  consolidateMemorizedPagesForNewTerm: () => { totalStudents: number; updatedCount: number };
   reorderStudentNumbersByHalaqa?: () => void;
   assignStudentToSardHalaqa: (studentId: number, sardHalaqaId?: number) => void;
   assignStudentToIlmiyyaHalaqa: (studentId: number, ilmiyyaHalaqaId?: number) => void;
@@ -730,6 +734,7 @@ const App: React.FC = () => {
   const [unevaluatedSardStudents, setUnevaluatedSardStudents] = useState<string[]>([]);
   const [parentReportsEnabledState, setParentReportsEnabledState] = useState<boolean>(() => initialBackupData?.parentReportsEnabled ?? true);
   const [parentPortalPhone, setParentPortalPhone] = useState<string | null>(() => getParentPhoneFromUrl());
+  const [studentTasksRoute, setStudentTasksRoute] = useState<StudentTasksRouteInfo | null>(() => getStudentTasksRouteFromUrl());
   const [supervisorNavRequest, setSupervisorNavRequest] = useState<SupervisorNavRequest | null>(null);
   const [supervisorReadNotifications, setSupervisorReadNotifications] = useState<string[]>(() => {
     try {
@@ -746,6 +751,7 @@ const App: React.FC = () => {
     document.title = 'إعداد حافظ';
     const handleUrlChange = () => {
       setParentPortalPhone(getParentPhoneFromUrl());
+      setStudentTasksRoute(getStudentTasksRouteFromUrl());
     };
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
@@ -1979,6 +1985,137 @@ const App: React.FC = () => {
     showToast(`✅ تم إعادة ضبط مستويات جميع الطلاب لتكون تلقائية بحسب الحفظ (${updatedStudents.length} طالب)`, 'success');
   };
 
+  const consolidateMemorizedPagesForNewTerm = useCallback(() => {
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const backupData: FullBackupData = {
+      users: data.users || [],
+      halaqas: data.halaqas || [],
+      sardHalaqas: data.sardHalaqas || [],
+      ilmiyyaHalaqas: data.ilmiyyaHalaqas || [],
+      students: data.students || [],
+      evaluations: data.evaluations || [],
+      sardEvaluations: data.sardEvaluations || [],
+      ilmiyyaAttendances: data.ilmiyyaAttendances || [],
+      maghribAttendances: data.maghribAttendances || [],
+      suggestions: data.suggestions || [],
+      studentBehaviors: data.studentBehaviors || [],
+      matns: data.matns || [],
+      newStudentTests: data.newStudentTests || [],
+      customLogo,
+      supervisorPassword,
+      maghribPassword,
+      teacherIbriPassword,
+      teacherOutsidePassword,
+      appName,
+      firebaseConfig: firebaseConfigState,
+      hijriAdjustments,
+      isTestActive: isTestActiveState,
+      testScore: testScoreState,
+      testName: testNameState,
+      testDeductions: testDeductionsState,
+      isNewStudentTestActive: isNewStudentTestActiveState,
+      newStudentTestScore: newStudentTestScoreState,
+      newStudentPassingRate: newStudentPassingRateState,
+      newStudentTestDeductions: newStudentTestDeductionsState,
+      allowTeacherEditOldMemorized: allowTeacherEditOldMemorizedState,
+      showAmeerToTeachers: showAmeerToTeachersState,
+      reviewFeatureConfig: reviewFeatureConfigState,
+      parentReportsEnabled: parentReportsEnabledState,
+      colorMap,
+      saveColors,
+      rankColors,
+      manualRanks,
+      certificateConfig,
+      cardConfig,
+    };
+
+    // إصدار نسخة احتياطية شاملة تلقائياً قبل استبدال بيانات الحفظ القديم
+    exportFullBackup(backupData, `نسخة_احتياطية_شاملة_قبل_ترحيل_المحفوظ_لفصل_جديد_${dateStr}`);
+
+    const setToRanges = (pagesSet: Set<number>): string => {
+      const sorted = Array.from(pagesSet)
+        .filter(n => !isNaN(n) && n >= 1 && n <= 604)
+        .sort((a, b) => a - b);
+      if (sorted.length === 0) return '';
+      const ranges: string[] = [];
+      let start = sorted[0];
+      let end = sorted[0];
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] === end + 1) {
+          end = sorted[i];
+        } else {
+          ranges.push(start === end ? `${start}` : `${start}-${end}`);
+          start = sorted[i];
+          end = sorted[i];
+        }
+      }
+      ranges.push(start === end ? `${start}` : `${start}-${end}`);
+      return ranges.join(', ');
+    };
+
+    const timestamp = Date.now();
+    const evalsList = data.evaluations || [];
+    let updatedCount = 0;
+
+    const updatedStudents = (data.students || []).map(s => {
+      const pagesData = getMemorizedPagesData(s, evalsList);
+      const combinedRangesStr = setToRanges(pagesData.totalSet);
+      if (pagesData.newSet.size > 0 || (s.oldMemorizedPages || '').trim() !== combinedRangesStr) {
+        updatedCount++;
+      }
+      return {
+        ...s,
+        oldMemorizedPages: combinedRangesStr,
+        updatedAt: timestamp,
+      };
+    });
+
+    const toObj = (arr: any[]) => arr.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});
+    writeData('data/students', toObj(updatedStudents));
+    setData(prev => ({
+      ...prev,
+      students: updatedStudents,
+    }));
+
+    showToast(
+      `✅ تم إصدار نسخة احتياطية تلقائية وترحيل محفوظ (${updatedCount}) طالب إلى الحفظ القديم، وأصبح الحفظ الجديد فارغاً للبدء بفصل جديد`,
+      'success'
+    );
+
+    return { totalStudents: updatedStudents.length, updatedCount };
+  }, [
+    data,
+    customLogo,
+    supervisorPassword,
+    maghribPassword,
+    teacherIbriPassword,
+    teacherOutsidePassword,
+    appName,
+    firebaseConfigState,
+    hijriAdjustments,
+    isTestActiveState,
+    testScoreState,
+    testNameState,
+    testDeductionsState,
+    isNewStudentTestActiveState,
+    newStudentTestScoreState,
+    newStudentPassingRateState,
+    newStudentTestDeductionsState,
+    allowTeacherEditOldMemorizedState,
+    showAmeerToTeachersState,
+    reviewFeatureConfigState,
+    parentReportsEnabledState,
+    colorMap,
+    saveColors,
+    rankColors,
+    manualRanks,
+    certificateConfig,
+    cardConfig,
+    showToast,
+  ]);
+
   const reorderStudentNumbersByHalaqa = useCallback(() => {
     const { updated } = renumberStudentsByHalaqaOrder(data.students || [], data.halaqas || []);
     const now = Date.now();
@@ -2599,7 +2736,7 @@ const App: React.FC = () => {
     users: data.users || [], students: data.students || [], halaqas: data.halaqas || [], sardHalaqas: data.sardHalaqas || [], ilmiyyaHalaqas: data.ilmiyyaHalaqas || [], evaluations: data.evaluations || [], sardEvaluations: data.sardEvaluations || [], ilmiyyaAttendances: data.ilmiyyaAttendances || [], maghribAttendances: data.maghribAttendances || [], suggestions: data.suggestions || [], studentBehaviors: data.studentBehaviors || [], matns: data.matns || [], newStudentTests: data.newStudentTests || [],
     addEvaluation, updateEvaluation, deleteEvaluation,
     addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations,
-    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, reorderStudentNumbersByHalaqa, assignStudentToSardHalaqa, assignStudentToIlmiyyaHalaqa,
+    addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, consolidateMemorizedPagesForNewTerm, reorderStudentNumbersByHalaqa, assignStudentToSardHalaqa, assignStudentToIlmiyyaHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa,
     addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
     addIlmiyyaHalaqa, updateIlmiyyaHalaqa, deleteIlmiyyaHalaqa, assignTeachersToIlmiyyaHalaqa, saveIlmiyyaAttendances, deleteIlmiyyaAttendance,
@@ -2652,7 +2789,7 @@ const App: React.FC = () => {
     markNotificationsRead,
     markNotificationUnread
   }), [
-    data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, reorderStudentNumbersByHalaqa, assignStudentToSardHalaqa,
+    data, addEvaluation, updateEvaluation, deleteEvaluation, addSardEvaluation, updateSardEvaluation, deleteSardEvaluation, deleteAllSardEvaluations, addMaghribAttendance, deleteMaghribAttendance, addStudent, updateStudent, deleteStudent, resetAllStudentsLevelToAuto, consolidateMemorizedPagesForNewTerm, reorderStudentNumbersByHalaqa, assignStudentToSardHalaqa,
     addHalaqa, updateHalaqa, deleteHalaqa, assignTeacherToHalaqa, addSardHalaqa, updateSardHalaqa, deleteSardHalaqa, assignTeacherToSardHalaqa,
     addIlmiyyaHalaqa, updateIlmiyyaHalaqa, deleteIlmiyyaHalaqa, assignTeachersToIlmiyyaHalaqa, saveIlmiyyaAttendances, deleteIlmiyyaAttendance, assignStudentToIlmiyyaHalaqa,
     addSuggestion, updateSuggestion, deleteSuggestion, deleteAllSuggestions, deleteAllEvaluations, deleteAllData,
@@ -2677,6 +2814,17 @@ const App: React.FC = () => {
     supervisorNavRequest, navigateSupervisor,
     supervisorReadNotifications, markNotificationsRead, markNotificationUnread
   ]);
+
+  if (studentTasksRoute?.active) {
+    return (
+      <AppContext.Provider value={contextValue}>
+        <div className={`min-h-screen min-h-[100dvh] w-full flex-1 transition-colors duration-300 flex flex-col ${darkMode ? 'bg-[#121212] text-white' : 'bg-[#F9F7F2] text-gray-900'}`}>
+          <PwaUpdater />
+          <StudentSevenCastlesRouteView route={studentTasksRoute} />
+        </div>
+      </AppContext.Provider>
+    );
+  }
 
   if (parentPortalPhone) {
     return (
