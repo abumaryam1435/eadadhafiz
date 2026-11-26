@@ -19,6 +19,7 @@ import {
   BookOpen,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Circle,
@@ -1004,30 +1005,38 @@ export const StudentSevenCastlesTasksPage: React.FC<
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <select
-                value={currentQari}
-                onChange={(e) => handleChangeQari(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-1 sm:flex-none min-h-[36px] text-xs font-bold bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-xl px-2.5 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
-              >
-                {QARI_OPTIONS.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={currentSpeed}
-                onChange={(e) => handleChangeSpeed(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                className="w-16 min-h-[36px] text-xs font-bold text-center bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-xl px-1.5 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
-              >
-                {['1.0', '1.2', '1.4', '1.5', '1.6', '1.8', '2.0'].map((s) => (
-                  <option key={s} value={s}>
-                    {s}x
-                  </option>
-                ))}
-              </select>
+              <div className="relative flex-1 sm:flex-none inline-flex items-center">
+                <select
+                  aria-label="اختيار القارئ"
+                  value={currentQari}
+                  onChange={(e) => handleChangeQari(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="appearance-none bg-none w-full min-h-[34px] text-[11px] sm:text-xs leading-tight font-bold bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-xl py-1 pr-2.5 pl-6 outline-none text-gray-800 dark:text-gray-200 cursor-pointer"
+                >
+                  {QARI_OPTIONS.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300 pointer-events-none absolute left-2" />
+              </div>
+              <div className="relative inline-flex items-center shrink-0">
+                <select
+                  aria-label="سرعة التلاوة"
+                  value={currentSpeed}
+                  onChange={(e) => handleChangeSpeed(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="appearance-none bg-none min-w-[64px] min-h-[34px] text-[11px] sm:text-xs leading-tight font-bold bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-xl py-1 pr-2.5 pl-6 outline-none text-gray-800 dark:text-gray-200 cursor-pointer"
+                >
+                  {['1.0', '1.2', '1.4', '1.5', '1.6', '1.8', '2.0'].map((s) => (
+                    <option key={s} value={s}>
+                      {s}x
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300 pointer-events-none absolute left-2" />
+              </div>
             </div>
           </div>
         </div>
