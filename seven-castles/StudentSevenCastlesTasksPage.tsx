@@ -37,7 +37,7 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { ProgressLog, SevenCastlesPlan, Task, TaskType } from './types';
+import { ProgressLog, SevenCastlesPlan, Task, TaskType, VerseRange } from './types';
 import {
   DAILY_AMOUNT_LABELS,
   getSevenCastlesDurationWeeks,
@@ -52,6 +52,30 @@ import {
 import { getHijriDate } from './utils/dateHelpers';
 import { cleanTaskGroupLabel } from './utils/taskLabelHelpers';
 
+export interface StudentTasksAudioState {
+  isPlaying: boolean;
+  isLoading: boolean;
+  surahName?: string;
+  surahId?: number;
+  ayahNumber?: number;
+  page?: number;
+  currentIndex: number;
+  totalAyahs: number;
+  playedSeconds: number;
+  totalSeconds: number;
+  progressPct: number;
+  qariId: string;
+  qariOptions: { id: string; label: string }[];
+  speed: string;
+  onTogglePlay: () => void;
+  onPrevAyah: () => void;
+  onNextAyah: () => void;
+  onRestart: () => void;
+  onStop: () => void;
+  onChangeQari: (qariId: string) => void;
+  onChangeSpeed: (speed: string) => void;
+}
+
 export interface StudentSevenCastlesTasksPageProps {
   /** خطة الطالب (اختياري: إذا لم تُمرَّر تُقرأ تلقائياً من رابط ?plan=... في المتصفح) */
   plan?: SevenCastlesPlan | null;
@@ -63,9 +87,11 @@ export interface StudentSevenCastlesTasksPageProps {
   onPlanStartDateChange?: (newStartDate: string, plan: SevenCastlesPlan) => Promise<void> | void;
   /**
    * ربط عارض صفحات المصحف الموجود في تطبيقك:
-   * يُستدعى عند الضغط على أيقونة المصحف في أي مهمة يومية.
+   * يُستدعى عند الضغط على أيقونة المصحف أو زر الاستماع في أي مهمة يومية.
    */
-  onOpenMushafPages?: (pages: number[], title: string) => void;
+  onOpenMushafPages?: (pages: number[], title: string, verseRanges?: VerseRange[]) => void;
+  /** مزامنة حالة الاستماع والآية المتلوة حالياً مع عارض المصحف للتتبع آية بآية */
+  onAudioStateChange?: (audioState: StudentTasksAudioState | null) => void;
   /** رابط شعار التطبيق (اختياري) */
   logoUrl?: string;
   /** اسم التطبيق (اختياري) */
@@ -94,9 +120,11 @@ const pageAyahCache = new Map<number, AyahAudioItem[]>();
 
 function normalizeArabicSurah(name: string): string {
   return String(name || '')
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
-    .replace(/^سورة\s+/i, '')
-    .replace(/[أإآ]/g, 'ا')
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+    .replace(/^سورة\s*/i, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
     .replace(/ة/g, 'ه')
     .replace(/ى/g, 'ي')
     .replace(/\s+/g, '')
@@ -271,6 +299,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
   onSaveProgress,
   onPlanStartDateChange,
   onOpenMushafPages,
+  onAudioStateChange,
   logoUrl,
   appName,
 }) => {
@@ -471,18 +500,29 @@ export const StudentSevenCastlesTasksPage: React.FC<
       .catch(() => setIsPlaying(false));
   };
 
-  const handlePlayListeningTask = async (task: Task) => {
+  const handlePlayListeningTask = async (task: Task, displayTitle?: string) => {
+    const taskPages = task.pages || [];
+    const openMushafForListening = () => {
+      if (onOpenMushafPages && taskPages.length > 0) {
+        onOpenMushafPages(taskPages, displayTitle || task.title, task.verseRanges);
+      }
+    };
+
     if (playingTaskId === task.id) {
       if (audioRef.current) {
         if (isPlaying) {
           audioRef.current.pause();
           setIsPlaying(false);
         } else {
+          openMushafForListening();
           audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
         }
       }
       return;
     }
+
+    // افتح صفحة المصحف تلقائياً لمتابعة الآيات المتلوة آية بآية
+    openMushafForListening();
 
     setPlayingTaskId(task.id);
     setIsLoadingAudio(true);
@@ -533,6 +573,107 @@ export const StudentSevenCastlesTasksPage: React.FC<
       audioRef.current.playbackRate = parseFloat(newSpeed) || 1.0;
     }
   };
+
+  const safeAyahIndex = Math.min(
+    playingAyahIndex,
+    Math.max(0, activeAyahs.length - 1)
+  );
+  const currentAyahObj = activeAyahs[safeAyahIndex];
+
+  const { playedSeconds, totalSeconds } = useMemo(() => {
+    let total = 0;
+    let played = 0;
+    activeAyahs.forEach((ayah, idx) => {
+      const dur = estimateAyahDuration(ayah, currentQari, currentSpeed);
+      total += dur;
+      if (idx < playingAyahIndex) played += dur;
+      else if (idx === playingAyahIndex) played += (audioProgress / 100) * dur;
+    });
+    return { playedSeconds: played, totalSeconds: total };
+  }, [activeAyahs, playingAyahIndex, audioProgress, currentQari, currentSpeed]);
+
+  const overallAudioPct =
+    totalSeconds > 0 ? Math.min(100, (playedSeconds / totalSeconds) * 100) : 0;
+
+  // مزامنة حالة التلاوة الحية مع عارض المصحف لتظليل الآية المتلوة حالياً
+  useEffect(() => {
+    if (!onAudioStateChange) return;
+    if (!playingTaskId) {
+      onAudioStateChange(null);
+      return;
+    }
+    onAudioStateChange({
+      isPlaying,
+      isLoading: isLoadingAudio,
+      surahName: currentAyahObj?.surahName,
+      surahId: currentAyahObj?.surahNumber,
+      ayahNumber: currentAyahObj?.numberInSurah,
+      page: currentAyahObj?.page,
+      currentIndex: safeAyahIndex,
+      totalAyahs: activeAyahs.length,
+      playedSeconds,
+      totalSeconds,
+      progressPct: overallAudioPct,
+      qariId: currentQari,
+      qariOptions: QARI_OPTIONS.map((q) => ({ id: q.id, label: q.label })),
+      speed: currentSpeed,
+      onTogglePlay: () => {
+        if (!audioRef.current) return;
+        if (isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+        }
+      },
+      onPrevAyah: () => {
+        if (playingAyahIndex > 0) {
+          const prev = playingAyahIndex - 1;
+          setPlayingAyahIndex(prev);
+          playAyahAtIndex(activeAyahs, prev, currentQari, currentSpeed);
+        }
+      },
+      onNextAyah: () => {
+        if (playingAyahIndex < activeAyahs.length - 1) {
+          const next = playingAyahIndex + 1;
+          setPlayingAyahIndex(next);
+          playAyahAtIndex(activeAyahs, next, currentQari, currentSpeed);
+        }
+      },
+      onRestart: () => {
+        if (activeAyahs.length > 0) {
+          setPlayingAyahIndex(0);
+          playAyahAtIndex(activeAyahs, 0, currentQari, currentSpeed);
+        }
+      },
+      onStop: stopAudio,
+      onChangeQari: handleChangeQari,
+      onChangeSpeed: handleChangeSpeed,
+    });
+  }, [
+    onAudioStateChange,
+    playingTaskId,
+    isPlaying,
+    isLoadingAudio,
+    currentAyahObj?.surahName,
+    currentAyahObj?.surahNumber,
+    currentAyahObj?.numberInSurah,
+    currentAyahObj?.page,
+    safeAyahIndex,
+    activeAyahs,
+    playedSeconds,
+    totalSeconds,
+    overallAudioPct,
+    currentQari,
+    currentSpeed,
+    playingAyahIndex,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      onAudioStateChange?.(null);
+    };
+  }, [onAudioStateChange]);
 
   // All plan dates for the calendar view
   const planDates = useMemo(() => {
@@ -717,57 +858,38 @@ export const StudentSevenCastlesTasksPage: React.FC<
     group.tasks.push(task);
   });
 
-  const safeAyahIndex = Math.min(
-    playingAyahIndex,
-    Math.max(0, activeAyahs.length - 1)
-  );
-  const currentAyahObj = activeAyahs[safeAyahIndex];
-
-  const { playedSeconds, totalSeconds } = useMemo(() => {
-    let total = 0;
-    let played = 0;
-    activeAyahs.forEach((ayah, idx) => {
-      const dur = estimateAyahDuration(ayah, currentQari, currentSpeed);
-      total += dur;
-      if (idx < playingAyahIndex) played += dur;
-      else if (idx === playingAyahIndex) played += (audioProgress / 100) * dur;
-    });
-    return { playedSeconds: played, totalSeconds: total };
-  }, [activeAyahs, playingAyahIndex, audioProgress, currentQari, currentSpeed]);
-
-  const overallAudioPct =
-    totalSeconds > 0 ? Math.min(100, (playedSeconds / totalSeconds) * 100) : 0;
-
   const currentQariLabel =
     QARI_OPTIONS.find((q) => q.id === currentQari)?.label || 'القارئ';
 
   const renderAudioPanel = () => (
     <div className="w-full mt-2.5 select-none">
       {showAudioControls ? (
-        <div className="flex flex-col gap-2 bg-amber-50/90 dark:bg-amber-950/20 p-2.5 rounded-xl border border-amber-100 dark:border-amber-900/30 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-              <Volume2 className="w-3.5 h-3.5 text-amber-600 animate-pulse shrink-0" />
-              <span>
-                {currentAyahObj
-                  ? `${currentAyahObj.surahName}: الآية ${currentAyahObj.numberInSurah} (${safeAyahIndex + 1} من ${activeAyahs.length})`
-                  : 'جاري تحميل التلاوة...'}
-              </span>
-              <span className="text-[9px] text-gray-500 font-normal">
-                ({currentQariLabel} • {currentSpeed}x)
-              </span>
+        <div className="flex flex-col gap-2.5 bg-amber-50/90 dark:bg-amber-950/20 p-3 rounded-2xl border border-amber-200/70 dark:border-amber-900/30 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-start gap-1.5 min-w-0 flex-1">
+              <Volume2 className="w-4 h-4 text-amber-600 animate-pulse shrink-0 mt-0.5" />
+              <div className="min-w-0 leading-snug">
+                <span className="break-words">
+                  {currentAyahObj
+                    ? `${currentAyahObj.surahName}: الآية ${currentAyahObj.numberInSurah} (${safeAyahIndex + 1} من ${activeAyahs.length})`
+                    : 'جاري تحميل التلاوة...'}
+                </span>
+                <span className="block sm:inline sm:mr-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-normal">
+                  ({currentQariLabel} • {currentSpeed}x)
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowAudioControls(false);
                 }}
-                className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-600 cursor-pointer"
                 title="تصغير لوحة الصوت"
               >
-                <EyeOff className="w-3.5 h-3.5" />
+                <EyeOff className="w-4 h-4" />
               </button>
               <button
                 type="button"
@@ -775,33 +897,33 @@ export const StudentSevenCastlesTasksPage: React.FC<
                   e.stopPropagation();
                   stopAudio();
                 }}
-                className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 cursor-pointer"
                 title="إغلاق الصوت"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           {activeAyahs.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-bold text-teal-600 font-mono">
+              <span className="text-[10px] font-bold text-teal-600 font-mono">
                 {formatDuration(playedSeconds)}
               </span>
-              <div className="flex-1 h-1.5 bg-teal-100 dark:bg-teal-950/40 rounded-full overflow-hidden relative">
+              <div className="flex-1 h-2 bg-teal-100 dark:bg-teal-950/40 rounded-full overflow-hidden relative">
                 <div
                   className="absolute top-0 bottom-0 right-0 bg-teal-600 rounded-full transition-all duration-150"
                   style={{ width: `${overallAudioPct}%` }}
                 />
               </div>
-              <span className="text-[9px] font-bold text-gray-500 font-mono">
+              <span className="text-[10px] font-bold text-gray-500 font-mono">
                 {formatDuration(totalSeconds)}
               </span>
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber-200/30 pt-2">
-            <div className="flex items-center gap-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-amber-200/40 pt-2">
+            <div className="flex items-center justify-center sm:justify-start gap-1.5">
               <button
                 type="button"
                 onClick={(e) => {
@@ -813,7 +935,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                   }
                 }}
                 disabled={playingAyahIndex === 0}
-                className="p-1 rounded-lg bg-amber-100/70 dark:bg-amber-900/20 text-amber-700 disabled:opacity-40"
+                className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl bg-amber-100/80 dark:bg-amber-900/25 text-amber-700 disabled:opacity-40 cursor-pointer"
                 title="الآية السابقة"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -830,7 +952,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                     audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
                   }
                 }}
-                className="p-1.5 rounded-lg bg-amber-200/70 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100"
+                className="min-w-[40px] min-h-[36px] flex items-center justify-center rounded-xl bg-amber-200/80 dark:bg-amber-900/45 text-amber-900 dark:text-amber-100 cursor-pointer"
                 title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
               >
                 {isPlaying ? (
@@ -845,7 +967,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                   e.stopPropagation();
                   stopAudio();
                 }}
-                className="p-1 rounded-lg hover:bg-amber-200 text-amber-700"
+                className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl hover:bg-amber-200 text-amber-700 cursor-pointer"
                 title="إيقاف"
               >
                 <Square className="w-3.5 h-3.5" />
@@ -857,10 +979,10 @@ export const StudentSevenCastlesTasksPage: React.FC<
                   setPlayingAyahIndex(0);
                   playAyahAtIndex(activeAyahs, 0, currentQari, currentSpeed);
                 }}
-                className="px-2 py-1 rounded-lg bg-amber-100/70 dark:bg-amber-900/20 text-amber-700 text-[9px] font-bold flex items-center gap-1"
+                className="min-h-[36px] px-2.5 py-1 rounded-xl bg-amber-100/80 dark:bg-amber-900/25 text-amber-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                 title="إعادة من البداية"
               >
-                <RotateCcw className="w-3 h-3" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 <span>إعادة</span>
               </button>
               <button
@@ -874,19 +996,19 @@ export const StudentSevenCastlesTasksPage: React.FC<
                   }
                 }}
                 disabled={playingAyahIndex >= activeAyahs.length - 1}
-                className="p-1 rounded-lg bg-amber-100/70 dark:bg-amber-900/20 text-amber-700 disabled:opacity-40"
+                className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl bg-amber-100/80 dark:bg-amber-900/25 text-amber-700 disabled:opacity-40 cursor-pointer"
                 title="الآية التالية"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <select
                 value={currentQari}
                 onChange={(e) => handleChangeQari(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
-                className="text-[10px] font-bold bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-lg px-2 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
+                className="flex-1 sm:flex-none min-h-[36px] text-xs font-bold bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-xl px-2.5 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
               >
                 {QARI_OPTIONS.map((q) => (
                   <option key={q.id} value={q.id}>
@@ -898,7 +1020,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                 value={currentSpeed}
                 onChange={(e) => handleChangeSpeed(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
-                className="w-12 text-[10px] font-bold text-center bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-lg px-1 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
+                className="w-16 min-h-[36px] text-xs font-bold text-center bg-white dark:bg-[#151515] border border-amber-200/70 dark:border-amber-900/30 rounded-xl px-1.5 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
               >
                 {['1.0', '1.2', '1.4', '1.5', '1.6', '1.8', '2.0'].map((s) => (
                   <option key={s} value={s}>
@@ -910,10 +1032,10 @@ export const StudentSevenCastlesTasksPage: React.FC<
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-2 bg-amber-50/70 dark:bg-amber-950/15 px-2.5 py-1.5 rounded-lg border border-amber-100 dark:border-amber-900/20">
-          <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-            <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping" />
-            <span>
+        <div className="flex items-center justify-between gap-2 bg-amber-50/80 dark:bg-amber-950/15 px-3 py-2 rounded-xl border border-amber-100 dark:border-amber-900/20">
+          <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5 min-w-0">
+            <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping shrink-0" />
+            <span className="truncate">
               الآية {currentAyahObj?.numberInSurah} ({safeAyahIndex + 1}/
               {activeAyahs.length}) • {currentQariLabel}
             </span>
@@ -924,10 +1046,10 @@ export const StudentSevenCastlesTasksPage: React.FC<
               e.stopPropagation();
               setShowAudioControls(true);
             }}
-            className="p-1 text-teal-600 hover:bg-amber-100 rounded"
+            className="w-8 h-8 flex items-center justify-center text-teal-600 hover:bg-amber-100 rounded-lg shrink-0 cursor-pointer"
             title="إظهار لوحة التحكم"
           >
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -935,37 +1057,37 @@ export const StudentSevenCastlesTasksPage: React.FC<
   );
 
   return (
-    <div dir="rtl" className="max-w-2xl mx-auto p-3 sm:p-4 space-y-4">
+    <div dir="rtl" className="w-full max-w-2xl mx-auto px-2.5 sm:px-4 pt-3 pb-8 sm:py-5 space-y-3.5 sm:space-y-4 overflow-x-hidden box-border">
       {/* Student Header Card */}
-      <div className="bg-gradient-to-l from-[#1A2E1A] to-emerald-900 text-white rounded-3xl p-4 shadow-md space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="bg-gradient-to-l from-[#1A2E1A] to-emerald-900 text-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 shadow-md space-y-3">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             {logoUrl ? (
               <img
                 src={logoUrl}
                 alt={appName || 'شعار التطبيق'}
-                className="w-11 h-11 rounded-2xl bg-white p-1 object-contain shrink-0"
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white p-1 object-contain shrink-0"
               />
             ) : (
-              <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
                 <User className="w-5 h-5 text-[#F7E7A9]" />
               </div>
             )}
-            <div className="min-w-0">
-              <div className="text-[11px] text-[#F7E7A9] font-bold">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] sm:text-[11px] text-[#F7E7A9] font-bold truncate">
                 خطة القلاع السبع {appName ? `• ${appName}` : ''}
               </div>
-              <h1 className="text-base sm:text-lg font-extrabold truncate">
+              <h1 className="text-sm sm:text-lg font-extrabold leading-snug line-clamp-2">
                 الطالب: {activePlan.studentName}
               </h1>
-              <div className="text-[11px] text-emerald-100/80">
+              <div className="text-[11px] text-emerald-100/85 truncate">
                 المقدار اليومي: {DAILY_AMOUNT_LABELS[activePlan.dailyAmount]}
               </div>
             </div>
           </div>
-          <div className="text-left shrink-0 bg-white/10 px-3 py-2 rounded-2xl border border-white/15">
-            <div className="text-[10px] text-emerald-100">إنجاز اليوم</div>
-            <div className="text-base font-extrabold text-[#F7E7A9]">
+          <div className="text-center shrink-0 bg-white/10 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl sm:rounded-2xl border border-white/15">
+            <div className="text-[9px] sm:text-[10px] text-emerald-100 whitespace-nowrap">إنجاز اليوم</div>
+            <div className="text-sm sm:text-base font-extrabold text-[#F7E7A9]">
               {Math.round(completionRate)}%
             </div>
           </div>
@@ -977,28 +1099,28 @@ export const StudentSevenCastlesTasksPage: React.FC<
             type="button"
             disabled={!!pdfExportState}
             onClick={() => handleExportPlanPdf('standard')}
-            className="min-h-[38px] px-2.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 disabled:opacity-50 border border-white/20 text-white text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+            className="min-h-[40px] px-2 sm:px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 disabled:opacity-50 border border-white/20 text-white text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
           >
             {pdfExportState?.style === 'standard' ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F7E7A9] shrink-0" />
             ) : (
               <FileText className="w-3.5 h-3.5 text-[#F7E7A9] shrink-0" />
             )}
-            <span className="truncate">تصدير PDF (العادي)</span>
+            <span className="leading-tight text-center">تصدير PDF (العادي)</span>
           </button>
 
           <button
             type="button"
             disabled={!!pdfExportState}
             onClick={() => handleExportPlanPdf('castle_towers')}
-            className="min-h-[38px] px-2.5 py-2 rounded-xl bg-[#D4AF37] hover:bg-amber-400 disabled:opacity-50 text-[#1A2E1A] text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-xs cursor-pointer"
+            className="min-h-[40px] px-2 sm:px-3 py-2 rounded-xl bg-[#D4AF37] hover:bg-amber-400 disabled:opacity-50 text-[#1A2E1A] text-[11px] sm:text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-xs cursor-pointer"
           >
             {pdfExportState?.style === 'castle_towers' ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
             ) : (
               <Download className="w-3.5 h-3.5 shrink-0" />
             )}
-            <span className="truncate">تصدير PDF (الأبراج)</span>
+            <span className="leading-tight text-center">تصدير PDF (الأبراج)</span>
           </button>
         </div>
 
@@ -1051,44 +1173,55 @@ export const StudentSevenCastlesTasksPage: React.FC<
       )}
 
       {/* Date Navigation */}
-      <div className="flex items-center justify-between bg-white dark:bg-[#1A1A1A] px-2 py-2 rounded-2xl border border-[#1A2E1A]/5 dark:border-white/5 shadow-sm">
+      <div className="flex items-center justify-between gap-1 bg-white dark:bg-[#1A1A1A] px-1.5 sm:px-2 py-2 rounded-2xl border border-[#1A2E1A]/5 dark:border-white/5 shadow-sm">
         <button
           type="button"
           onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-          className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors active:scale-95 shrink-0 cursor-pointer"
           title="اليوم السابق"
         >
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+          <ChevronRight className="w-5 h-5 text-gray-500 dark:text-gray-400" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setCalendarMonth(selectedDate);
-            setIsCalendarOpen(true);
-          }}
-          className="text-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/20 px-5 py-1.5 rounded-xl transition-all flex flex-col items-center gap-0.5"
-          title="عرض تقويم الخطة"
-        >
-          <div className="text-sm font-bold text-[#1A2E1A] dark:text-white flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
-            {format(selectedDate, 'EEEE', { locale: ar })}
-          </div>
-          <div className="text-[10px] text-amber-600 dark:text-[#D4AF37] font-bold">
-            {getHijriDate(selectedDate)}
-          </div>
-          <div className="text-[10px] text-gray-400 font-medium">
-            {format(selectedDate, 'd MMMM yyyy', { locale: ar })}
-          </div>
-        </button>
+        <div className="flex-1 min-w-0 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setCalendarMonth(selectedDate);
+              setIsCalendarOpen(true);
+            }}
+            className="w-full max-w-[260px] text-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-950/20 px-2.5 sm:px-5 py-1.5 rounded-xl transition-all flex flex-col items-center gap-0.5"
+            title="عرض تقويم الخطة"
+          >
+            <div className="text-sm font-bold text-[#1A2E1A] dark:text-white flex items-center justify-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+              <span>{format(selectedDate, 'EEEE', { locale: ar })}</span>
+            </div>
+            <div className="text-[11px] text-amber-600 dark:text-[#D4AF37] font-bold">
+              {getHijriDate(selectedDate)}
+            </div>
+            <div className="text-[10px] text-gray-400 font-medium">
+              {format(selectedDate, 'd MMMM yyyy', { locale: ar })}
+            </div>
+          </button>
+          {!isTodaySelected && (
+            <button
+              type="button"
+              onClick={() => setSelectedDate(new Date())}
+              className="mt-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-200/70 dark:border-emerald-800/50 cursor-pointer"
+            >
+              العودة لليوم
+            </button>
+          )}
+        </div>
 
         <button
           type="button"
           onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-          className="p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors active:scale-95 shrink-0 cursor-pointer"
           title="اليوم التالي"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-400" />
+          <ChevronLeft className="w-5 h-5 text-gray-500 dark:text-gray-400" />
         </button>
       </div>
 
@@ -1141,15 +1274,15 @@ export const StudentSevenCastlesTasksPage: React.FC<
 
       {/* Tasks Header & Postpone Button */}
       <div className="space-y-2.5">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <h3 className="text-xs sm:text-sm font-bold text-gray-500 dark:text-gray-400">
             المهام اليومية ({completedCount}/{currentTasks.length})
           </h3>
           {isEditable && !isPostponedDay && currentTasks.length > 0 && (
             <button
               type="button"
               onClick={() => setShowPostponeModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 transition-all"
+              className="flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 transition-all active:scale-95 cursor-pointer"
             >
               <Clock className="w-3.5 h-3.5" />
               <span>تأجيل مهام اليوم</span>
@@ -1167,6 +1300,9 @@ export const StudentSevenCastlesTasksPage: React.FC<
             const isGroupPlaying = group.tasks.some(
               (t) => playingTaskId === t.id
             );
+            const groupVerseRanges = group.tasks.find(
+              (t) => t.verseRanges && t.verseRanges.length > 0
+            )?.verseRanges;
 
             if (isSingleTask) {
               const task = group.tasks[0];
@@ -1178,9 +1314,9 @@ export const StudentSevenCastlesTasksPage: React.FC<
                       if (isEditable) toggleTask(task.id);
                     }}
                     className={clsx(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-2xl border-2 transition-all duration-200 select-none',
+                      'flex items-center gap-2.5 sm:gap-3 px-3 py-3 rounded-2xl border-2 transition-all duration-200 select-none',
                       isEditable
-                        ? 'cursor-pointer hover:scale-[1.01]'
+                        ? 'cursor-pointer active:scale-[0.99]'
                         : 'cursor-default opacity-60',
                       getTaskBorderStyles(task, task.completed)
                     )}
@@ -1190,7 +1326,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                         e.stopPropagation();
                         if (isEditable) forceToggleCompletion(task.id);
                       }}
-                      className="shrink-0 flex items-center justify-center cursor-pointer p-1 -m-1 rounded-full hover:bg-black/5"
+                      className="shrink-0 flex items-center justify-center cursor-pointer w-8 h-8 -mr-1 rounded-full hover:bg-black/5"
                     >
                       {task.completed ? (
                         <CheckCircle2 className="w-5 h-5 text-current" />
@@ -1209,7 +1345,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                     <div className="flex-1 min-w-0">
                       <h4
                         className={clsx(
-                          'text-xs font-bold dark:text-white leading-snug break-words whitespace-pre-wrap',
+                          'text-xs sm:text-sm font-bold dark:text-white leading-relaxed break-words whitespace-pre-wrap',
                           task.completed && 'line-through text-gray-400'
                         )}
                       >
@@ -1221,10 +1357,10 @@ export const StudentSevenCastlesTasksPage: React.FC<
                       {task.targetCount > 1 && (
                         <span
                           className={clsx(
-                            'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full',
+                            'text-[10px] font-mono font-bold px-2 py-1 rounded-lg',
                             task.completed
-                              ? 'text-emerald-700 bg-emerald-100/70'
-                              : 'text-amber-700 bg-amber-100/70'
+                              ? 'text-emerald-700 bg-emerald-100/80'
+                              : 'text-amber-700 bg-amber-100/80'
                           )}
                         >
                           {task.currentCount}/{task.targetCount}
@@ -1240,15 +1376,15 @@ export const StudentSevenCastlesTasksPage: React.FC<
                               e.stopPropagation();
                               handlePlayListeningTask(task);
                             }}
-                            className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 hover:bg-amber-100 transition-colors"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-900/25 text-amber-600 border border-amber-200/70 dark:border-amber-800/40 hover:bg-amber-100 transition-colors active:scale-95 cursor-pointer"
                             title="الاستماع للآيات"
                           >
                             {isTaskPlaying && isLoadingAudio ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2 className="w-4 h-4 animate-spin" />
                             ) : isTaskPlaying && isPlaying ? (
-                              <Pause className="w-3.5 h-3.5 fill-current" />
+                              <Pause className="w-4 h-4 fill-current" />
                             ) : (
-                              <Play className="w-3.5 h-3.5 fill-current" />
+                              <Play className="w-4 h-4 fill-current" />
                             )}
                           </button>
                         )}
@@ -1260,12 +1396,12 @@ export const StudentSevenCastlesTasksPage: React.FC<
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onOpenMushafPages(group.pages!, task.title);
+                              onOpenMushafPages(group.pages!, task.title, task.verseRanges);
                             }}
-                            className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition-colors"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-900/25 text-emerald-700 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/40 hover:bg-emerald-100 transition-colors active:scale-95 cursor-pointer"
                             title="عرض الصفحات من المصحف"
                           >
-                            <BookOpen className="w-3.5 h-3.5" />
+                            <BookOpen className="w-4 h-4" />
                           </button>
                         )}
                     </div>
@@ -1276,19 +1412,38 @@ export const StudentSevenCastlesTasksPage: React.FC<
             }
 
             // Multi-task group card (e.g., استماع + حفظ + تثبيت for the same portion)
+            const sortedGroupTasks = [...group.tasks].sort((a, b) => {
+              const order = (type: TaskType) => {
+                if (type === TaskType.LISTENING) return 1;
+                if (type === TaskType.MEMORIZATION) return 2;
+                if (type === TaskType.FIXATION) return 3;
+                if (type === TaskType.REVIEW) return 4;
+                if (type === TaskType.RECITATION) return 5;
+                return 6;
+              };
+              return order(a.type) - order(b.type);
+            });
+
+            const gridColsClass =
+              sortedGroupTasks.length === 2
+                ? 'grid-cols-2'
+                : sortedGroupTasks.length === 3
+                  ? 'grid-cols-3'
+                  : 'grid-cols-2 sm:grid-cols-4';
+
             return (
               <div
                 key={group.key}
                 className={clsx(
-                  'bg-white dark:bg-[#1A1A1A] px-3 py-3 rounded-3xl border border-[#1A2E1A]/10 dark:border-white/10 shadow-sm transition-colors',
+                  'bg-white dark:bg-[#1A1A1A] p-3 sm:p-3.5 rounded-2xl sm:rounded-3xl border border-[#1A2E1A]/10 dark:border-white/10 shadow-sm transition-colors',
                   group.tasks.every((t) => t.completed) &&
                     'opacity-70 bg-[#1A2E1A]/5 dark:bg-[#D4AF37]/5 border-transparent'
                 )}
               >
-                <div className="flex items-center justify-between gap-2 px-1 mb-2">
+                <div className="flex items-start justify-between gap-2 px-0.5 mb-2.5">
                   <h4
                     className={clsx(
-                      'text-xs sm:text-sm font-bold dark:text-white leading-snug',
+                      'text-xs sm:text-sm font-bold dark:text-white leading-relaxed break-words min-w-0 flex-1',
                       group.tasks.every((t) => t.completed) &&
                         'line-through text-gray-400'
                     )}
@@ -1303,9 +1458,9 @@ export const StudentSevenCastlesTasksPage: React.FC<
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePlayListeningTask(listeningTask);
+                            handlePlayListeningTask(listeningTask, group.label);
                           }}
-                          className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 hover:bg-amber-100 transition-colors"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-900/25 text-amber-600 border border-amber-200/70 dark:border-amber-800/40 hover:bg-amber-100 transition-colors active:scale-95 cursor-pointer"
                           title="الاستماع للآيات"
                         >
                           {playingTaskId === listeningTask.id &&
@@ -1326,87 +1481,76 @@ export const StudentSevenCastlesTasksPage: React.FC<
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onOpenMushafPages(group.pages!, group.label);
+                            onOpenMushafPages(group.pages!, group.label, groupVerseRanges);
                           }}
-                          className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition-colors"
+                          className="h-9 px-2.5 flex items-center justify-center gap-1 rounded-xl bg-emerald-50 dark:bg-emerald-900/25 text-emerald-700 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800/40 hover:bg-emerald-100 transition-colors active:scale-95 cursor-pointer text-[11px] font-extrabold"
                           title="عرض الصفحات من المصحف"
                         >
-                          <BookOpen className="w-4 h-4" />
+                          <BookOpen className="w-4 h-4 shrink-0" />
+                          <span className="hidden xs:inline sm:inline">المصحف</span>
                         </button>
                       )}
                   </div>
                 </div>
 
-                <div className="flex flex-row items-stretch gap-2 overflow-x-auto pb-1">
-                  {[...group.tasks]
-                    .sort((a, b) => {
-                      const order = (type: TaskType) => {
-                        if (type === TaskType.LISTENING) return 1;
-                        if (type === TaskType.MEMORIZATION) return 2;
-                        if (type === TaskType.FIXATION) return 3;
-                        if (type === TaskType.REVIEW) return 4;
-                        if (type === TaskType.RECITATION) return 5;
-                        return 6;
-                      };
-                      return order(a.type) - order(b.type);
-                    })
-                    .map((task) => (
+                <div className={`grid ${gridColsClass} gap-2`}>
+                  {sortedGroupTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={() => {
+                        if (isEditable) toggleTask(task.id);
+                      }}
+                      className={clsx(
+                        'relative flex flex-col items-center justify-center gap-1 min-h-[66px] py-2 px-1.5 sm:px-2 rounded-xl border-2 transition-all duration-200 select-none',
+                        isEditable
+                          ? 'cursor-pointer active:scale-95'
+                          : 'cursor-default opacity-60',
+                        getTaskBorderStyles(task, task.completed)
+                      )}
+                    >
                       <div
-                        key={task.id}
-                        onClick={() => {
-                          if (isEditable) toggleTask(task.id);
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isEditable) forceToggleCompletion(task.id);
                         }}
-                        className={clsx(
-                          'relative flex flex-col items-center justify-center gap-1 min-w-[3.75rem] py-2 px-2 rounded-xl border-2 transition-all duration-200 select-none flex-1',
-                          isEditable
-                            ? 'cursor-pointer hover:scale-[1.02]'
-                            : 'cursor-default opacity-60',
-                          getTaskBorderStyles(task, task.completed)
-                        )}
+                        className="relative flex items-center justify-center cursor-pointer p-1 -m-1 rounded-full hover:bg-black/5"
                       >
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isEditable) forceToggleCompletion(task.id);
-                          }}
-                          className="relative flex items-center justify-center cursor-pointer p-1 -m-1 rounded-full hover:bg-black/5"
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="w-5 h-5 text-current shrink-0" />
-                          ) : (
-                            <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
-                              <Circle className="w-5 h-5 text-current opacity-60" />
-                              {task.targetCount > 1 && (
-                                <span className="absolute text-[7px] font-bold">
-                                  {task.currentCount}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <span
-                          className={clsx(
-                            'text-[10.5px] font-bold text-center whitespace-nowrap',
-                            task.completed && 'opacity-70 line-through'
-                          )}
-                        >
-                          {task.type === TaskType.MEMORIZATION
-                            ? 'حفظ'
-                            : task.type === TaskType.FIXATION
-                              ? 'تثبيت'
-                              : task.type === TaskType.REVIEW
-                                ? 'مراجعة'
-                                : task.type === TaskType.LISTENING
-                                  ? 'استماع'
-                                  : 'تسميع'}
-                        </span>
-                        {task.targetCount > 1 && (
-                          <span className="text-[9px] font-mono font-extrabold bg-black/5 dark:bg-white/5 px-1.5 py-0.5 rounded-md">
-                            {task.currentCount}/{task.targetCount}
-                          </span>
+                        {task.completed ? (
+                          <CheckCircle2 className="w-5 h-5 text-current shrink-0" />
+                        ) : (
+                          <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+                            <Circle className="w-5 h-5 text-current opacity-60" />
+                            {task.targetCount > 1 && (
+                              <span className="absolute text-[7px] font-bold">
+                                {task.currentCount}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
-                    ))}
+                      <span
+                        className={clsx(
+                          'text-[11px] font-bold text-center whitespace-nowrap',
+                          task.completed && 'opacity-70 line-through'
+                        )}
+                      >
+                        {task.type === TaskType.MEMORIZATION
+                          ? 'حفظ'
+                          : task.type === TaskType.FIXATION
+                            ? 'تثبيت'
+                            : task.type === TaskType.REVIEW
+                              ? 'مراجعة'
+                              : task.type === TaskType.LISTENING
+                                ? 'استماع'
+                                : 'تسميع'}
+                      </span>
+                      {task.targetCount > 1 && (
+                        <span className="text-[10px] font-mono font-extrabold bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded-md">
+                          {task.currentCount}/{task.targetCount}
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
 
                 {isGroupPlaying && renderAudioPanel()}
@@ -1414,7 +1558,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
             );
           })
         ) : !isPostponedDay ? (
-          <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl p-8 text-center border border-gray-100 dark:border-white/5">
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-center border border-gray-100 dark:border-white/5">
             <div className="text-2xl mb-2">🌸</div>
             <div className="text-sm font-bold text-gray-700 dark:text-gray-200">
               لا توجد مهام مجدولة في هذا اليوم
@@ -1460,8 +1604,14 @@ export const StudentSevenCastlesTasksPage: React.FC<
 
       {/* Calendar Modal */}
       {isCalendarOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl p-4 sm:p-5 max-w-md w-full max-h-[85vh] overflow-y-auto space-y-4 shadow-xl border border-gray-100 dark:border-white/10">
+        <div
+          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-2 sm:p-4"
+          onClick={() => setIsCalendarOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-[#1A1A1A] rounded-3xl p-3.5 sm:p-5 max-w-md w-full max-h-[88dvh] overflow-y-auto space-y-3.5 shadow-xl border border-gray-100 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-extrabold text-[#1A2E1A] dark:text-white flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-[#D4AF37]" />
@@ -1470,7 +1620,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
               <button
                 type="button"
                 onClick={() => setIsCalendarOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500"
+                className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1480,7 +1630,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
               <button
                 type="button"
                 onClick={() => setCalendarViewMode('month')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${
+                className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
                   calendarViewMode === 'month'
                     ? 'bg-[#1A2E1A] dark:bg-[#D4AF37] text-white dark:text-[#1A1A1A]'
                     : 'text-gray-500'
@@ -1491,7 +1641,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
               <button
                 type="button"
                 onClick={() => setCalendarViewMode('weeks')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${
+                className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
                   calendarViewMode === 'weeks'
                     ? 'bg-[#1A2E1A] dark:bg-[#D4AF37] text-white dark:text-[#1A1A1A]'
                     : 'text-gray-500'
@@ -1507,17 +1657,17 @@ export const StudentSevenCastlesTasksPage: React.FC<
                   <button
                     type="button"
                     onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
-                  <span className="text-xs font-extrabold dark:text-white">
+                  <span className="text-xs sm:text-sm font-extrabold dark:text-white">
                     {format(calendarMonth, 'MMMM yyyy', { locale: ar })}
                   </span>
                   <button
                     type="button"
                     onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -1526,7 +1676,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                 <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-400">
                   {['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'].map(
                     (d) => (
-                      <div key={d}>{d}</div>
+                      <div key={d} className="truncate">{d}</div>
                     )
                   )}
                 </div>
@@ -1563,7 +1713,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                             setIsCalendarOpen(false);
                           }}
                           className={clsx(
-                            'h-9 rounded-xl text-xs font-bold flex flex-col items-center justify-center transition-all',
+                            'min-h-[40px] rounded-xl text-xs font-bold flex flex-col items-center justify-center transition-all cursor-pointer',
                             selected
                               ? 'bg-[#1A2E1A] dark:bg-[#D4AF37] text-white dark:text-[#1A1A1A]'
                               : allDone
@@ -1583,11 +1733,11 @@ export const StudentSevenCastlesTasksPage: React.FC<
                 </div>
               </div>
             ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[55dvh] overflow-y-auto pr-0.5">
                 {planWeeks.map((week, wIdx) => (
                   <div
                     key={wIdx}
-                    className="p-2.5 rounded-2xl bg-gray-50 dark:bg-white/5 space-y-1.5"
+                    className="p-2 sm:p-2.5 rounded-2xl bg-gray-50 dark:bg-white/5 space-y-1.5"
                   >
                     <div className="text-[11px] font-extrabold text-[#1A2E1A] dark:text-[#D4AF37]">
                       الأسبوع {wIdx + 1}
@@ -1610,7 +1760,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                               setIsCalendarOpen(false);
                             }}
                             className={clsx(
-                              'py-1.5 rounded-lg text-[10px] font-bold flex flex-col items-center',
+                              'min-h-[40px] py-1 px-0.5 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center cursor-pointer',
                               selected
                                 ? 'bg-[#1A2E1A] dark:bg-[#D4AF37] text-white dark:text-[#1A1A1A]'
                                 : allDone
@@ -1619,7 +1769,7 @@ export const StudentSevenCastlesTasksPage: React.FC<
                             )}
                           >
                             <span>{format(day, 'd')}</span>
-                            <span className="text-[8px] opacity-70">
+                            <span className="text-[8px] opacity-75 truncate max-w-full">
                               {format(day, 'EEE', { locale: ar })}
                             </span>
                           </button>

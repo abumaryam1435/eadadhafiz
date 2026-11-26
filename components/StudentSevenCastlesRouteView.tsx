@@ -2,11 +2,95 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import { Loader2 } from 'lucide-react';
 import { AppContext } from '../App';
 import { getDb, HARDCODED_FIREBASE_CONFIG, initializeFirebase } from '../utils/firebase';
-import { MushafReaderModal } from './MushafReaderModal';
-import { ProgressLog, SevenCastlesPlan } from '../seven-castles/types';
+import { MushafReaderModal, MushafAudioOverlayState } from './MushafReaderModal';
+import { MushafHighlightRange } from './MushafImagePage';
+import { surahNames, quranPageMap } from '../utils/quranData';
+import { ProgressLog, SevenCastlesPlan, VerseRange } from '../seven-castles/types';
 import { expandOldMemorizationRanges } from '../seven-castles/sevenCastlesGenerator';
 import { decodeSevenCastlesPlanToken } from '../seven-castles/sevenCastlesLink';
 import { StudentSevenCastlesTasksPage } from '../seven-castles/StudentSevenCastlesTasksPage';
+
+function normalizeSurahNameKey(name: string): string {
+  return String(name || '')
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '')
+    .replace(/^سورة\s+/i, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+const SURAH_NAME_TO_ID: Record<string, number> = (() => {
+  const map: Record<string, number> = {
+    اللهب: 111,
+    تبت: 111,
+    الانشراح: 94,
+    المومن: 40,
+    بنياسرائيل: 17,
+    الدهر: 76,
+    تبارك: 67,
+    عم: 78,
+  };
+  for (let i = 1; i < surahNames.length; i++) {
+    const key = normalizeSurahNameKey(surahNames[i]);
+    if (key) map[key] = i;
+  }
+  return map;
+})();
+
+function resolveSurahId(surahName: string): number | null {
+  const key = normalizeSurahNameKey(surahName);
+  if (!key) return null;
+  if (SURAH_NAME_TO_ID[key]) return SURAH_NAME_TO_ID[key];
+  for (const [knownKey, id] of Object.entries(SURAH_NAME_TO_ID)) {
+    if (knownKey.includes(key) || key.includes(knownKey)) {
+      return id;
+    }
+  }
+  return null;
+}
+
+function buildHighlightRangesForTask(
+  pages: number[],
+  verseRanges?: VerseRange[]
+): MushafHighlightRange[] {
+  const result: MushafHighlightRange[] = [];
+
+  if (verseRanges && verseRanges.length > 0) {
+    for (const vr of verseRanges) {
+      const surahId = resolveSurahId(vr.surah);
+      if (!surahId) continue;
+      const startAyah = Math.max(1, Math.min(Number(vr.start) || 1, Number(vr.end) || 1));
+      const endAyah = Math.max(startAyah, Math.max(Number(vr.start) || 1, Number(vr.end) || 1));
+      result.push({
+        startSurahId: surahId,
+        startAyah,
+        endSurahId: surahId,
+        endAyah,
+      });
+    }
+  }
+
+  if (result.length > 0) {
+    return result;
+  }
+
+  // Fallback for full-page tasks (e.g., Old Memorization Review): highlight all verses on the assigned pages
+  for (const page of pages) {
+    const entries = quranPageMap[page] || [];
+    for (const entry of entries) {
+      result.push({
+        startSurahId: entry.surah,
+        startAyah: entry.start,
+        endSurahId: entry.surah,
+        endAyah: entry.end,
+      });
+    }
+  }
+
+  return result;
+}
 
 export interface StudentTasksRouteInfo {
   active: boolean;
@@ -113,11 +197,15 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
     isOpen: boolean;
     pages: number[];
     title: string;
+    highlightRanges: MushafHighlightRange[];
   }>({
     isOpen: false,
     pages: [],
     title: '',
+    highlightRanges: [],
   });
+
+  const [audioOverlay, setAudioOverlay] = useState<MushafAudioOverlayState | null>(null);
 
   // Fallback decoded plan if token was passed in hash/query
   const tokenPlan = useMemo(() => {
@@ -228,15 +316,20 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
     [route.planId, activePlanDbKey]
   );
 
-  const handleOpenMushafPages = useCallback((pages: number[], title: string) => {
-    const validPages = (pages || []).filter((p) => typeof p === 'number' && p >= 1 && p <= 604);
-    if (validPages.length === 0) return;
-    setMushafState({
-      isOpen: true,
-      pages: validPages,
-      title: title || 'صفحات المصحف',
-    });
-  }, []);
+  const handleOpenMushafPages = useCallback(
+    (pages: number[], title: string, verseRanges?: VerseRange[]) => {
+      const validPages = (pages || []).filter((p) => typeof p === 'number' && p >= 1 && p <= 604);
+      if (validPages.length === 0) return;
+      const highlightRanges = buildHighlightRangesForTask(validPages, verseRanges);
+      setMushafState({
+        isOpen: true,
+        pages: validPages,
+        title: title || 'صفحات المصحف',
+        highlightRanges,
+      });
+    },
+    []
+  );
 
   const resolvedLogoUrl = useMemo(() => {
     if (customLogo && customLogo.trim()) return customLogo;
@@ -265,6 +358,7 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
         onSaveProgress={handleSaveProgress}
         onPlanStartDateChange={handlePlanStartDateChange}
         onOpenMushafPages={handleOpenMushafPages}
+        onAudioStateChange={setAudioOverlay}
         logoUrl={resolvedLogoUrl}
         appName={appName}
       />
@@ -274,6 +368,9 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
         onClose={() => setMushafState((prev) => ({ ...prev, isOpen: false }))}
         newPages={mushafState.pages}
         studentName={activePlan?.studentName}
+        highlightRanges={mushafState.highlightRanges}
+        taskBannerTitle={mushafState.title}
+        audioOverlay={audioOverlay}
       />
     </>
   );

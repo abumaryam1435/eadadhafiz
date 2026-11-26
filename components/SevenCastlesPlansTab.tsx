@@ -11,6 +11,7 @@ import {
   MessageCircle,
   RotateCcw,
   Settings2,
+  Share2,
   Users,
   X,
 } from 'lucide-react';
@@ -43,6 +44,7 @@ import {
 import {
   buildWhatsAppShareMessage,
   downloadSevenCastlesPdf,
+  generateSevenCastlesPdf,
 } from '../seven-castles/sevenCastlesPdfExporter';
 import { buildStudentTasksShareUrl } from '../seven-castles/sevenCastlesLink';
 
@@ -210,6 +212,15 @@ export const SevenCastlesPlansTab: React.FC = () => {
     message: string;
     step: number;
     total: number;
+  } | null>(null);
+
+  const [readyWhatsAppShare, setReadyWhatsAppShare] = useState<{
+    studentName: string;
+    whatsappUrl: string;
+    fileName: string;
+    file: File;
+    message: string;
+    canShareFile: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -622,16 +633,34 @@ export const SevenCastlesPlansTab: React.FC = () => {
       return;
     }
     const plan = buildPlanForStudent(student);
+    setReadyWhatsAppShare(null);
     setBusyState({
       studentId: student.id,
       action: 'whatsapp',
-      message: `جاري حفظ الخطة وفتح واتساب للطالب ${student.name}...`,
-      step: 1,
+      message: `جاري تجهيز ملف الـ PDF ورسالة الواتساب للطالب ${student.name}...`,
+      step: 0,
       total: 1,
     });
 
     try {
-      const savedPlanId = await savePlanToDatabase(plan);
+      const [savedPlanId, generated] = await Promise.all([
+        savePlanToDatabase(plan),
+        generateSevenCastlesPdf(plan, {
+          style: sharedSettings.pdfStyle,
+          logoUrl: resolvedLogoUrl,
+          appName,
+          onProgress: (message, currentStep, totalSteps) => {
+            setBusyState({
+              studentId: student.id,
+              action: 'whatsapp',
+              message,
+              step: currentStep,
+              total: totalSteps,
+            });
+          },
+        }),
+      ]);
+
       const tasksUrl = buildStudentTasksShareUrl(plan, {
         routePath: '/student-tasks',
         savedPlanId,
@@ -640,6 +669,27 @@ export const SevenCastlesPlansTab: React.FC = () => {
       const message = buildWhatsAppShareMessage(plan, tasksUrl, appName);
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 
+      // 1) Download the generated PDF file immediately so it is ready to attach in the chat
+      generated.pdf.save(generated.fileName);
+
+      // 2) Keep quick-access banner ready (for mobile browsers that block post-async redirects or to share the PDF file directly)
+      const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+      const canShareFile =
+        !!nav &&
+        typeof nav.share === 'function' &&
+        typeof nav.canShare === 'function' &&
+        nav.canShare({ files: [generated.file] });
+
+      setReadyWhatsAppShare({
+        studentName: student.name,
+        whatsappUrl,
+        fileName: generated.fileName,
+        file: generated.file,
+        message,
+        canShareFile,
+      });
+
+      // 3) Open WhatsApp directly on the student's registered phone number with the message & link prefilled
       const link = document.createElement('a');
       link.href = whatsappUrl;
       link.target = '_blank';
@@ -648,12 +698,30 @@ export const SevenCastlesPlansTab: React.FC = () => {
       link.click();
       document.body.removeChild(link);
 
-      showToast?.(`تم فتح واتساب مباشرة على رقم الطالب ${student.name}`, 'success');
+      showToast?.(
+        `تم تحميل ملف الـ PDF وفتح واتساب مباشرة للطالب ${student.name} — أرفق الملف المحمّل في المحادثة`,
+        'success'
+      );
     } catch (err) {
-      console.error('Failed to open WhatsApp for Seven Castles plan:', err);
-      showToast?.('حدث خطأ أثناء فتح واتساب للطالب', 'error');
+      console.error('Failed to prepare WhatsApp & PDF for Seven Castles plan:', err);
+      showToast?.('حدث خطأ أثناء تجهيز ملف الـ PDF وفتح واتساب للطالب', 'error');
     } finally {
       setBusyState(null);
+    }
+  };
+
+  const handleNativeShareReadyFile = async () => {
+    if (!readyWhatsAppShare || typeof navigator === 'undefined' || !navigator.share) return;
+    try {
+      await navigator.share({
+        files: [readyWhatsAppShare.file],
+        title: `خطة القلاع السبع — ${readyWhatsAppShare.studentName}`,
+        text: readyWhatsAppShare.message,
+      });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        showToast?.('تعذرت المشاركة المباشرة للملف على هذا المتصفح', 'error');
+      }
     }
   };
 
@@ -731,6 +799,49 @@ export const SevenCastlesPlansTab: React.FC = () => {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Ready WhatsApp + PDF Quick Banner */}
+      {readyWhatsAppShare && !busyState && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300/80 dark:border-emerald-700/50 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-in">
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <div className="text-xs sm:text-sm font-extrabold text-emerald-900 dark:text-emerald-200">
+              تم تحميل ملف PDF لخطة الطالب: {readyWhatsAppShare.studentName}
+            </div>
+            <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300/85">
+              أرفق الملف المحمّل ({readyWhatsAppShare.fileName}) داخل محادثة الواتساب مع الرسالة والرابط.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <a
+              href={readyWhatsAppShare.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+            >
+              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>فتح واتساب للرقم المسجل</span>
+            </a>
+            {readyWhatsAppShare.canShareFile && (
+              <button
+                type="button"
+                onClick={handleNativeShareReadyFile}
+                className="min-h-[36px] px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold inline-flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5 shrink-0" />
+                <span>مشاركة ملف PDF مباشرة</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setReadyWhatsAppShare(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200/60 dark:hover:bg-emerald-900/50 cursor-pointer"
+              title="إغلاق"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1122,7 +1233,7 @@ export const SevenCastlesPlansTab: React.FC = () => {
                       onClick={() => handleShareWhatsApp(student)}
                       title={
                         hasPhone
-                          ? 'فتح واتساب مباشرة على الرقم المسجل لإرسال رسالة ورابط الخطة'
+                          ? 'تجهيز وتحميل ملف PDF وفتح واتساب مباشرة على الرقم المسجل مع الرسالة والرابط'
                           : 'لا يتوفر رقم هاتف مسجل لهذا الطالب'
                       }
                       className={`min-h-[38px] px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${

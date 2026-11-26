@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getMushafImageSources, isPagePreloaded, preloadMushafPage, preloadSurroundingPages } from '../utils/mushafPreload';
 import { SuggestedTestPassage } from '../utils/testPassageGenerator';
 import { toArabicDigits } from '../utils/juzUtils';
+import { quranPageMap } from '../utils/quranData';
 import {
   calculateLineHighlights,
   getPageVerseData,
@@ -11,9 +12,25 @@ import {
   MUSHAF_SVG_BOUNDS
 } from '../utils/mushafVerseHighlightService';
 
+export interface MushafHighlightRange {
+  startSurahId: number;
+  startAyah: number;
+  endSurahId: number;
+  endAyah: number;
+}
+
+export interface ActiveRecitingAyah {
+  surahId: number;
+  ayah: number;
+  page?: number;
+}
+
 export interface MushafImagePageProps {
   pageNumber: number;
   activePassage?: SuggestedTestPassage | null;
+  highlightRanges?: MushafHighlightRange[];
+  activeRecitingAyah?: ActiveRecitingAyah | null;
+  onRecitingAyahPosition?: (yFraction: number) => void;
   fitMode?: 'width' | 'height';
   isLandscape?: boolean;
   onImageLoaded?: () => void;
@@ -32,6 +49,9 @@ const SVG_VIEW_HEIGHT = MUSHAF_SVG_BOUNDS.viewHeight;
 export const MushafImagePage: React.FC<MushafImagePageProps> = ({
   pageNumber,
   activePassage,
+  highlightRanges,
+  activeRecitingAyah,
+  onRecitingAyahPosition,
   fitMode = 'width',
   isLandscape = false,
   onImageLoaded,
@@ -113,19 +133,138 @@ export const MushafImagePage: React.FC<MushafImagePageProps> = ({
   // - تظلل الأسطر الوسطى بالكامل
   // - آخر سطر في النطاق يظلل حتى نهاية آخر آية
   const lineHighlightRects: LineHighlightRect[] = useMemo(() => {
-    if (!activePassage || !activePassage.pages || !activePassage.pages.includes(pageNumber)) {
+    const rangesToDraw: MushafHighlightRange[] = [];
+
+    if (activePassage && activePassage.pages && activePassage.pages.includes(pageNumber)) {
+      rangesToDraw.push({
+        startSurahId: activePassage.startSurahId,
+        startAyah: activePassage.startAyah,
+        endSurahId: activePassage.endSurahId,
+        endAyah: activePassage.endAyah,
+      });
+    }
+
+    if (highlightRanges && highlightRanges.length > 0) {
+      const pageEntries = quranPageMap[pageNumber] || [];
+      for (const r of highlightRanges) {
+        const overlapsPage =
+          pageEntries.length === 0 ||
+          pageEntries.some((entry) => {
+            const endsAtOrAfterStart =
+              entry.surah > r.startSurahId ||
+              (entry.surah === r.startSurahId && entry.end >= r.startAyah);
+            const startsAtOrBeforeEnd =
+              entry.surah < r.endSurahId ||
+              (entry.surah === r.endSurahId && entry.start <= r.endAyah);
+            return endsAtOrAfterStart && startsAtOrBeforeEnd;
+          });
+        if (overlapsPage) {
+          rangesToDraw.push(r);
+        }
+      }
+    }
+
+    if (rangesToDraw.length === 0) {
       return [];
     }
 
+    if (rangesToDraw.length === 1) {
+      const r = rangesToDraw[0];
+      return calculateLineHighlights(
+        pageNumber,
+        r.startSurahId,
+        r.startAyah,
+        r.endSurahId,
+        r.endAyah,
+        pageVerseData
+      );
+    }
+
+    // Multiple verse ranges: compute via calculateLineHighlights and merge overlapping rects per line
+    const byLine = new Map<number, LineHighlightRect[]>();
+    for (const r of rangesToDraw) {
+      const rects = calculateLineHighlights(
+        pageNumber,
+        r.startSurahId,
+        r.startAyah,
+        r.endSurahId,
+        r.endAyah,
+        pageVerseData
+      );
+      for (const rect of rects) {
+        const list = byLine.get(rect.line) || [];
+        list.push(rect);
+        byLine.set(rect.line, list);
+      }
+    }
+
+    const merged: LineHighlightRect[] = [];
+    const sortedLines = Array.from(byLine.keys()).sort((a, b) => a - b);
+    for (const lineNum of sortedLines) {
+      const rects = (byLine.get(lineNum) || []).sort((a, b) => a.x - b.x);
+      const lineMerged: LineHighlightRect[] = [];
+      for (const rect of rects) {
+        const prev = lineMerged[lineMerged.length - 1];
+        if (prev && rect.x <= prev.x + prev.width + 14) {
+          const maxRight = Math.max(prev.x + prev.width, rect.x + rect.width);
+          const minY = Math.min(prev.y, rect.y);
+          const maxBottom = Math.max(prev.y + prev.height, rect.y + rect.height);
+          prev.width = maxRight - prev.x;
+          prev.y = minY;
+          prev.height = maxBottom - minY;
+        } else {
+          lineMerged.push({ ...rect });
+        }
+      }
+      merged.push(...lineMerged);
+    }
+
+    return merged;
+  }, [pageNumber, activePassage, highlightRanges, pageVerseData]);
+
+  // حساب مستطيلات التظليل المميزة للآية المتلوة حالياً أثناء الاستماع (تتبع آية بآية)
+  const recitingAyahRects: LineHighlightRect[] = useMemo(() => {
+    if (!activeRecitingAyah || !activeRecitingAyah.surahId || !activeRecitingAyah.ayah) {
+      return [];
+    }
+    if (activeRecitingAyah.page && activeRecitingAyah.page !== pageNumber) {
+      return [];
+    }
+    const pageEntries = quranPageMap[pageNumber] || [];
+    const onThisPage =
+      pageEntries.length === 0 ||
+      pageEntries.some(
+        (entry) =>
+          entry.surah === activeRecitingAyah.surahId &&
+          activeRecitingAyah.ayah >= entry.start &&
+          activeRecitingAyah.ayah <= entry.end
+      );
+    if (!onThisPage) return [];
+
     return calculateLineHighlights(
       pageNumber,
-      activePassage.startSurahId,
-      activePassage.startAyah,
-      activePassage.endSurahId,
-      activePassage.endAyah,
+      activeRecitingAyah.surahId,
+      activeRecitingAyah.ayah,
+      activeRecitingAyah.surahId,
+      activeRecitingAyah.ayah,
       pageVerseData
     );
-  }, [pageNumber, activePassage, pageVerseData]);
+  }, [pageNumber, activeRecitingAyah, pageVerseData]);
+
+  // إبلاغ العارض بالموضع العمودي للآية المتلوة لتمرير الصفحة بسلاسة نحوها عند الحاجة
+  useEffect(() => {
+    if (!onRecitingAyahPosition || recitingAyahRects.length === 0) return;
+    const first = recitingAyahRects[0];
+    const last = recitingAyahRects[recitingAyahRects.length - 1];
+    const midY = (first.y + (last.y + last.height)) / 2;
+    onRecitingAyahPosition(midY / SVG_VIEW_HEIGHT);
+  }, [
+    onRecitingAyahPosition,
+    pageNumber,
+    activeRecitingAyah?.surahId,
+    activeRecitingAyah?.ayah,
+    recitingAyahRects.length,
+  ]);
 
   return (
     <div
@@ -218,6 +357,12 @@ export const MushafImagePage: React.FC<MushafImagePageProps> = ({
               <stop offset="65%" stopColor="#fbbf24" stopOpacity="0.25" />
               <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.27" />
             </linearGradient>
+            {/* تدرج زمردي/فيروزي مميز للآية المتلوة حالياً أثناء الاستماع لسهولة المتابعة آية بآية */}
+            <linearGradient id="recitingAyahGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#0d9488" stopOpacity="0.36" />
+              <stop offset="50%" stopColor="#10b981" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="#0d9488" stopOpacity="0.36" />
+            </linearGradient>
           </defs>
 
           {/* رسم مستطيلات التظليل لكل سطر: مستطيل مستقل لكل سطر بدون إطار وبدقة متناهية */}
@@ -234,6 +379,28 @@ export const MushafImagePage: React.FC<MushafImagePageProps> = ({
                   ry={6}
                   fill="url(#verseLineGrad)"
                   stroke="none"
+                  className="transition-all duration-200"
+                />
+              ))}
+            </g>
+          )}
+
+          {/* تظليل الآية المتلوة حالياً بلون زمردي مميز فوق تظليل المقرر */}
+          {recitingAyahRects.length > 0 && (
+            <g className="transition-opacity duration-200">
+              {recitingAyahRects.map((rect, idx) => (
+                <rect
+                  key={`reciting-hl-${pageNumber}-${rect.line}-${idx}`}
+                  x={rect.x}
+                  y={rect.y}
+                  width={rect.width}
+                  height={rect.height}
+                  rx={8}
+                  ry={8}
+                  fill="url(#recitingAyahGrad)"
+                  stroke="#059669"
+                  strokeOpacity="0.55"
+                  strokeWidth={2.5}
                   className="transition-all duration-200"
                 />
               ))}

@@ -6,8 +6,43 @@ import { isPagePreloaded, preloadMushafPages, preloadSurroundingPages } from '..
 import { SuggestedTestPassage } from '../utils/testPassageGenerator';
 import { toArabicDigits, parseSafeNumber, safeInputNumber } from '../utils/juzUtils';
 import { preloadVerseLinesForPages } from '../utils/mushafVerseHighlightService';
-import { MushafImagePage } from './MushafImagePage';
-import { Check, RotateCw } from 'lucide-react';
+import { MushafImagePage, MushafHighlightRange, ActiveRecitingAyah } from './MushafImagePage';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Pause,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Square,
+  Volume2,
+} from 'lucide-react';
+
+export interface MushafAudioOverlayState {
+  isPlaying: boolean;
+  isLoading: boolean;
+  surahName?: string;
+  surahId?: number;
+  ayahNumber?: number;
+  page?: number;
+  currentIndex: number;
+  totalAyahs: number;
+  playedSeconds: number;
+  totalSeconds: number;
+  progressPct: number;
+  qariId: string;
+  qariOptions: { id: string; label: string }[];
+  speed: string;
+  onTogglePlay: () => void;
+  onPrevAyah: () => void;
+  onNextAyah: () => void;
+  onRestart: () => void;
+  onStop: () => void;
+  onChangeQari: (qariId: string) => void;
+  onChangeSpeed: (speed: string) => void;
+}
 
 interface MushafReaderModalProps {
   isOpen: boolean;
@@ -42,6 +77,9 @@ interface MushafReaderModalProps {
   sardGroupStudents?: { id: number; name: string; isAlAmeen?: boolean }[];
   sardGroupErrors?: Record<number, { fath: number; tashkeel: number; tajweed: number }>;
   setSardGroupErrors?: React.Dispatch<React.SetStateAction<Record<number, { fath: number; tashkeel: number; tajweed: number }>>>;
+  highlightRanges?: MushafHighlightRange[];
+  taskBannerTitle?: string;
+  audioOverlay?: MushafAudioOverlayState | null;
 }
 
 export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
@@ -77,6 +115,9 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
   sardGroupStudents = [],
   sardGroupErrors = {},
   setSardGroupErrors,
+  highlightRanges,
+  taskBannerTitle,
+  audioOverlay = null,
 }) => {
   // Stable key for pages to prevent unnecessary re-computations when array/Set references change
   const pagesKey = useMemo(() => {
@@ -236,6 +277,50 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
       preloadVerseLinesForPages(targetPages);
     }
   }, [isOpen, targetPages]);
+
+  const activeRecitingAyah: ActiveRecitingAyah | null = useMemo(() => {
+    if (!audioOverlay || !audioOverlay.surahId || !audioOverlay.ayahNumber) return null;
+    return {
+      surahId: audioOverlay.surahId,
+      ayah: audioOverlay.ayahNumber,
+      page: audioOverlay.page,
+    };
+  }, [audioOverlay?.surahId, audioOverlay?.ayahNumber, audioOverlay?.page]);
+
+  // تقليب صفحة المصحف تلقائياً عندما تنتقل التلاوة إلى آية في صفحة أخرى
+  const prevAudioPageRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!isOpen) {
+      prevAudioPageRef.current = undefined;
+      return;
+    }
+    const audioPage = audioOverlay?.page;
+    if (!audioPage) return;
+    if (prevAudioPageRef.current !== audioPage) {
+      prevAudioPageRef.current = audioPage;
+      const idx = targetPages.indexOf(audioPage);
+      if (idx !== -1) {
+        setCurrentIndex(idx);
+      }
+    }
+  }, [isOpen, audioOverlay?.page, targetPages]);
+
+  // تمرير الصفحة بسلاسة لإبقاء الآية المتلوة ظاهرة في منتصف الشاشة
+  const handleRecitingAyahPosition = useCallback(
+    (yFraction: number) => {
+      if (zoom !== 1) return;
+      const scroller = readerAreaRef.current;
+      const pageEl = document.getElementById(`mushaf-page-container-${currentPageRef.current}`);
+      if (!scroller || !pageEl) return;
+      const pageTop = pageEl.offsetTop;
+      const pageHeight = pageEl.offsetHeight;
+      if (pageHeight <= scroller.clientHeight) return;
+      const targetCenterY = pageTop + yFraction * pageHeight;
+      const desiredScrollTop = Math.max(0, targetCenterY - scroller.clientHeight * 0.42);
+      scroller.scrollTo({ top: desiredScrollTop, behavior: 'smooth' });
+    },
+    [zoom]
+  );
 
   // Manage page index when modal opens, active passage changes, or pages update
   useEffect(() => {
@@ -681,7 +766,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                       <span className="px-1.5 sm:px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] sm:text-[11px] font-black shadow-xs shrink-0">
                         سرد
                       </span>
-                    ) : (
+                    ) : !taskBannerTitle ? (
                       <>
                         {isNew && (
                           <span className="px-1.5 sm:px-2 py-0.5 rounded bg-green-500 text-white text-[10px] sm:text-[11px] font-black shadow-xs shrink-0">
@@ -699,7 +784,7 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                           </span>
                         )}
                       </>
-                    )}
+                    ) : null}
                   </div>
                 ) : (
                   <span className="text-xs font-bold text-amber-200">
@@ -750,6 +835,12 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                 </button>
               </div>
             </div>
+            {taskBannerTitle && (
+              <div className="px-2.5 sm:px-4 py-1.5 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 dark:from-amber-700 dark:via-amber-600 dark:to-amber-700 text-amber-950 dark:text-amber-50 border-t border-amber-500/50 flex items-center gap-1.5 text-[11px] sm:text-xs font-black">
+                <span className="shrink-0">🎯</span>
+                <span className="leading-snug line-clamp-2 sm:truncate">{taskBannerTitle}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -838,6 +929,9 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
                 <MushafImagePage
                   pageNumber={currentPage}
                   activePassage={isTestMode ? activePassage : null}
+                  highlightRanges={highlightRanges}
+                  activeRecitingAyah={activeRecitingAyah}
+                  onRecitingAyahPosition={handleRecitingAyahPosition}
                   fitMode={fitMode}
                   isLandscape={isLandscape}
                 />
@@ -861,6 +955,125 @@ export const MushafReaderModal: React.FC<MushafReaderModalProps> = ({
         }`}>
           <div className={showControls ? 'overflow-visible' : 'overflow-hidden'}>
             <div className="bg-white/98 dark:bg-gray-950/98 text-gray-900 dark:text-white border-t border-gray-200 dark:border-amber-500/40 px-2 sm:px-4 pt-2 pb-5 sm:pb-3 flex flex-col gap-1.5 sm:gap-2 shadow-2xl backdrop-blur-md relative z-40 w-full max-w-full box-border">
+              {/* Live Audio Recitation Bar inside Mushaf */}
+              {audioOverlay && (
+                <div
+                  className="w-full max-w-4xl mx-auto rounded-2xl bg-emerald-50/95 dark:bg-emerald-950/50 border border-emerald-300/80 dark:border-emerald-700/60 p-2 sm:p-2.5 flex flex-col gap-2 shadow-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 text-emerald-900 dark:text-emerald-200 text-[11px] sm:text-xs font-extrabold">
+                      {audioOverlay.isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-600 shrink-0" />
+                      ) : (
+                        <Volume2 className={`w-4 h-4 text-emerald-600 shrink-0 ${audioOverlay.isPlaying ? 'animate-pulse' : ''}`} />
+                      )}
+                      <span className="truncate">
+                        {audioOverlay.isLoading
+                          ? 'جاري تحميل التلاوة...'
+                          : audioOverlay.surahName && audioOverlay.ayahNumber
+                            ? `${audioOverlay.surahName} • الآية ${toArabicDigits(audioOverlay.ayahNumber)} (${toArabicDigits(audioOverlay.currentIndex + 1)}/${toArabicDigits(audioOverlay.totalAyahs)})`
+                            : 'متابعة الاستماع للآيات'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <select
+                        value={audioOverlay.qariId}
+                        onChange={(e) => audioOverlay.onChangeQari(e.target.value)}
+                        className="h-7 text-[10px] sm:text-[11px] font-bold bg-white dark:bg-gray-900 border border-emerald-300/80 dark:border-emerald-700 rounded-lg px-1.5 outline-none text-gray-800 dark:text-gray-200 cursor-pointer max-w-[92px] sm:max-w-none"
+                      >
+                        {audioOverlay.qariOptions.map((q) => (
+                          <option key={q.id} value={q.id}>
+                            {q.label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={audioOverlay.speed}
+                        onChange={(e) => audioOverlay.onChangeSpeed(e.target.value)}
+                        className="h-7 w-12 text-[10px] sm:text-[11px] font-bold text-center bg-white dark:bg-gray-900 border border-emerald-300/80 dark:border-emerald-700 rounded-lg px-0.5 outline-none text-gray-800 dark:text-gray-200 cursor-pointer"
+                      >
+                        {['1.0', '1.2', '1.4', '1.5', '1.6', '1.8', '2.0'].map((s) => (
+                          <option key={s} value={s}>
+                            {s}x
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {audioOverlay.totalAyahs > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                        {Math.floor(audioOverlay.playedSeconds / 60)}:{String(Math.floor(audioOverlay.playedSeconds % 60)).padStart(2, '0')}
+                      </span>
+                      <div className="flex-1 h-1.5 bg-emerald-200/80 dark:bg-emerald-900/60 rounded-full overflow-hidden relative">
+                        <div
+                          className="absolute top-0 bottom-0 right-0 bg-emerald-600 dark:bg-emerald-400 rounded-full transition-all duration-150"
+                          style={{ width: `${audioOverlay.progressPct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-gray-500 dark:text-gray-400">
+                        {Math.floor(audioOverlay.totalSeconds / 60)}:{String(Math.floor(audioOverlay.totalSeconds % 60)).padStart(2, '0')}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                    <button
+                      type="button"
+                      onClick={audioOverlay.onPrevAyah}
+                      disabled={audioOverlay.currentIndex <= 0}
+                      className="min-w-[36px] min-h-[34px] px-2 rounded-xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 disabled:opacity-40 flex items-center justify-center active:scale-95 cursor-pointer"
+                      title="الآية السابقة"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={audioOverlay.onTogglePlay}
+                      className="min-w-[44px] min-h-[34px] px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-1 shadow-xs active:scale-95 cursor-pointer text-xs"
+                      title={audioOverlay.isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
+                    >
+                      {audioOverlay.isPlaying ? (
+                        <Pause className="w-4 h-4 fill-current" />
+                      ) : (
+                        <Play className="w-4 h-4 fill-current" />
+                      )}
+                      <span className="hidden xs:inline sm:inline">
+                        {audioOverlay.isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={audioOverlay.onRestart}
+                      className="min-h-[34px] px-2.5 rounded-xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-[11px] font-bold flex items-center gap-1 active:scale-95 cursor-pointer"
+                      title="إعادة من أول آية"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>إعادة</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={audioOverlay.onNextAyah}
+                      disabled={audioOverlay.currentIndex >= audioOverlay.totalAyahs - 1}
+                      className="min-w-[36px] min-h-[34px] px-2 rounded-xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 disabled:opacity-40 flex items-center justify-center active:scale-95 cursor-pointer"
+                      title="الآية التالية"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={audioOverlay.onStop}
+                      className="min-w-[34px] min-h-[34px] px-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-300 flex items-center justify-center active:scale-95 cursor-pointer"
+                      title="إيقاف الاستماع"
+                    >
+                      <Square className="w-3.5 h-3.5 fill-current" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Top Row: Horizontal Error Buttons for (الفتح، التشكيل، التجويد، وتغيير المقطع) */}
           {hasErrorControls && (
             <div className={`grid ${isTestMode ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-1 sm:gap-3 w-full max-w-4xl mx-auto min-w-0`}>
