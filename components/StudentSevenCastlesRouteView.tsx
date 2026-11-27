@@ -182,6 +182,12 @@ interface StudentSevenCastlesRouteViewProps {
   route: StudentTasksRouteInfo;
 }
 
+function extractStudentIdFromPlanId(planId?: string): string | null {
+  if (!planId) return null;
+  const match = String(planId).match(/^(?:sc|student)-([^-]+)-/);
+  return match ? match[1] : null;
+}
+
 export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteViewProps> = ({
   route,
 }) => {
@@ -190,6 +196,7 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
   const appName = context?.appName || 'إعداد حافظ';
 
   const [dbPlan, setDbPlan] = useState<SevenCastlesPlan | null>(null);
+  const [liveStudentName, setLiveStudentName] = useState<string | null>(null);
   const [initialLogs, setInitialLogs] = useState<ProgressLog[]>([]);
   const [isLoadingPlan, setIsLoadingPlan] = useState<boolean>(!!route.planId);
 
@@ -215,6 +222,8 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
 
   useEffect(() => {
     let cancelled = false;
+    let planRef: any = null;
+    let handlePlanValue: ((snap: any) => void) | null = null;
 
     const loadFromDb = async () => {
       if (!route.planId) {
@@ -247,6 +256,17 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
 
         setDbPlan(loadedPlan);
         setInitialLogs(loadedLogs);
+
+        // Keep the plan synced in real time if updated by teacher/admin
+        planRef = db.ref(`data/sevenCastlesPlans/${safeId}`);
+        handlePlanValue = (snap: any) => {
+          if (cancelled) return;
+          const updated = normalizeLoadedPlan(snap?.val(), safeId);
+          if (updated) {
+            setDbPlan(updated);
+          }
+        };
+        planRef.on('value', handlePlanValue);
       } catch (err) {
         console.error('Failed to load Seven Castles plan from Firebase:', err);
       } finally {
@@ -260,10 +280,95 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
 
     return () => {
       cancelled = true;
+      if (planRef && handlePlanValue) {
+        try {
+          planRef.off('value', handlePlanValue);
+        } catch {
+          // ignore listener cleanup errors
+        }
+      }
     };
   }, [route.planId]);
 
-  const activePlan = dbPlan || tokenPlan || null;
+  const resolvedStudentId = useMemo<string | null>(() => {
+    const raw =
+      dbPlan?.studentId ??
+      tokenPlan?.studentId ??
+      extractStudentIdFromPlanId(route.planId);
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    return String(raw).trim();
+  }, [dbPlan?.studentId, tokenPlan?.studentId, route.planId]);
+
+  // Subscribe to the student's live name in Firebase so edits reflect automatically
+  // on both the daily tasks page and the Mushaf header (even for previously shared links)
+  useEffect(() => {
+    if (!resolvedStudentId) {
+      setLiveStudentName(null);
+      return;
+    }
+
+    let cancelled = false;
+    let nameRef: any = null;
+    const handleNameValue = (snap: any) => {
+      if (cancelled) return;
+      const val = snap?.val();
+      if (typeof val === 'string' && val.trim()) {
+        setLiveStudentName(val.trim());
+      }
+    };
+
+    const subscribeToStudentName = async () => {
+      try {
+        let db = getDb();
+        if (!db) {
+          const res = await initializeFirebase(HARDCODED_FIREBASE_CONFIG);
+          db = res.db;
+        }
+        if (!db || cancelled) return;
+        const safeStudentId = resolvedStudentId.replace(/[.#$\[\]/]/g, '-');
+        nameRef = db.ref(`data/students/${safeStudentId}/name`);
+        nameRef.on('value', handleNameValue);
+      } catch (err) {
+        console.warn('Could not subscribe to live student name:', err);
+      }
+    };
+
+    subscribeToStudentName();
+
+    return () => {
+      cancelled = true;
+      if (nameRef) {
+        try {
+          nameRef.off('value', handleNameValue);
+        } catch {
+          // ignore listener cleanup errors
+        }
+      }
+    };
+  }, [resolvedStudentId]);
+
+  const contextStudentName = useMemo<string | null>(() => {
+    if (!resolvedStudentId || !context?.students) return null;
+    const found = context.students.find(
+      (st) => String(st.id) === String(resolvedStudentId)
+    );
+    const trimmed = typeof found?.name === 'string' ? found.name.trim() : '';
+    return trimmed || null;
+  }, [resolvedStudentId, context?.students]);
+
+  const activePlan = useMemo<SevenCastlesPlan | null>(() => {
+    const basePlan = dbPlan || tokenPlan || null;
+    if (!basePlan) return null;
+    const latestName = (liveStudentName || contextStudentName || '').trim();
+    if (latestName && latestName !== basePlan.studentName) {
+      return {
+        ...basePlan,
+        studentName: latestName,
+        name: `خطة القلاع السبع — ${latestName}`,
+      };
+    }
+    return basePlan;
+  }, [dbPlan, tokenPlan, liveStudentName, contextStudentName]);
 
   const activePlanDbKey = useMemo(() => {
     const rawId = route.planId || activePlan?.id;
@@ -294,6 +399,15 @@ export const StudentSevenCastlesRouteView: React.FC<StudentSevenCastlesRouteView
 
   const handlePlanStartDateChange = useCallback(
     async (newStartDate: string, updatedPlan: SevenCastlesPlan) => {
+      setDbPlan((prev) =>
+        prev
+          ? {
+              ...prev,
+              startDate: newStartDate,
+              firstDayOfWeek: updatedPlan.firstDayOfWeek,
+            }
+          : prev
+      );
       if (!route.planId || !activePlanDbKey) return;
       try {
         let db = getDb();

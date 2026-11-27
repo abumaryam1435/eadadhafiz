@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookOpen,
   Check,
   ChevronDown,
-  ChevronUp,
   Copy,
   Download,
   ExternalLink,
@@ -32,6 +32,7 @@ import {
   formatOldMemorizationSummary,
   getJuzForPage,
   parsePlanDate,
+  suggestSmartDefaultPlanStart,
   suggestStartForStudent,
 } from '../seven-castles/sevenCastlesGenerator';
 import {
@@ -64,6 +65,33 @@ const QUICK_DAILY_AMOUNT_OPTIONS: { id: DailyAmount; label: string; shortLabel: 
     id: DailyAmount.JUZ_PER_PLAN,
     label: 'جزء لكل خطة (الأجزاء ٢٨، ٢٩، ٣٠)',
     shortLabel: 'جزء لكل خطة',
+  },
+];
+
+const STUDENT_CARD_ACCENTS = [
+  {
+    card: 'border-emerald-300/90 dark:border-emerald-700/60 border-r-4 border-r-emerald-600 dark:border-r-emerald-500 border-b-[3px] border-b-emerald-500/45 dark:border-b-emerald-500/45 shadow-[0_8px_18px_-6px_rgba(5,150,105,0.22)] dark:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.65)]',
+    badge: 'bg-emerald-800 dark:bg-emerald-700 text-amber-300',
+  },
+  {
+    card: 'border-amber-300/90 dark:border-amber-700/60 border-r-4 border-r-amber-500 dark:border-r-amber-400 border-b-[3px] border-b-amber-500/45 dark:border-b-amber-400/45 shadow-[0_8px_18px_-6px_rgba(217,119,6,0.22)] dark:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.65)]',
+    badge: 'bg-amber-600 dark:bg-amber-600 text-white',
+  },
+  {
+    card: 'border-sky-300/90 dark:border-sky-700/60 border-r-4 border-r-sky-600 dark:border-r-sky-500 border-b-[3px] border-b-sky-500/45 dark:border-b-sky-500/45 shadow-[0_8px_18px_-6px_rgba(2,132,199,0.22)] dark:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.65)]',
+    badge: 'bg-sky-700 dark:bg-sky-700 text-white',
+  },
+  {
+    card: 'border-teal-300/90 dark:border-teal-700/60 border-r-4 border-r-teal-600 dark:border-r-teal-500 border-b-[3px] border-b-teal-500/45 dark:border-b-teal-500/45 shadow-[0_8px_18px_-6px_rgba(13,148,136,0.22)] dark:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.65)]',
+    badge: 'bg-teal-700 dark:bg-teal-700 text-amber-200',
+  },
+  {
+    card: 'border-indigo-300/90 dark:border-indigo-700/60 border-r-4 border-r-indigo-600 dark:border-r-indigo-500 border-b-[3px] border-b-indigo-500/45 dark:border-b-indigo-500/45 shadow-[0_8px_18px_-6px_rgba(79,70,229,0.20)] dark:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.65)]',
+    badge: 'bg-indigo-700 dark:bg-indigo-700 text-white',
+  },
+  {
+    card: 'border-rose-300/90 dark:border-rose-700/60 border-r-4 border-r-rose-500 dark:border-r-rose-500 border-b-[3px] border-b-rose-500/40 dark:border-b-rose-500/45 shadow-[0_8px_18px_-6px_rgba(225,29,72,0.20)] dark:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.65)]',
+    badge: 'bg-rose-700 dark:bg-rose-700 text-white',
   },
 ];
 
@@ -129,16 +157,7 @@ function loadSavedStudentConfigs(): Record<number, StudentSevenCastlesConfig> {
 }
 
 function buildDefaultStudentConfig(oldPages: number[]): StudentSevenCastlesConfig {
-  const suggested = suggestStartForStudent(oldPages, false);
-  const juzRange = JUZ_PAGES[suggested.juzNumber];
-  const startsAtJuzBoundary = !!juzRange && suggested.startPage === juzRange.start;
-  return {
-    dailyAmount: DailyAmount.QUARTER_PAGE,
-    sevenCastlesStartMode: startsAtJuzBoundary ? 'juz' : 'page',
-    juzNumber: suggested.juzNumber,
-    startPage: suggested.startPage,
-    isSevenCastlesDescending: false,
-  };
+  return suggestSmartDefaultPlanStart(oldPages);
 }
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -188,10 +207,26 @@ export const SevenCastlesPlansTab: React.FC = () => {
   const [selectedHalaqaIds, setSelectedHalaqaIds] = useState<string[]>([]);
   const [halaqaSearch, setHalaqaSearch] = useState('');
   const [openFilterDropdown, setOpenFilterDropdown] = useState<string | null>(null);
-  const [expandedStudentIds, setExpandedStudentIds] = useState<Record<number, boolean>>({});
+  const [configModalStudentId, setConfigModalStudentId] = useState<number | null>(null);
   const [openAmountMenuStudentId, setOpenAmountMenuStudentId] = useState<number | null>(null);
   const [openStartMenuStudentId, setOpenStartMenuStudentId] = useState<number | null>(null);
   const [copiedStudentId, setCopiedStudentId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (configModalStudentId === null) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setConfigModalStudentId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [configModalStudentId]);
 
   useEffect(() => {
     if (openAmountMenuStudentId === null && openStartMenuStudentId === null) return;
@@ -360,12 +395,11 @@ export const SevenCastlesPlansTab: React.FC = () => {
   };
 
   const resetStudentConfigToSuggested = (student: Student) => {
-    const mem = studentMemMap.get(student.id);
-    const suggested = mem ? mem.defaultConfig : buildDefaultStudentConfig([]);
-    setStudentConfigs((prev) => ({
-      ...prev,
-      [student.id]: suggested,
-    }));
+    setStudentConfigs((prev) => {
+      const next = { ...prev };
+      delete next[student.id];
+      return next;
+    });
     showToast?.(`تمت إعادة اقتراح البداية تلقائياً للطالب ${student.name}`, 'info');
   };
 
@@ -520,6 +554,12 @@ export const SevenCastlesPlansTab: React.FC = () => {
     if (isUsingAutoStart) {
       const nextSuggested = suggestStartForStudent(oldPages, isDescending);
       const nextRange = JUZ_PAGES[nextSuggested.juzNumber];
+      const isLastThreeJuz =
+        nextSuggested.juzNumber === 28 ||
+        nextSuggested.juzNumber === 29 ||
+        nextSuggested.juzNumber === 30;
+      const shouldUseJuzPerPlan =
+        isLastThreeJuz && current.dailyAmount === DailyAmount.QUARTER_PAGE;
       const startsAtBoundary =
         !!nextRange &&
         (isDescending
@@ -527,10 +567,17 @@ export const SevenCastlesPlansTab: React.FC = () => {
           : nextSuggested.startPage === nextRange.start);
       updateStudentConfig(student.id, {
         ...current,
+        dailyAmount: shouldUseJuzPerPlan ? DailyAmount.JUZ_PER_PLAN : current.dailyAmount,
         isSevenCastlesDescending: isDescending,
         juzNumber: nextSuggested.juzNumber,
-        startPage: nextSuggested.startPage,
-        sevenCastlesStartMode: startsAtBoundary ? 'juz' : 'page',
+        startPage:
+          shouldUseJuzPerPlan && nextRange
+            ? isDescending
+              ? nextRange.end
+              : nextRange.start
+            : nextSuggested.startPage,
+        sevenCastlesStartMode:
+          shouldUseJuzPerPlan || startsAtBoundary ? 'juz' : 'page',
       });
       return;
     }
@@ -599,26 +646,10 @@ export const SevenCastlesPlansTab: React.FC = () => {
   };
 
   const handleQuickResetStart = (student: Student) => {
-    const current = getEffectiveConfig(student);
-    const mem = studentMemMap.get(student.id);
-    const oldPages = mem?.oldPages || [];
-    const suggested = suggestStartForStudent(oldPages, current.isSevenCastlesDescending);
-    const range = JUZ_PAGES[suggested.juzNumber];
-    const atBoundary =
-      !!range &&
-      (current.isSevenCastlesDescending
-        ? suggested.startPage === range.end
-        : suggested.startPage === range.start);
-    updateStudentConfig(student.id, {
-      ...current,
-      juzNumber: suggested.juzNumber,
-      startPage: suggested.startPage,
-      sevenCastlesStartMode:
-        current.dailyAmount === DailyAmount.JUZ_PER_PLAN
-          ? 'juz'
-          : atBoundary
-            ? 'juz'
-            : 'page',
+    setStudentConfigs((prev) => {
+      const next = { ...prev };
+      delete next[student.id];
+      return next;
     });
     setOpenStartMenuStudentId(null);
   };
@@ -762,12 +793,13 @@ export const SevenCastlesPlansTab: React.FC = () => {
     }
   };
 
-  const toggleExpand = (studentId: number) => {
-    setExpandedStudentIds((prev) => ({
-      ...prev,
-      [studentId]: !prev[studentId],
-    }));
-  };
+  const configModalStudent = useMemo(
+    () =>
+      configModalStudentId !== null
+        ? students.find((s) => s.id === configModalStudentId) || null
+        : null,
+    [configModalStudentId, students]
+  );
 
   return (
     <div dir="rtl" className="space-y-5 max-w-6xl mx-auto">
@@ -906,14 +938,14 @@ export const SevenCastlesPlansTab: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {filteredStudents.map((student) => {
+        <div className="space-y-4">
+          {filteredStudents.map((student, studentIdx) => {
             const mem = studentMemMap.get(student.id);
             const oldRanges = mem?.oldRanges || [];
             const oldPages = mem?.oldPages || [];
             const oldSummary = mem?.summary || 'لا يوجد محفوظ قديم';
             const config = getEffectiveConfig(student);
-            const isExpanded = !!expandedStudentIds[student.id];
+            const isConfigModalOpen = configModalStudentId === student.id;
             const isAmountMenuOpen = openAmountMenuStudentId === student.id;
             const isStartMenuOpen = openStartMenuStudentId === student.id;
             const halaqaInfo = halaqaMap.get(student.halaqaId);
@@ -927,11 +959,13 @@ export const SevenCastlesPlansTab: React.FC = () => {
               selectedAmountOption?.shortLabel ||
               DAILY_AMOUNT_LABELS[config.dailyAmount] ||
               'ربع صفحة';
+            const cardAccent =
+              STUDENT_CARD_ACCENTS[studentIdx % STUDENT_CARD_ACCENTS.length];
 
             return (
               <div
                 key={student.id}
-                className={`bg-white dark:bg-[#1A1A1A] border border-[#1A2E1A]/10 dark:border-white/10 rounded-3xl shadow-sm transition-all relative ${
+                className={`bg-white dark:bg-[#1A1A1A] border rounded-3xl transition-all relative ${cardAccent.card} ${
                   isAmountMenuOpen || isStartMenuOpen ? 'z-30' : 'z-0'
                 }`}
               >
@@ -939,7 +973,9 @@ export const SevenCastlesPlansTab: React.FC = () => {
                 <div className="p-3.5 sm:p-4 space-y-3">
                   {/* Top Row: Student Identity + Halaqa */}
                   <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-900 dark:bg-emerald-800 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <div
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center shrink-0 shadow-xs mt-0.5 ${cardAccent.badge}`}
+                    >
                       {student.studentNumber ?? '#'}
                     </div>
                     <div className="min-w-0 flex-1 space-y-1.5">
@@ -1272,81 +1308,144 @@ export const SevenCastlesPlansTab: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => toggleExpand(student.id)}
-                      className={`min-h-[38px] px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 border cursor-pointer sm:mr-auto ${
-                        isExpanded
+                      onClick={() => setConfigModalStudentId(student.id)}
+                      className={`min-h-[38px] px-3 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 border cursor-pointer active:scale-95 sm:mr-auto ${
+                        isConfigModalOpen
                           ? 'bg-[#1A2E1A] text-white border-[#1A2E1A] dark:bg-[#D4AF37] dark:text-[#1A1A1A] dark:border-[#D4AF37]'
                           : 'bg-gray-50 hover:bg-gray-100 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-white/10'
                       }`}
                     >
                       <Settings2 className="w-3.5 h-3.5 shrink-0" />
                       <span>إعداد الخطة</span>
-                      {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5 shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                      )}
                     </button>
                   </div>
                 </div>
-
-                {/* Expandable StudentSevenCastlesConfigForm (Verbatim from kit) */}
-                {isExpanded && (
-                  <div className="border-t border-gray-100 dark:border-white/5 bg-gray-50/40 dark:bg-black/15 p-3.5 sm:p-5 rounded-b-3xl space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <span className="text-xs font-extrabold text-gray-600 dark:text-gray-300">
-                        تخصيص خطة القلاع السبع للطالب: {student.name}
-                      </span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => resetStudentConfigToSuggested(student)}
-                          className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-white/10 flex items-center gap-1 cursor-pointer"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>استعادة البداية المقترحة تلقائياً</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!ensureStartDateValid()) return;
-                            const plan = buildPlanForStudent(student);
-                            const savedPlanId = await savePlanToDatabase(plan);
-                            const url = buildStudentTasksShareUrl(plan, {
-                              routePath: '/student-tasks',
-                              savedPlanId,
-                            });
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.target = '_blank';
-                            link.rel = 'noopener noreferrer';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }}
-                          className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/40 flex items-center gap-1 cursor-pointer"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>معاينة صفحة مهام الطالب</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <StudentSevenCastlesConfigForm
-                      studentName={student.name}
-                      oldMemorizationRanges={oldRanges}
-                      oldMemorizedPages={oldPages}
-                      config={config}
-                      startDate={sharedSettings.startDate}
-                      onChange={(next) => updateStudentConfig(student.id, next)}
-                    />
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Mobile-Responsive Student Plan Config Modal */}
+      {configModalStudent &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          (() => {
+            const modalMem = studentMemMap.get(configModalStudent.id);
+            const modalOldRanges = modalMem?.oldRanges || [];
+            const modalOldPages = modalMem?.oldPages || [];
+            const modalConfig = getEffectiveConfig(configModalStudent);
+            const modalHalaqa = halaqaMap.get(configModalStudent.halaqaId);
+
+            return (
+              <div
+                dir="rtl"
+                className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+                onClick={() => setConfigModalStudentId(null)}
+              >
+                <div
+                  className="bg-white dark:bg-[#171717] w-full sm:max-w-2xl max-h-[92dvh] sm:max-h-[88dvh] rounded-t-3xl sm:rounded-3xl shadow-2xl border-t sm:border border-gray-200/80 dark:border-white/10 flex flex-col overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Mobile Drag Handle Indicator */}
+                  <div className="sm:hidden flex justify-center pt-2 pb-1 bg-white dark:bg-[#171717] shrink-0">
+                    <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-white/20" />
+                  </div>
+
+                  {/* Sticky Modal Header */}
+                  <div className="px-4 sm:px-5 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between gap-2.5 shrink-0 bg-white dark:bg-[#171717]">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/50 flex items-center justify-center text-emerald-700 dark:text-[#D4AF37] shrink-0">
+                          <Settings2 className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm sm:text-base font-extrabold text-[#1A2E1A] dark:text-white truncate">
+                            إعداد خطة: {configModalStudent.name}
+                          </h3>
+                          {modalHalaqa?.name && (
+                            <p className="text-[11px] font-bold text-gray-400 dark:text-gray-400 truncate">
+                              {modalHalaqa.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setConfigModalStudentId(null)}
+                      aria-label="إغلاق نافذة الإعدادات"
+                      className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Scrollable Modal Body */}
+                  <div className="flex-1 overflow-y-auto overscroll-contain px-3.5 sm:px-5 py-3.5 sm:py-4 space-y-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => resetStudentConfigToSuggested(configModalStudent)}
+                        className="min-h-[38px] text-[11px] sm:text-xs font-bold px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-white/10 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                        <span>استعادة البداية المقترحة تلقائياً</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!ensureStartDateValid()) return;
+                          const plan = buildPlanForStudent(configModalStudent);
+                          const savedPlanId = await savePlanToDatabase(plan);
+                          const url = buildStudentTasksShareUrl(plan, {
+                            routePath: '/student-tasks',
+                            savedPlanId,
+                          });
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.target = '_blank';
+                          link.rel = 'noopener noreferrer';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                        className="min-h-[38px] text-[11px] sm:text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/40 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        <span>معاينة صفحة مهام الطالب</span>
+                      </button>
+                    </div>
+
+                    <StudentSevenCastlesConfigForm
+                      studentName={configModalStudent.name}
+                      oldMemorizationRanges={modalOldRanges}
+                      oldMemorizedPages={modalOldPages}
+                      config={modalConfig}
+                      startDate={sharedSettings.startDate}
+                      onChange={(next) => updateStudentConfig(configModalStudent.id, next)}
+                    />
+                  </div>
+
+                  {/* Sticky Modal Footer */}
+                  <div className="px-4 sm:px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:py-3 border-t border-gray-100 dark:border-white/10 bg-gray-50/80 dark:bg-black/25 flex items-center justify-between gap-2 shrink-0">
+                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                      تُحفظ التعديلات تلقائياً
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setConfigModalStudentId(null)}
+                      className="min-h-[40px] px-6 py-2 rounded-xl bg-[#1A2E1A] hover:bg-emerald-900 dark:bg-[#D4AF37] dark:hover:bg-amber-400 text-white dark:text-[#1A1A1A] text-xs sm:text-sm font-extrabold shadow-xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      تم وإغلاق
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })(),
+          document.body
+        )}
     </div>
   );
 };

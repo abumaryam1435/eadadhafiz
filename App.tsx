@@ -1963,7 +1963,44 @@ const App: React.FC = () => {
     writeData(`data/students/${id}`, { ...s, id, studentNumber, isFromIbri: s.isFromIbri !== undefined ? s.isFromIbri : true, updatedAt: id });
     return id;
   };
-  const updateStudent = (s: any) => writeData(`data/students/${s.id}`, { ...s, updatedAt: Date.now() });
+  const updateStudent = (s: any) => {
+    writeData(`data/students/${s.id}`, { ...s, updatedAt: Date.now() });
+    if (s?.id !== undefined && s?.id !== null && typeof s?.name === 'string' && s.name.trim()) {
+      const trimmedName = s.name.trim();
+      const prevStudent = (data.students || []).find(st => String(st.id) === String(s.id));
+      if (!prevStudent || (prevStudent.name || '').trim() !== trimmedName) {
+        const db = getDb();
+        if (db) {
+          const targetIdStr = String(s.id);
+          const nowIso = new Date().toISOString();
+          db.ref('data/sevenCastlesPlans')
+            .once('value')
+            .then((snap: any) => {
+              const plansObj = snap?.val();
+              if (!plansObj || typeof plansObj !== 'object') return;
+              const updates: Record<string, any> = {};
+              Object.entries(plansObj).forEach(([planKey, planVal]: [string, any]) => {
+                if (!planVal || typeof planVal !== 'object') return;
+                const matchesStudentId =
+                  planVal.studentId !== undefined &&
+                  planVal.studentId !== null &&
+                  String(planVal.studentId) === targetIdStr;
+                const matchesPlanKey = planKey.startsWith(`sc-${targetIdStr}-`);
+                if (matchesStudentId || matchesPlanKey) {
+                  updates[`${planKey}/studentName`] = trimmedName;
+                  updates[`${planKey}/name`] = `خطة القلاع السبع — ${trimmedName}`;
+                  updates[`${planKey}/updatedAt`] = nowIso;
+                }
+              });
+              if (Object.keys(updates).length > 0) {
+                db.ref('data/sevenCastlesPlans').update(updates).catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    }
+  };
   const deleteStudent = (id: number) => writeData(`data/students/${id}`, null);
   
   const resetAllStudentsLevelToAuto = () => {

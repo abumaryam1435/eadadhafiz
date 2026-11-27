@@ -352,7 +352,6 @@ export const StudentSevenCastlesTasksPage: React.FC<
   const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'weeks'>(
     'month'
   );
-  const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [postponeSuccessMsg, setPostponeSuccessMsg] = useState<string | null>(
     null
   );
@@ -765,27 +764,6 @@ export const StudentSevenCastlesTasksPage: React.FC<
       };
     });
     persistDayLog(updated);
-  };
-
-  const handlePostponeToday = () => {
-    if (!activePlan) return;
-    const nextStartStr = format(
-      addDays(parsePlanDate(activePlan.startDate), 1),
-      'yyyy-MM-dd'
-    );
-    const updatedPlan: SevenCastlesPlan = {
-      ...activePlan,
-      startDate: nextStartStr,
-      updatedAt: new Date().toISOString(),
-    };
-    persistDayLog([], 'postponed');
-    setActivePlan(updatedPlan);
-    setShowPostponeModal(false);
-    Promise.resolve(onPlanStartDateChange?.(nextStartStr, updatedPlan)).catch(
-      () => {}
-    );
-    setPostponeSuccessMsg('تم تأجيل مهام هذا اليوم وزحزحة الجدول يوماً واحداً بنجاح.');
-    setTimeout(() => setPostponeSuccessMsg(null), 4000);
   };
 
   const handleUndoPostpone = () => {
@@ -1281,22 +1259,12 @@ export const StudentSevenCastlesTasksPage: React.FC<
         </div>
       )}
 
-      {/* Tasks Header & Postpone Button */}
+      {/* Tasks Header */}
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <h3 className="text-xs sm:text-sm font-bold text-gray-500 dark:text-gray-400">
             المهام اليومية ({completedCount}/{currentTasks.length})
           </h3>
-          {isEditable && !isPostponedDay && currentTasks.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowPostponeModal(true)}
-              className="flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 transition-all active:scale-95 cursor-pointer"
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>تأجيل مهام اليوم</span>
-            </button>
-          )}
         </div>
 
         {/* Grouped & Single Tasks */}
@@ -1578,38 +1546,6 @@ export const StudentSevenCastlesTasksPage: React.FC<
           </div>
         ) : null}
       </div>
-
-      {/* Postpone Modal */}
-      {showPostponeModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-xl border border-gray-100 dark:border-white/10">
-            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-extrabold text-sm">
-              <Clock className="w-5 h-5" />
-              <span>تأجيل مهام اليوم</span>
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-              هل تريد تأجيل مهام هذا اليوم إلى الغد؟ ستتم زحزحة جدول الأيام القادمة
-              يوماً واحداً تلقائياً، ويمكنك التراجع لاحقاً في أي وقت.
-            </p>
-            <div className="flex items-center gap-2 justify-end pt-1">
-              <button
-                type="button"
-                onClick={() => setShowPostponeModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300"
-              >
-                إلغاء
-              </button>
-              <button
-                type="button"
-                onClick={handlePostponeToday}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white hover:bg-amber-700"
-              >
-                تأكيد التأجيل
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Calendar Modal */}
       {isCalendarOpen && (

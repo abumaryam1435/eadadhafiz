@@ -189,6 +189,132 @@ export function suggestStartForStudent(
 }
 
 /**
+ * Computes smart default Seven Castles configuration for a student based on their old memorization:
+ * 1. If the student has old memorization ranges from both the beginning and the end of the Mushaf:
+ *    - If end-side memorized pages > beginning-side memorized pages -> start descending from the page reached at the end.
+ *    - Otherwise -> start ascending from the page reached at the beginning.
+ * 2. If the student has old memorization only in the end half (> 302) -> start descending from the page reached at the end.
+ * 3. If the resulting plan starts in Juz 28, 29, or 30 -> default dailyAmount to JUZ_PER_PLAN (جزء لكل خطة).
+ */
+export function suggestSmartDefaultPlanStart(oldMemorizedPages: number[]): {
+  dailyAmount: DailyAmount;
+  sevenCastlesStartMode: 'juz' | 'page';
+  juzNumber: number;
+  startPage: number;
+  isSevenCastlesDescending: boolean;
+} {
+  const uniquePages = [...new Set(oldMemorizedPages)]
+    .filter((p) => p >= 1 && p <= 604)
+    .sort((a, b) => a - b);
+
+  if (uniquePages.length === 0) {
+    return {
+      dailyAmount: DailyAmount.QUARTER_PAGE,
+      sevenCastlesStartMode: 'juz',
+      juzNumber: 1,
+      startPage: 1,
+      isSevenCastlesDescending: false,
+    };
+  }
+
+  const oldSet = new Set(uniquePages);
+  const ranges = compressPagesToRanges(uniquePages);
+
+  const findFirstUnmemorizedAscending = (): number => {
+    const scanStart = !oldSet.has(1) && oldSet.has(2) ? 2 : 1;
+    for (let p = scanStart; p <= 604; p++) {
+      if (!oldSet.has(p)) return p;
+    }
+    return 1;
+  };
+
+  const findFirstUnmemorizedDescending = (): number => {
+    const scanStart = !oldSet.has(604) && oldSet.has(603) ? 603 : 604;
+    for (let p = scanStart; p >= 1; p--) {
+      if (!oldSet.has(p)) return p;
+    }
+    return 604;
+  };
+
+  let isDescending = false;
+  const firstRange = ranges[0];
+  const lastRange = ranges[ranges.length - 1];
+
+  if (firstRange.start > 302) {
+    // Only memorized in the second half / end of the Mushaf
+    isDescending = true;
+  } else if (lastRange.end <= 302) {
+    // Only memorized in the first half / beginning of the Mushaf
+    isDescending = false;
+  } else if (ranges.length === 1) {
+    // Single contiguous block crossing the midpoint
+    if (firstRange.start <= 2 && lastRange.end < 604) {
+      isDescending = false;
+    } else if (lastRange.end >= 603 && firstRange.start > 2) {
+      isDescending = true;
+    } else {
+      const startHalfCount = uniquePages.filter((p) => p <= 302).length;
+      const endHalfCount = uniquePages.length - startHalfCount;
+      isDescending = endHalfCount > startHalfCount;
+    }
+  } else {
+    // Multiple ranges spanning both beginning and end of the Mushaf:
+    // Split at the largest unmemorized gap between consecutive ranges
+    let splitIdx = 0;
+    let maxGap = -1;
+    for (let i = 0; i < ranges.length - 1; i++) {
+      const gap = ranges[i + 1].start - ranges[i].end - 1;
+      if (gap > maxGap) {
+        maxGap = gap;
+        splitIdx = i;
+      }
+    }
+    let fromStartCount = 0;
+    for (let i = 0; i <= splitIdx; i++) {
+      fromStartCount += ranges[i].end - ranges[i].start + 1;
+    }
+    let fromEndCount = 0;
+    for (let i = splitIdx + 1; i < ranges.length; i++) {
+      fromEndCount += ranges[i].end - ranges[i].start + 1;
+    }
+    isDescending = fromEndCount > fromStartCount;
+  }
+
+  const rawStartPage = isDescending
+    ? findFirstUnmemorizedDescending()
+    : findFirstUnmemorizedAscending();
+  const juzNumber = getJuzForPage(rawStartPage);
+  const isLastThreeJuz = juzNumber === 28 || juzNumber === 29 || juzNumber === 30;
+  const juzRange = JUZ_PAGES[juzNumber];
+
+  if (isLastThreeJuz) {
+    return {
+      dailyAmount: DailyAmount.JUZ_PER_PLAN,
+      sevenCastlesStartMode: 'juz',
+      juzNumber,
+      startPage: juzRange
+        ? isDescending
+          ? juzRange.end
+          : juzRange.start
+        : rawStartPage,
+      isSevenCastlesDescending: isDescending,
+    };
+  }
+
+  const startsAtJuzBoundary =
+    !!juzRange &&
+    (isDescending ? rawStartPage === juzRange.end : rawStartPage === juzRange.start);
+
+  return {
+    dailyAmount: DailyAmount.QUARTER_PAGE,
+    sevenCastlesStartMode: startsAtJuzBoundary ? 'juz' : 'page',
+    juzNumber,
+    startPage: rawStartPage,
+    isSevenCastlesDescending: isDescending,
+  };
+}
+
+/**
  * Helper to build a complete, ready-to-use SevenCastlesPlan for a student from their existing old memorization ranges.
  */
 export function createStudentSevenCastlesPlan(params: {
